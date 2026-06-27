@@ -34,7 +34,8 @@ UI components from [prompt-kit](https://www.prompt-kit.com/docs/chat-container):
 - **Message** — user/assistant bubbles with markdown via shiki
 - **Reasoning** — collapsible thinking blocks
 - **Tool** — collapsible tool call cards
-- **PromptInput** — autosizing input with action slots
+- **PromptInput** — autosizing input; mode, thinking, and model live in `PromptInputActions` (not a separate footer row)
+- **PromptSuggestion** — slash-command chips float above the input when empty
 - **ChainOfThought** — thinking steps with vertical rail (`ThinkingChain`)
 - **ThinkingBar** + **TextShimmer** — streaming indicator with stop
 - **Steps** — grouped consecutive tool runs

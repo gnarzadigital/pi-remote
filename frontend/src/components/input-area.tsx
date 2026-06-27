@@ -1,5 +1,5 @@
 import { ArrowUp, Paperclip } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -73,6 +73,83 @@ function CmdPicker({ onSelect }: { onSelect: (value: string) => void }) {
   );
 }
 
+function InputToolbarChip({
+  active,
+  onClick,
+  children,
+  tooltip,
+}: {
+  active?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  tooltip: string;
+}) {
+  return (
+    <PromptInputAction tooltip={tooltip}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        className={cn(
+          "h-7 rounded-full px-2.5 text-[12px] text-concrete hover:text-graphite",
+          active && "bg-mist text-graphite ring-1 ring-hairline"
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+      >
+        {children}
+      </Button>
+    </PromptInputAction>
+  );
+}
+
+function ModelPickerAction() {
+  const { snapshot, bridge } = usePiBridge();
+  const recent = snapshot.recentModels
+    .map((r) => snapshot.allModels.find((m) => m.id === r.id && m.provider === r.provider))
+    .filter(Boolean);
+
+  const label = snapshot.activeModel?.id ?? "Model";
+
+  return (
+    <PromptInputAction tooltip="Switch model">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="h-7 max-w-[min(120px,28vw)] truncate rounded-full px-2.5 text-[12px] text-concrete hover:text-graphite"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {label}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
+          {recent.length > 0 && (
+            <>
+              <DropdownMenuLabel>Recent</DropdownMenuLabel>
+              {recent.map((m) => (
+                <DropdownMenuItem key={`${m!.provider}/${m!.id}`} onClick={() => bridge.setModel(m!)}>
+                  {m!.name ?? m!.id}
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
+          <DropdownMenuLabel>All</DropdownMenuLabel>
+          {snapshot.allModels.slice(0, 30).map((m) => (
+            <DropdownMenuItem key={`${m.provider}/${m.id}`} onClick={() => bridge.setModel(m)}>
+              {m.name ?? m.id}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </PromptInputAction>
+  );
+}
+
 export function InputArea() {
   const { snapshot, bridge } = usePiBridge();
   const [input, setInput] = useState("");
@@ -99,9 +176,13 @@ export function InputArea() {
   };
 
   return (
-    <footer className="input-footer sticky bottom-0 z-20 shrink-0 border-t border-hairline bg-canvas/95 px-3 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/90">
+    <footer className="input-footer sticky bottom-0 z-20 shrink-0 border-t border-hairline bg-canvas px-3 pt-2">
       <div className="relative">
-        <PromptSuggestionsRow input={input} onSelect={setInput} />
+        <div className="pointer-events-none absolute bottom-full left-0 right-0 z-20 mb-1.5">
+          <div className="pointer-events-auto">
+            <PromptSuggestionsRow input={input} onSelect={setInput} />
+          </div>
+        </div>
         <CmdPicker onSelect={setInput} />
         <PromptInput
           value={input}
@@ -121,7 +202,7 @@ export function InputArea() {
           <PromptInputTextarea
             id="msg-input"
             placeholder={`Message ${snapshot.activeModel?.id ?? "pi"}…`}
-            className="min-h-[44px] text-[16px] text-graphite placeholder:text-concrete md:text-[14px]"
+            className="min-h-[44px] px-1 text-[16px] text-graphite placeholder:text-concrete md:text-[14px]"
             onBlur={() => {
               window.setTimeout(() => bridge.hideCmdPicker(), 150);
             }}
@@ -149,9 +230,9 @@ export function InputArea() {
               }
             }}
           />
-          <PromptInputActions className="px-1 pb-0.5 pt-1">
+          <PromptInputActions className="gap-1 px-0.5 pb-0.5 pt-1">
             <PromptInputAction tooltip="Attach image">
-              <label className="inline-flex size-9 cursor-pointer items-center justify-center rounded-[10px] border border-hairline text-concrete hover:bg-mist">
+              <label className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-concrete hover:bg-mist hover:text-graphite">
                 <input
                   type="file"
                   accept="image/*"
@@ -162,10 +243,33 @@ export function InputArea() {
                 <Paperclip className="size-4" />
               </label>
             </PromptInputAction>
-            <div className="ml-auto">
+
+            {!snapshot.cmdPickerOpen && (
+              <>
+                <InputToolbarChip
+                  tooltip="Send mode (Prompt → Steer → Follow-up)"
+                  active={snapshot.mode === "prompt"}
+                  onClick={() => bridge.cycleMode()}
+                >
+                  {MODE_LABELS[snapshot.mode]}
+                </InputToolbarChip>
+                <InputToolbarChip
+                  tooltip="Thinking level (Off → Low → High)"
+                  active={snapshot.thinkingLevel !== "none"}
+                  onClick={() => bridge.cycleThinking()}
+                >
+                  {THINKING_LABELS[snapshot.thinkingLevel]}
+                </InputToolbarChip>
+              </>
+            )}
+
+            <div className="ml-auto flex items-center gap-1">
+              {!snapshot.cmdPickerOpen && snapshot.allModels.length > 0 && (
+                <ModelPickerAction />
+              )}
               <PromptInputAction tooltip="Send">
                 <Button
-                  size="icon"
+                  size="icon-sm"
                   className="rounded-full"
                   disabled={!snapshot.connected || !input.trim()}
                   aria-label="Send"
@@ -181,73 +285,6 @@ export function InputArea() {
           </PromptInputActions>
         </PromptInput>
       </div>
-      {!snapshot.cmdPickerOpen && (
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            className={cn(
-              "rounded-[10px] border px-2.5 py-1 text-[12px]",
-              snapshot.mode === "prompt"
-                ? "border-graphite bg-graphite text-chalk"
-                : "border-hairline text-concrete hover:bg-mist"
-            )}
-            onClick={() => bridge.cycleMode()}
-          >
-            {MODE_LABELS[snapshot.mode]}
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "rounded-[10px] border px-2.5 py-1 text-[12px]",
-              snapshot.thinkingLevel !== "none"
-                ? "border-graphite text-graphite"
-                : "border-hairline text-concrete hover:bg-mist"
-            )}
-            onClick={() => bridge.cycleThinking()}
-          >
-            {THINKING_LABELS[snapshot.thinkingLevel]}
-          </button>
-          {snapshot.allModels.length > 0 && <ModelPickerInline />}
-        </div>
-      )}
     </footer>
-  );
-}
-
-function ModelPickerInline() {
-  const { snapshot, bridge } = usePiBridge();
-  const recent = snapshot.recentModels
-    .map((r) => snapshot.allModels.find((m) => m.id === r.id && m.provider === r.provider))
-    .filter(Boolean);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="ml-auto rounded-[10px] border border-hairline px-2.5 py-1 text-[12px] text-concrete hover:bg-mist"
-        >
-          Model
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
-        {recent.length > 0 && (
-          <>
-            <DropdownMenuLabel>Recent</DropdownMenuLabel>
-            {recent.map((m) => (
-              <DropdownMenuItem key={`${m!.provider}/${m!.id}`} onClick={() => bridge.setModel(m!)}>
-                {m!.name ?? m!.id}
-              </DropdownMenuItem>
-            ))}
-          </>
-        )}
-        <DropdownMenuLabel>All</DropdownMenuLabel>
-        {snapshot.allModels.slice(0, 30).map((m) => (
-          <DropdownMenuItem key={`${m.provider}/${m.id}`} onClick={() => bridge.setModel(m)}>
-            {m.name ?? m.id}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

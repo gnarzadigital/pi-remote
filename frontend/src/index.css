@@ -144,6 +144,7 @@ body {
 
 .input-footer {
   padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  background: var(--color-canvas);
 }
 
 html.keyboard-open .input-footer {

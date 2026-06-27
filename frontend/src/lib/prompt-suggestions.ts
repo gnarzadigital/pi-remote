@@ -50,6 +50,10 @@ export function getPromptSuggestions(
 
   const trimmed = input.trim();
 
+  if (trimmed && !trimmed.startsWith("/")) {
+    return [];
+  }
+
   if (!trimmed) {
     return commandItems(commands);
   }

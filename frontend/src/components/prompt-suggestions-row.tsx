@@ -25,7 +25,7 @@ export function PromptSuggestionsRow({ input, onSelect, className }: Props) {
   return (
     <div
       className={cn(
-        "mb-2 flex gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "flex flex-nowrap gap-1.5 overflow-x-auto overscroll-x-contain rounded-[10px] border border-hairline bg-canvas/95 p-1.5 backdrop-blur-md [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className
       )}
       role="list"
@@ -39,10 +39,10 @@ export function PromptSuggestionsRow({ input, onSelect, className }: Props) {
           size="sm"
           title={item.title}
           highlight={item.highlight}
-          className="shrink-0 max-w-[min(200px,55vw)] truncate border-hairline bg-chalk text-graphite hover:bg-mist"
+          className="h-7 shrink-0 rounded-full border-hairline bg-chalk px-2.5 text-[11px] text-graphite hover:bg-mist"
           onClick={() => onSelect(item.value)}
         >
-          {item.label}
+          <span className="block max-w-[min(160px,42vw)] truncate">{item.label}</span>
         </PromptSuggestion>
       ))}
     </div>
