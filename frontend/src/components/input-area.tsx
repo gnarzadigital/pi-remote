@@ -1,5 +1,5 @@
 import { ArrowUp, Paperclip } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,6 +8,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  PromptInput,
+  PromptInputAction,
+  PromptInputActions,
+  PromptInputTextarea,
+} from "@/components/ui/prompt-input";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import type { PiCommand } from "@/lib/types";
 import { cn, hapticTap } from "@/lib/utils";
@@ -26,7 +32,7 @@ function filterCommands(commands: PiCommand[], filter: string) {
     .slice(0, 8);
 }
 
-function CmdPicker() {
+function CmdPicker({ onSelect }: { onSelect: (value: string) => void }) {
   const { snapshot, bridge } = usePiBridge();
   const matches = useMemo(
     () => filterCommands(snapshot.commands, snapshot.cmdFilter),
@@ -53,8 +59,7 @@ function CmdPicker() {
           )}
           onMouseDown={(e) => {
             e.preventDefault();
-            const el = document.getElementById("msg-input") as HTMLTextAreaElement | null;
-            if (el) el.value = bridge.selectCommand(c.name);
+            onSelect(bridge.selectCommand(c.name));
           }}
         >
           <div className="truncate text-[13px] font-medium text-graphite">/{c.name}</div>
@@ -69,44 +74,52 @@ function CmdPicker() {
 
 export function InputArea() {
   const { snapshot, bridge } = usePiBridge();
+  const [input, setInput] = useState("");
   const matches = useMemo(
     () => filterCommands(snapshot.commands, snapshot.cmdFilter),
     [snapshot.commands, snapshot.cmdFilter]
   );
 
+  const handleValueChange = (value: string) => {
+    setInput(value);
+    if (value.startsWith("/") && !value.includes(" ")) {
+      bridge.showCmdPicker(value.slice(1));
+    } else {
+      bridge.hideCmdPicker();
+    }
+  };
+
+  const sendCurrent = () => {
+    const val = input.trim();
+    if (!val) return;
+    hapticTap();
+    bridge.sendMessage(val);
+    setInput("");
+  };
+
   return (
     <footer className="input-footer sticky bottom-0 z-20 shrink-0 border-t border-hairline bg-canvas/95 px-3 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/90">
       <div className="relative">
-        <CmdPicker />
-        <div className="flex items-end gap-2">
-          <label className="cursor-pointer">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="sr-only"
-              onChange={(e) => e.target.files && bridge.addPendingImages(e.target.files)}
-            />
-            <span className="inline-flex size-9 items-center justify-center rounded-[10px] border border-hairline text-concrete hover:bg-mist">
-              <Paperclip className="size-4" />
-            </span>
-          </label>
-          <textarea
+        <CmdPicker onSelect={setInput} />
+        <PromptInput
+          value={input}
+          onValueChange={handleValueChange}
+          onSubmit={() => {
+            if (snapshot.cmdPickerOpen && matches.length > 0) {
+              const cmd = matches[snapshot.cmdSelectedIdx];
+              if (cmd) setInput(bridge.selectCommand(cmd.name));
+              return;
+            }
+            sendCurrent();
+          }}
+          maxHeight={140}
+          disabled={!snapshot.connected}
+          className="rounded-[14px] border-hairline bg-chalk p-1.5 shadow-none"
+        >
+          <PromptInputTextarea
             id="msg-input"
-            rows={1}
             placeholder={`Message ${snapshot.activeModel?.id ?? "pi"}…`}
-            className="max-h-[140px] min-h-[44px] flex-1 resize-none rounded-[10px] border border-hairline bg-chalk px-3 py-2.5 text-[16px] text-graphite placeholder:text-concrete focus:outline-none focus:ring-2 focus:ring-graphite/10 md:text-[14px]"
-            onInput={(e) => {
-              const t = e.currentTarget;
-              t.style.height = "auto";
-              t.style.height = `${Math.min(t.scrollHeight, 140)}px`;
-              const val = t.value;
-              if (val.startsWith("/") && !val.includes(" ")) {
-                bridge.showCmdPicker(val.slice(1));
-              } else {
-                bridge.hideCmdPicker();
-              }
-            }}
+            className="min-h-[44px] text-[16px] text-graphite placeholder:text-concrete md:text-[14px]"
             onBlur={() => {
               window.setTimeout(() => bridge.hideCmdPicker(), 150);
             }}
@@ -124,10 +137,6 @@ export function InputArea() {
                 }
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  const cmd = matches[snapshot.cmdSelectedIdx];
-                  if (cmd) {
-                    e.currentTarget.value = bridge.selectCommand(cmd.name);
-                  }
                   return;
                 }
                 if (e.key === "Escape") {
@@ -136,37 +145,39 @@ export function InputArea() {
                   return;
                 }
               }
-
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                const val = e.currentTarget.value.trim();
-                if (val) {
-                  hapticTap();
-                  bridge.sendMessage(val);
-                  e.currentTarget.value = "";
-                  e.currentTarget.style.height = "auto";
-                }
-              }
             }}
           />
-          <Button
-            size="icon"
-            className="rounded-full"
-            disabled={!snapshot.connected}
-            aria-label="Send"
-            onClick={() => {
-              const el = document.getElementById("msg-input") as HTMLTextAreaElement | null;
-              if (el?.value.trim()) {
-                hapticTap();
-                bridge.sendMessage(el.value);
-                el.value = "";
-                el.style.height = "auto";
-              }
-            }}
-          >
-            <ArrowUp className="size-4" />
-          </Button>
-        </div>
+          <PromptInputActions className="px-1 pb-0.5 pt-1">
+            <PromptInputAction tooltip="Attach image">
+              <label className="inline-flex size-9 cursor-pointer items-center justify-center rounded-[10px] border border-hairline text-concrete hover:bg-mist">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => e.target.files && bridge.addPendingImages(e.target.files)}
+                />
+                <Paperclip className="size-4" />
+              </label>
+            </PromptInputAction>
+            <div className="ml-auto">
+              <PromptInputAction tooltip="Send">
+                <Button
+                  size="icon"
+                  className="rounded-full"
+                  disabled={!snapshot.connected || !input.trim()}
+                  aria-label="Send"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sendCurrent();
+                  }}
+                >
+                  <ArrowUp className="size-4" />
+                </Button>
+              </PromptInputAction>
+            </div>
+          </PromptInputActions>
+        </PromptInput>
       </div>
       {!snapshot.cmdPickerOpen && (
         <div className="mt-2 flex gap-2">

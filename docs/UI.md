@@ -26,6 +26,18 @@ Monochromatic Swiss grid — Codex-minimal, mobile-first.
 
 Theme persists in `localStorage` key `pi-remote-theme`.
 
+## Stack
+
+UI components from [prompt-kit](https://www.prompt-kit.com/docs/chat-container):
+
+- **ChatContainer** + **ScrollButton** — stick-to-bottom auto-scroll (`use-stick-to-bottom`)
+- **Message** — user/assistant bubbles with markdown via shiki
+- **Reasoning** — collapsible thinking blocks
+- **Tool** — collapsible tool call cards
+- **PromptInput** — autosizing input with action slots
+
+Install more: `npx shadcn add "https://prompt-kit.com/c/<component>.json"`
+
 ## Commands
 
 ```bash

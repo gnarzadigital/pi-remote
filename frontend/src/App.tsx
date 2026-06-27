@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ChatView } from "@/components/chat-view";
 import { ExtensionDialog } from "@/components/extension-dialog";
 import { SessionsView } from "@/components/sessions-view";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { useVisualViewport } from "@/hooks/use-visual-viewport";
 import { cn } from "@/lib/utils";
@@ -57,9 +58,11 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app-shell flex h-[var(--app-height,100dvh)] w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
-      <AppShell />
-      <ExtensionDialog />
-    </div>
+    <TooltipProvider>
+      <div className="app-shell flex h-[var(--app-height,100dvh)] w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
+        <AppShell />
+        <ExtensionDialog />
+      </div>
+    </TooltipProvider>
   );
 }
