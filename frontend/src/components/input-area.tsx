@@ -14,6 +14,7 @@ import {
   PromptInputActions,
   PromptInputTextarea,
 } from "@/components/ui/prompt-input";
+import { PromptSuggestionsRow } from "@/components/prompt-suggestions-row";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import type { PiCommand } from "@/lib/types";
 import { cn, hapticTap } from "@/lib/utils";
@@ -100,6 +101,7 @@ export function InputArea() {
   return (
     <footer className="input-footer sticky bottom-0 z-20 shrink-0 border-t border-hairline bg-canvas/95 px-3 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/90">
       <div className="relative">
+        <PromptSuggestionsRow input={input} onSelect={setInput} />
         <CmdPicker onSelect={setInput} />
         <PromptInput
           value={input}

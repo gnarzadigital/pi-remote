@@ -1,16 +1,53 @@
 import { cn } from "@/lib/utils"
 import { marked } from "marked"
-import { memo, useId, useMemo } from "react"
+import { memo, useEffect, useId, useMemo, useState } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
-import { CodeBlock, CodeBlockCode } from "./code-block"
+import { Source, SourceContent, SourceTrigger } from "./source"
 
 export type MarkdownProps = {
   children: string
   id?: string
   className?: string
   components?: Partial<Components>
+}
+
+function isExternalHttpUrl(href: string | undefined): href is string {
+  if (!href) return false
+  try {
+    const u = new URL(href)
+    return u.protocol === "http:" || u.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+function LazyCodeBlock(props: {
+  className?: string
+  code: string
+  language: string
+}) {
+  const [mod, setMod] = useState<typeof import("./code-block") | null>(null)
+
+  useEffect(() => {
+    import("./code-block").then(setMod)
+  }, [])
+
+  if (!mod) {
+    return (
+      <pre className="overflow-x-auto rounded-xl border border-hairline bg-mist p-4 text-[13px]">
+        <code>{props.code}</code>
+      </pre>
+    )
+  }
+
+  const { CodeBlock, CodeBlockCode } = mod
+  return (
+    <CodeBlock className={props.className}>
+      <CodeBlockCode code={props.code} language={props.language} />
+    </CodeBlock>
+  )
 }
 
 function parseMarkdownIntoBlocks(markdown: string): string[] {
@@ -25,6 +62,37 @@ function extractLanguage(className?: string): string {
 }
 
 const INITIAL_COMPONENTS: Partial<Components> = {
+  a: function LinkComponent({ href, children, ...props }) {
+    const label =
+      typeof children === "string"
+        ? children
+        : Array.isArray(children)
+          ? children.join("")
+          : "Source"
+
+    if (isExternalHttpUrl(href)) {
+      return (
+        <Source href={href}>
+          <SourceTrigger
+            showFavicon
+            label={label}
+            className="mx-0.5 border border-hairline bg-mist text-graphite"
+          />
+          <SourceContent title={label} description={href} />
+        </Source>
+      )
+    }
+
+    return (
+      <a
+        href={href}
+        className="text-graphite underline underline-offset-2"
+        {...props}
+      >
+        {children}
+      </a>
+    )
+  },
   code: function CodeComponent({ className, children, ...props }) {
     const isInline =
       !props.node?.position?.start.line ||
@@ -47,9 +115,11 @@ const INITIAL_COMPONENTS: Partial<Components> = {
     const language = extractLanguage(className)
 
     return (
-      <CodeBlock className={className}>
-        <CodeBlockCode code={children as string} language={language} />
-      </CodeBlock>
+      <LazyCodeBlock
+        className={className}
+        code={children as string}
+        language={language}
+      />
     )
   },
   pre: function PreComponent({ children }) {

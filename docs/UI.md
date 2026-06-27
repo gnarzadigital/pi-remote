@@ -40,7 +40,8 @@ UI components from [prompt-kit](https://www.prompt-kit.com/docs/chat-container):
 - **Steps** — grouped consecutive tool runs
 - **SystemMessage** — system + error notices
 - **Loader** — streaming status variants
-- **Source** — citation hover cards (installed, wire when pi exposes sources)
+- **Source** — external markdown links render as citation chips with hover preview
+- **PromptSuggestion** — slash-command chips above input (from live `get_commands`)
 
 Install more: `npx shadcn add "https://prompt-kit.com/c/<component>.json"`
 

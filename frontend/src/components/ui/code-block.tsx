@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 import React, { useEffect, useState } from "react"
-import { codeToHtml } from "shiki"
+import { highlightCode, resolveShikiTheme } from "@/lib/shiki-highlighter"
 
 export type CodeBlockProps = {
   children?: React.ReactNode
@@ -32,34 +32,49 @@ export type CodeBlockCodeProps = {
 function CodeBlockCode({
   code,
   language = "tsx",
-  theme = "github-light",
   className,
   ...props
 }: CodeBlockCodeProps) {
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     async function highlight() {
       if (!code) {
-        setHighlightedHtml("<pre><code></code></pre>")
+        if (!cancelled) setHighlightedHtml("<pre><code></code></pre>")
         return
       }
 
-      const html = await codeToHtml(code, { lang: language, theme })
-      setHighlightedHtml(html)
+      const html = await highlightCode(code, language)
+      if (!cancelled) setHighlightedHtml(html)
     }
+
     highlight()
-  }, [code, language, theme])
+    return () => {
+      cancelled = true
+    }
+  }, [code, language])
+
+  useEffect(() => {
+    const root = document.documentElement
+    const observer = new MutationObserver(() => {
+      if (!code) return
+      highlightCode(code, language).then(setHighlightedHtml)
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] })
+    return () => observer.disconnect()
+  }, [code, language])
 
   const classNames = cn(
     "w-full overflow-x-auto text-[13px] [&>pre]:px-4 [&>pre]:py-4",
     className
   )
 
-  // SSR fallback: render plain code if not hydrated yet
   return highlightedHtml ? (
     <div
       className={classNames}
+      data-shiki-theme={resolveShikiTheme()}
       dangerouslySetInnerHTML={{ __html: highlightedHtml }}
       {...props}
     />
