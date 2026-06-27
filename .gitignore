@@ -3,3 +3,8 @@ bun.lock
 *.lock
 prefs.json
 push-prefs.json
+frontend/node_modules/
+frontend/dist/
+.env
+.env.local
+qa-*.png

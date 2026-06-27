@@ -3,23 +3,25 @@
    ============================================================ */
 
 :root {
-  --bg: #0d0d0d;
-  --surface: #1a1a1a;
-  --surface2: #222;
-  --border: #2e2e2e;
-  --text: #e8e8e8;
-  --text-dim: #888;
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface2: #2c2c2e;
+  --border: #38383a;
+  --text: #f5f5f7;
+  --text-dim: #8e8e93;
   --accent: #7c6af7;
   --accent-hover: #9b8fff;
-  --green: #4caf7d;
-  --red: #e05252;
-  --yellow: #e0b052;
+  --green: #30d158;
+  --red: #ff453a;
+  --yellow: #ffd60a;
   --tool-bg: #111827;
   --user-bg: #1e1b33;
   --radius: 12px;
+  --radius-ios: 10px;
   --font-mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -1258,22 +1260,294 @@ textarea#msg-input:focus { border-color: var(--accent); }
   display: block;
 }
 
+/* ── Mobile two-screen shell (iOS-native) ──────────────── */
+
+#sessions-view {
+  display: none;
+}
+
+#chat-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+#status-strip {
+  display: none;
+}
+
+#back-to-sessions,
+#chat-session-title {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  body {
+    background: var(--bg);
+  }
+
+  /* View switching */
+  body.view-sessions #sessions-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  body.view-sessions #chat-shell {
+    display: none;
+  }
+
+  body.view-chat #sessions-view {
+    display: none;
+  }
+
+  body.view-chat #chat-shell {
+    display: flex;
+  }
+
+  /* Sessions home */
+  #sessions-view {
+    background: var(--bg);
+  }
+
+  #sessions-header {
+    padding: max(var(--safe-top), 8px) 20px 12px;
+    flex-shrink: 0;
+  }
+
+  #sessions-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  #sessions-title {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--text);
+  }
+
+  .btn-pill {
+    min-height: 44px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 22px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+  }
+
+  .btn-pill:active {
+    transform: scale(0.97);
+    opacity: 0.9;
+  }
+
+  .connection-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  #sessions-list-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 16px max(var(--safe-bottom), 16px);
+  }
+
+  .session-group {
+    background: var(--surface);
+    border-radius: var(--radius-ios);
+    overflow: hidden;
+  }
+
+  #mobile-session-list .session-item {
+    min-height: 60px;
+    padding: 14px 16px;
+    border-bottom: 0.5px solid var(--border);
+    transition: background 120ms var(--ease-out);
+  }
+
+  #mobile-session-list .session-item:last-child {
+    border-bottom: none;
+  }
+
+  #mobile-session-list .session-item:active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  #mobile-session-list .session-item-name {
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  #mobile-session-list .session-item-time {
+    font-size: 15px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  #mobile-session-list .session-item.active {
+    background: rgba(124, 106, 247, 0.12);
+  }
+
+  #mobile-session-list .session-item.active .session-item-name {
+    color: var(--accent);
+  }
+
+  #mobile-session-list .session-empty {
+    padding: 32px 16px;
+    font-size: 17px;
+  }
+
+  /* Chat header (mobile) */
+  #header {
+    display: flex;
+    align-items: center;
+    padding: max(var(--safe-top), 8px) 12px 8px;
+    gap: 4px;
+    background: rgba(28, 28, 30, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  #back-to-sessions {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 4px 0 0;
+    margin-right: 4px;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font-size: 17px;
+    font-weight: 400;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  #back-to-sessions:active {
+    opacity: 0.6;
+  }
+
+  #chat-session-title {
+    display: block;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    margin: 0 auto 2px;
+  }
+
+  #header-left {
+    display: none !important;
+  }
+
+  #header-center {
+    flex: 1;
+    min-width: 0;
+  }
+
+  #model-btn {
+    font-size: 15px;
+    max-width: 160px;
+  }
+
+  #status-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--text-dim);
+    overflow: hidden;
+  }
+
+  #status-strip-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #status-strip .dot {
+    flex-shrink: 0;
+  }
+
+  #overflow-sessions {
+    display: none !important;
+  }
+
+  #input-area {
+    background: rgba(28, 28, 30, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding-bottom: max(var(--safe-bottom), 8px);
+  }
+
+  #send-btn.btn-primary {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  #attach-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  #mode-cycle,
+  #thinking-cycle {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 601px) {
+  #sessions-view {
+    display: none !important;
+  }
+
+  #status-strip {
+    display: none !important;
+  }
+}
+
 /* ── Mobile: swap to cycle buttons & overflow menu ──────── */
 
 @media (max-width: 600px) {
-  /* Header: hide individual action buttons + session button, show overflow */
+  /* Header: hide individual action buttons */
   .header-action-btn { display: none !important; }
-  #session-btn { display: none !important; }
   #overflow-menu { display: block; }
 
-  /* Session panel: fixed so it's visible even though #session-btn is hidden */
-  #session-panel {
-    position: fixed;
-    top: 52px;
-    left: 12px;
-    right: 12px;
-    min-width: unset;
-  }
+  /* Session dropdown hidden on mobile — use sessions home screen */
+  #session-dropdown { display: none !important; }
 
   /* Footer: hide segmented controls, show cycle buttons */
   #mode-segmented { display: none !important; }

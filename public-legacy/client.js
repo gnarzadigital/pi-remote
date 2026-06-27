@@ -12,9 +12,18 @@ marked.setOptions({ breaks: true });
 // ─── DOM refs ────────────────────────────────────────────────────────────────
 const statusDot      = document.getElementById("status-dot");
 const statusText     = document.getElementById("status-text");
+const statusStripDot = document.getElementById("status-strip-dot");
+const statusStripText = document.getElementById("status-strip-text");
+const sessionsStatusDot = document.getElementById("sessions-status-dot");
+const sessionsStatusText = document.getElementById("sessions-status-text");
 const sessionBtn     = document.getElementById("session-btn");
 const sessionPanel   = document.getElementById("session-panel");
 const sessionList    = document.getElementById("session-list");
+const mobileSessionList = document.getElementById("mobile-session-list");
+const mobileNewSessionBtn = document.getElementById("mobile-new-session-btn");
+const backToSessionsBtn = document.getElementById("back-to-sessions");
+const chatSessionTitle = document.getElementById("chat-session-title");
+const sessionsListScroll = document.getElementById("sessions-list-scroll");
 const newSessionBtn  = document.getElementById("new-session-btn");
 const modelBtn       = document.getElementById("model-btn");
 const modelPanel     = document.getElementById("model-panel");
@@ -108,6 +117,127 @@ let notificationsEnabled = localStorage.getItem("notifications-enabled") === "tr
 // Auto-scroll behavior: only stick to bottom when user is already near bottom
 const AUTO_SCROLL_SAFE_ZONE_PX = 80;
 let stickToBottom = true;
+
+// Mobile two-screen navigation (presentation only)
+const MOBILE_BREAKPOINT = 600;
+let mobileView = "sessions";
+let activeSessionName = null;
+let activeSessionPath = null;
+let cachedSessions = [];
+
+function isMobileLayout() {
+  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
+}
+
+function hapticTap() {
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+
+function showMobileView(view) {
+  if (!isMobileLayout()) return;
+  mobileView = view;
+  document.body.classList.toggle("view-sessions", view === "sessions");
+  document.body.classList.toggle("view-chat", view === "chat");
+  if (view === "sessions") {
+    fetchSessionList();
+  }
+  if (view === "chat" && chatSessionTitle) {
+    chatSessionTitle.textContent = activeSessionName ?? "Session";
+  }
+}
+
+function fetchSessionList() {
+  const id = nextId();
+  pendingSessionListId = id;
+  send({ type: "list_sessions", id });
+}
+
+function formatRelativeTime(ms) {
+  const diff = Date.now() - ms;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatSessionName(raw) {
+  if (!raw) return "Untitled session";
+  const firstLine = raw.split("\n")[0].trim();
+  if (firstLine.startsWith("# HANDOFF:")) {
+    const title = firstLine.replace(/^#\s*/, "");
+    return title.length > 52 ? `${title.slice(0, 49)}…` : title;
+  }
+  const fileMatch = firstLine.match(/<file name=["']([^"']+)["']/);
+  if (fileMatch) {
+    const parts = fileMatch[1].split("/");
+    const leaf = parts[parts.length - 1] || fileMatch[1];
+    return prettifySessionFilename(leaf);
+  }
+  if (firstLine.includes("/.pi/agent/")) {
+    const parts = firstLine.split("/");
+    return prettifySessionFilename(parts[parts.length - 1]);
+  }
+  if (firstLine.length > 48) return `${firstLine.slice(0, 45)}…`;
+  return firstLine;
+}
+
+function prettifySessionFilename(leaf) {
+  if (!leaf) return "Session";
+  let name = leaf.replace(/\.jsonl.*$/, "");
+  if (name.startsWith("--")) {
+    name = name.slice(2).replace(/-/g, " ");
+    const words = name.split(/\s+/).filter(Boolean);
+    if (words.length > 6) name = words.slice(-6).join(" ");
+  }
+  if (name.length > 48) return `${name.slice(0, 45)}…`;
+  return name || "Session";
+}
+
+function updateStatusDisplays() {
+  const dotClass = statusDot?.className ?? "dot idle";
+  const label = statusText?.textContent ?? "";
+
+  if (statusStripDot) statusStripDot.className = dotClass;
+  if (sessionsStatusDot) sessionsStatusDot.className = dotClass;
+
+  const rich = buildRichStatusText();
+  if (statusStripText) statusStripText.textContent = rich;
+  if (sessionsStatusText) sessionsStatusText.textContent = isConnected ? "Connected" : label;
+}
+
+function buildRichStatusText() {
+  if (!isConnected) return statusText?.textContent ?? "Connecting…";
+
+  const parts = [];
+  if (isStreaming) {
+    parts.push("Running");
+  } else {
+    parts.push("Ready");
+  }
+
+  if (activeModel) {
+    const modelLabel = activeModel.label ?? activeModel.id ?? "";
+    if (modelLabel) parts.push(modelLabel);
+  }
+
+  if (latestSessionStats) {
+    const totalTokens = latestSessionStats.tokens?.total;
+    if (Number.isFinite(totalTokens)) {
+      parts.push(`${(totalTokens / 1000).toFixed(1)}k tok`);
+    }
+    const contextUsed = getContextUsedTokens(latestSessionStats);
+    const contextWindow = getModelContextWindowTokens(activeModel);
+    if (Number.isFinite(contextUsed) && Number.isFinite(contextWindow) && contextWindow > 0) {
+      parts.push(`${Math.min(100, Math.round((contextUsed / contextWindow) * 100))}% ctx`);
+    }
+  }
+
+  return parts.join(" · ");
+}
 
 function markFinished() {
   if (!document.hidden) return; // user is watching — no badge needed
@@ -1085,6 +1215,7 @@ function applyStats(data) {
     : "";
 
   sessionStats.textContent = [tokens, contextPct, cost].filter(Boolean).join(" · ");
+  updateStatusDisplays();
 }
 
 function requestStats() {
@@ -1782,17 +1913,20 @@ function setConnectionStatus(state) {
   if (state === "connected") {
     if (!isStreaming) setAgentStatus("idle");
     updateSendButton();
+    if (isMobileLayout() && mobileView === "sessions") fetchSessionList();
   } else {
     statusDot.className = "dot error";
     statusText.textContent = "reconnecting…";
     sendBtn.disabled = true;
     abortBtn.disabled = true;
   }
+  updateStatusDisplays();
 }
 
 function flashStatusError(text) {
   statusDot.className = "dot error";
   statusText.textContent = text;
+  updateStatusDisplays();
   setTimeout(() => {
     if (!isConnected) {
       setConnectionStatus("disconnected");
@@ -1809,10 +1943,11 @@ function setAgentStatus(state) {
     abortBtn.disabled = false;
   } else {
     statusDot.className = "dot idle";
-    statusText.textContent = "idle";
+    statusText.textContent = "ready";
     abortBtn.disabled = true;
   }
   updateSendButton();
+  updateStatusDisplays();
 }
 
 function updateSendButton() {
@@ -2226,9 +2361,55 @@ sessionBtn.addEventListener("click", (e) => {
 
 newSessionBtn.addEventListener("click", (e) => {
   e.stopPropagation();
+  startNewSession();
+});
+
+function startNewSession() {
+  hapticTap();
   closeSessionPanel();
+  activeSessionName = "New session";
+  activeSessionPath = null;
   sendWithId({ type: "new_session" });
   appendSystemNote("↻ Starting new session…");
+  if (isMobileLayout()) showMobileView("chat");
+}
+
+if (mobileNewSessionBtn) {
+  mobileNewSessionBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    startNewSession();
+  });
+}
+
+if (backToSessionsBtn) {
+  backToSessionsBtn.addEventListener("click", () => {
+    hapticTap();
+    showMobileView("sessions");
+  });
+}
+
+// Pull-to-refresh on sessions list (mobile)
+if (sessionsListScroll) {
+  let touchStartY = 0;
+  sessionsListScroll.addEventListener("touchstart", (e) => {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  sessionsListScroll.addEventListener("touchend", (e) => {
+    if (sessionsListScroll.scrollTop > 0) return;
+    const delta = e.changedTouches[0].clientY - touchStartY;
+    if (delta > 60 && isMobileLayout() && mobileView === "sessions") {
+      hapticTap();
+      fetchSessionList();
+    }
+  }, { passive: true });
+}
+
+window.addEventListener("resize", () => {
+  if (!isMobileLayout()) {
+    document.body.classList.remove("view-sessions", "view-chat");
+  } else if (!document.body.classList.contains("view-chat")) {
+    showMobileView("sessions");
+  }
 });
 
 document.addEventListener("click", (e) => {
@@ -2239,32 +2420,46 @@ document.addEventListener("click", (e) => {
 });
 
 function renderSessionList(sessions) {
-  sessionList.innerHTML = "";
-  if (sessions.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "session-empty";
-    empty.textContent = "No saved sessions";
-    sessionList.appendChild(empty);
-    return;
-  }
-  sessions.forEach((s) => {
-    const item = document.createElement("button");
-    item.className = "session-item";
-    const ts = new Date(s.mtime).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    const name = document.createElement("span");
-    name.className = "session-item-name";
-    name.textContent = s.name;
-    const time = document.createElement("span");
-    time.className = "session-item-time";
-    time.textContent = ts;
-    item.appendChild(name);
-    item.appendChild(time);
-    item.addEventListener("click", () => {
-      closeSessionPanel();
-      sendWithId({ type: "switch_session", sessionPath: s.path });
-      appendSystemNote(`↻ Switching session…`);
+  cachedSessions = sessions;
+  const targets = [sessionList, mobileSessionList].filter(Boolean);
+  if (targets.length === 0) return;
+
+  targets.forEach((list) => {
+    list.innerHTML = "";
+    if (sessions.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "session-empty";
+      empty.textContent = "No saved sessions";
+      list.appendChild(empty);
+      return;
+    }
+
+    sessions.forEach((s) => {
+      const item = document.createElement("button");
+      item.className = "session-item";
+      if (s.path === activeSessionPath) item.classList.add("active");
+
+      const name = document.createElement("span");
+      name.className = "session-item-name";
+      name.textContent = formatSessionName(s.name);
+
+      const time = document.createElement("span");
+      time.className = "session-item-time";
+      time.textContent = formatRelativeTime(s.mtime);
+
+      item.appendChild(name);
+      item.appendChild(time);
+      item.addEventListener("click", () => {
+        hapticTap();
+        activeSessionName = formatSessionName(s.name);
+        activeSessionPath = s.path;
+        closeSessionPanel();
+        sendWithId({ type: "switch_session", sessionPath: s.path });
+        appendSystemNote(`↻ Switching session…`);
+        if (isMobileLayout()) showMobileView("chat");
+      });
+      list.appendChild(item);
     });
-    sessionList.appendChild(item);
   });
 }
 
@@ -2394,4 +2589,9 @@ async function initializeNotifications() {
 updateNotificationButtons();
 initializeNotifications();
 connect();
-msgInput.focus();
+if (isMobileLayout()) {
+  showMobileView("sessions");
+} else {
+  msgInput.focus();
+}
+updateStatusDisplays();

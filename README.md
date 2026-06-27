@@ -66,13 +66,20 @@ It also sends bridge-side metadata:
 ```bash
 cd ~/repos/pi-remote
 bun install
+cd frontend && pnpm install && cd ..
 ```
+
+The UI is a React app in `frontend/`. Built assets land in `public/` (committed so the bridge works without a build step on every machine).
 
 ### 2) Run bridge
 
 ```bash
-# run in current dir
-bun run bridge.ts
+# builds UI first if public/ is missing, then starts bridge
+pnpm start
+
+# or manually rebuild UI after frontend changes
+pnpm run build:ui
+pnpm start
 
 # or target another repo for the agent working directory
 AGENT_CWD=~/repos/monorepo bun run bridge.ts
@@ -136,28 +143,19 @@ The WebSocket payloads are pi RPC objects plus a few bridge-only message types.
 
 ```text
 pi-remote/
-├── bridge.ts
-├── public/
-│   ├── index.html
-│   ├── style.css
-│   ├── client.js
-│   ├── manifest.json
-│   ├── sw.js
-│   ├── icon.svg
-│   └── icons/
-│       ├── bell-ringing.svg
-│       └── bell-slash.svg
+├── bridge.ts              # Bun WebSocket + static server (do not change for UI work)
+├── frontend/              # React UI source (canonical — edit here)
+│   └── src/
+├── public/                # Built UI served by bridge (rebuild with pnpm run build:ui)
+├── public-legacy/         # Archived vanilla UI (reference only)
+├── docs/UI.md             # Design system + workflow (read before UI changes)
+├── mockups/               # Design exploration
 ├── prefs.json
 ├── push-prefs.json
-├── package.json
-├── README.md
-├── AUTOCOMPLETE.md
-├── AUTOCOMPLETE_QUICK_REF.md
-├── TROUBLESHOOTING.md
-├── IMPLEMENTATION_SUMMARY.md
-├── PROJECT_PLAN.md
-└── TODO.md
+└── package.json
 ```
+
+See [`docs/UI.md`](docs/UI.md) for how to change the UI without losing the aesthetic.
 
 ## Notes
 

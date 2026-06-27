@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-graphite: #0a0a0a;
+  --color-pure-black: #000000;
+  --color-carbon: #171717;
+  --color-concrete: #737373;
+  --color-ash: #a1a1a1;
+  --color-smoke: #b9b9b9;
+  --color-hairline: #e5e5e5;
+  --color-mist: #f2f2f2;
+  --color-chalk: #ffffff;
+  --color-canvas: #ffffff;
+  --color-card: #ffffff;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-nav: 10px;
+  --radius-cards: 14px;
+}
+
+.dark {
+  --color-canvas: #0a0a0a;
+  --color-card: #171717;
+  --color-chalk: #171717;
+  --color-graphite: #f5f5f5;
+  --color-hairline: #2e2e2e;
+  --color-mist: #1a1a1a;
+  --color-concrete: #a1a1a1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100vw;
+  margin: 0;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+html {
+  height: 100%;
+  background: var(--color-canvas);
+}
+
+body {
+  position: fixed;
+  top: var(--vv-offset-top, 0);
+  left: 0;
+  right: 0;
+  height: var(--app-height, 100dvh);
+  background: var(--color-canvas);
+  color: var(--color-graphite);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.43;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.input-footer {
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+}
+
+html.keyboard-open .input-footer {
+  padding-bottom: 8px;
+}
+
+.sessions-scroll {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+html.keyboard-open .sessions-scroll {
+  padding-bottom: 16px;
+}
+
+button,
+[role="button"],
+input,
+textarea,
+select {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

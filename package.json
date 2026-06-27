@@ -4,8 +4,12 @@
   "description": "Mobile-first RPC bridge remote for the pi coding agent",
   "type": "module",
   "scripts": {
+    "prestart": "node frontend/scripts/ensure-build.mjs",
     "start": "bun run bridge.ts",
-    "dev": "bun --watch bridge.ts"
+    "dev": "bun --watch bridge.ts",
+    "dev:ui": "pnpm --dir frontend dev",
+    "build:ui": "pnpm --dir frontend build && node frontend/scripts/post-build.mjs",
+    "build": "pnpm run build:ui"
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "*",
