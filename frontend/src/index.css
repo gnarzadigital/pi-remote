@@ -24,6 +24,8 @@
   --color-muted-foreground: var(--color-concrete);
   --color-border: var(--color-hairline);
   --color-input: var(--color-hairline);
+  --color-muted: var(--color-mist);
+  --color-popover-foreground: var(--color-graphite);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -48,6 +50,58 @@
   --color-muted-foreground: var(--color-concrete);
   --color-border: var(--color-hairline);
   --color-input: var(--color-hairline);
+  --color-muted: var(--color-mist);
+  --color-popover-foreground: var(--color-graphite);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes collapsible-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes spinner-fade {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes bounce-dots {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 * {

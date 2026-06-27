@@ -35,8 +35,16 @@ UI components from [prompt-kit](https://www.prompt-kit.com/docs/chat-container):
 - **Reasoning** — collapsible thinking blocks
 - **Tool** — collapsible tool call cards
 - **PromptInput** — autosizing input with action slots
+- **ChainOfThought** — thinking steps with vertical rail (`ThinkingChain`)
+- **ThinkingBar** + **TextShimmer** — streaming indicator with stop
+- **Steps** — grouped consecutive tool runs
+- **SystemMessage** — system + error notices
+- **Loader** — streaming status variants
+- **Source** — citation hover cards (installed, wire when pi exposes sources)
 
 Install more: `npx shadcn add "https://prompt-kit.com/c/<component>.json"`
+
+MCP (Cursor): `.cursor/mcp.json` points at the prompt-kit registry for browsing/adding components in chat.
 
 ## Commands
 
