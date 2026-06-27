@@ -1,0 +1,99 @@
+import type { PiSession } from "@/lib/types";
+
+const READ_STATE_KEY = "pi-remote-read-state";
+const FORCED_UNREAD_KEY = "pi-remote-forced-unread";
+const BASELINE_KEY = "pi-remote-read-baseline-v1";
+
+type ReadState = Record<string, number>;
+
+const listeners = new Set<() => void>();
+
+function emit() {
+  listeners.forEach((fn) => fn());
+}
+
+function loadState(): ReadState {
+  try {
+    const raw = localStorage.getItem(READ_STATE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as ReadState;
+  } catch {
+    return {};
+  }
+}
+
+function saveState(state: ReadState) {
+  localStorage.setItem(READ_STATE_KEY, JSON.stringify(state));
+  emit();
+}
+
+function loadForcedUnread(): Set<string> {
+  try {
+    const raw = localStorage.getItem(FORCED_UNREAD_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveForcedUnread(set: Set<string>) {
+  localStorage.setItem(FORCED_UNREAD_KEY, JSON.stringify([...set]));
+  emit();
+}
+
+export function subscribeReadState(fn: () => void) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+export function getLastReadAt(path: string): number {
+  return loadState()[path] ?? 0;
+}
+
+/** First launch: treat all existing sessions as already read. */
+export function ensureReadBaseline(sessions: PiSession[]) {
+  if (localStorage.getItem(BASELINE_KEY)) return;
+  const state = loadState();
+  for (const session of sessions) {
+    if (state[session.path] == null) {
+      state[session.path] = session.mtime;
+    }
+  }
+  saveState(state);
+  localStorage.setItem(BASELINE_KEY, "1");
+}
+
+export function markSessionRead(path: string, at?: number) {
+  const forced = loadForcedUnread();
+  forced.delete(path);
+  saveForcedUnread(forced);
+
+  const state = loadState();
+  state[path] = at ?? Date.now();
+  saveState(state);
+}
+
+/** Agent finished while away from chat, or push received. */
+export function markSessionUnread(path: string) {
+  const forced = loadForcedUnread();
+  forced.add(path);
+  saveForcedUnread(forced);
+  emit();
+}
+
+export function isSessionUnread(session: PiSession): boolean {
+  if (loadForcedUnread().has(session.path)) return true;
+  return session.mtime > getLastReadAt(session.path) + 500;
+}
+
+export function countUnread(sessions: PiSession[]): number {
+  return sessions.filter(isSessionUnread).length;
+}
+
+export function filterUnread(sessions: PiSession[]): PiSession[] {
+  return sessions.filter(isSessionUnread).sort((a, b) => b.mtime - a.mtime);
+}

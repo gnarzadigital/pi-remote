@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { TextShimmer } from "@/components/ui/text-shimmer"
 
 export interface LoaderProps {
   variant?:
@@ -408,17 +409,7 @@ export function TextShimmerLoader({
   }
 
   return (
-    <div
-      className={cn(
-        "bg-[linear-gradient(to_right,var(--muted-foreground)_40%,var(--foreground)_60%,var(--muted-foreground)_80%)]",
-        "bg-size-[200%_auto] bg-clip-text font-medium text-transparent",
-        "animate-[shimmer_4s_infinite_linear]",
-        textSizes[size],
-        className
-      )}
-    >
-      {text}
-    </div>
+    <TextShimmer className={cn(textSizes[size], className)}>{text}</TextShimmer>
   )
 }
 

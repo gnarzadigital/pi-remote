@@ -41,7 +41,7 @@ function matchingCommands(
     }));
 }
 
-/** Real suggestions from pi slash commands — no hardcoded prompts. */
+/** Real suggestions from pi slash commands — no hardcoded prompts. Slash-only (D). */
 export function getPromptSuggestions(
   commands: PiCommand[],
   input: string
@@ -50,27 +50,16 @@ export function getPromptSuggestions(
 
   const trimmed = input.trim();
 
-  if (trimmed && !trimmed.startsWith("/")) {
+  if (!trimmed.startsWith("/") || trimmed.includes(" ")) {
     return [];
   }
 
-  if (!trimmed) {
-    return commandItems(commands);
-  }
+  const filter = trimmed.slice(1);
+  if (!filter) return commandItems(commands);
 
-  if (trimmed.startsWith("/") && !trimmed.includes(" ")) {
-    const filter = trimmed.slice(1);
-    if (!filter) return commandItems(commands);
-    return matchingCommands(commands, filter).map((item) => ({
-      ...item,
-      label: `/${item.id}`,
-      highlight: filter,
-    }));
-  }
-
-  if (trimmed.startsWith("/")) {
-    return [];
-  }
-
-  return matchingCommands(commands, trimmed);
+  return matchingCommands(commands, filter).map((item) => ({
+    ...item,
+    label: `/${item.id}`,
+    highlight: filter,
+  }));
 }

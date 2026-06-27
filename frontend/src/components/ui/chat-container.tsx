@@ -23,10 +23,12 @@ function ChatContainerRoot({
 }: ChatContainerRootProps) {
   return (
     <StickToBottom
-      className={cn("relative flex overflow-y-auto", className)}
+      className={cn("relative flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden", className)}
+      initial={false}
       resize="smooth"
-      initial="instant"
       role="log"
+      aria-relevant="additions"
+      aria-live="off"
       {...props}
     >
       {children}
@@ -41,7 +43,8 @@ function ChatContainerContent({
 }: ChatContainerContentProps) {
   return (
     <StickToBottom.Content
-      className={cn("flex w-full flex-col", className)}
+      scrollClassName="chat-scroll-zone min-h-0 overflow-x-clip overflow-y-auto"
+      className={cn("flex w-full min-w-0 max-w-full flex-col", className)}
       {...props}
     >
       {children}

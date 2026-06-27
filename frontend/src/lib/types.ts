@@ -15,6 +15,9 @@ export interface PiSession {
   name: string;
   path: string;
   mtime: number;
+  workspaceSlug?: string;
+  workspaceLabel?: string;
+  isCurrentWorkspace?: boolean;
 }
 
 export interface ImageAttachment {
@@ -32,6 +35,7 @@ export interface PiCommand {
 export type SendMode = "prompt" | "steer" | "follow_up";
 export type ThinkingLevel = "none" | "low" | "high";
 export type MobileView = "sessions" | "chat";
+export type ConnectionPhase = "connected" | "connecting" | "disconnected";
 
 export type TurnBlock =
   | { kind: "text"; text: string; streaming?: boolean }
@@ -78,6 +82,7 @@ export interface ExtensionDialogState {
 
 export interface BridgeSnapshot {
   connected: boolean;
+  connectionPhase: ConnectionPhase;
   streaming: boolean;
   statusError: string | null;
   view: MobileView;

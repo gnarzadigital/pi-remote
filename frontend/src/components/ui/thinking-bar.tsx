@@ -20,7 +20,7 @@ export function ThinkingBar({
   onClick,
 }: ThinkingBarProps) {
   return (
-    <div className={cn("flex w-full items-center justify-between gap-2 py-1", className)}>
+    <div className={cn("flex w-full items-center justify-between gap-2", className)}>
       {onClick ? (
         <button
           type="button"
@@ -28,7 +28,7 @@ export function ThinkingBar({
           className="flex items-center gap-1 text-sm transition-opacity hover:opacity-80"
         >
           <TextShimmer className="font-medium">{text}</TextShimmer>
-          <ChevronRight className="size-4 text-concrete" />
+          <ChevronRight className="size-4 text-muted-foreground" />
         </button>
       ) : (
         <TextShimmer className="cursor-default font-medium">{text}</TextShimmer>
@@ -37,7 +37,7 @@ export function ThinkingBar({
         <button
           onClick={onStop}
           type="button"
-          className="shrink-0 border-b border-dotted border-concrete text-[12px] text-concrete transition-colors hover:text-graphite"
+          className="shrink-0 border-b border-dotted border-muted-foreground/50 text-sm text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
         >
           {stopLabel}
         </button>

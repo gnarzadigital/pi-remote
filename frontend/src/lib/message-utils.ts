@@ -74,6 +74,32 @@ export function getContextUsedTokens(data: { tokens?: Record<string, number> } |
   return null;
 }
 
+export function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+/** Session diagnostics for overflow menus — no model name or Ready/Running noise. */
+export function formatSessionMeta(
+  connected: boolean,
+  stats: { tokens?: Record<string, number> } | null,
+  contextWindow: number | null
+): string | null {
+  if (!connected) return "Connecting…";
+
+  const parts: string[] = [];
+  if (stats?.tokens?.total != null) {
+    parts.push(`${formatTokenCount(stats.tokens.total)} tok`);
+  }
+  const used = getContextUsedTokens(stats);
+  if (used != null && contextWindow != null && contextWindow > 0) {
+    parts.push(`${Math.min(100, Math.round((used / contextWindow) * 100))}% ctx`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export function buildStatusText(
   connected: boolean,
   streaming: boolean,
@@ -85,7 +111,7 @@ export function buildStatusText(
   const parts: string[] = [streaming ? "Running" : "Ready"];
   if (model) parts.push(model.name ?? model.id ?? "");
   if (stats?.tokens?.total != null) {
-    parts.push(`${(stats.tokens.total / 1000).toFixed(1)}k tok`);
+    parts.push(`${formatTokenCount(stats.tokens.total)} tok`);
   }
   const used = getContextUsedTokens(stats);
   if (used != null && contextWindow != null && contextWindow > 0) {

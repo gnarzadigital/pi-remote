@@ -15,7 +15,8 @@
  * send extension_ui_response wins and it is forwarded to pi stdin.
  */
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, writeFileSync, appendFileSync, readdirSync, statSync } from "fs";
+import { randomUUID } from "crypto";
 import webpush from "web-push";
 import { join, dirname } from "path";
 import { homedir } from "os";
@@ -34,6 +35,10 @@ const CWD = process.env.AGENT_CWD ?? process.cwd();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PUBLIC_DIR = join(__dirname, "public");
+const SESSIONS_ROOT = join(homedir(), ".pi", "agent", "sessions");
+
+/** Active session file path reported by pi get_state (for rename routing). */
+let loadedSessionFile: string | null = null;
 
 // ---------------------------------------------------------------------------
 // Prefs (persisted across restarts)
@@ -361,7 +366,7 @@ attachJsonlReader(pi.stdout as ReadableStream<Uint8Array>, (line) => {
   }
 
   if (parsed.type === "agent_end") {
-    notifyPushSubscribers("pi remote", "LLM finished working.").catch((e) => {
+    notifyPushSubscribers("pi", "LLM finished working.").catch((e) => {
       console.error("[bridge] failed to send push notifications:", e);
     });
   }
@@ -383,6 +388,18 @@ attachJsonlReader(pi.stdout as ReadableStream<Uint8Array>, (line) => {
       const m = parsed.data;
       addRecentModel({ id: m.id, name: m.name ?? m.id, provider: m.provider });
       broadcast(prefsMessage());
+    }
+
+    if (parsed.command === "get_state" && parsed.success && parsed.data?.sessionFile) {
+      loadedSessionFile = String(parsed.data.sessionFile);
+    }
+
+    if (
+      (parsed.command === "switch_session" || parsed.command === "new_session") &&
+      parsed.success &&
+      parsed.data?.sessionFile
+    ) {
+      loadedSessionFile = String(parsed.data.sessionFile);
     }
 
     // Broadcast new_session and switch_session to all clients so they all refresh
@@ -427,24 +444,126 @@ function firstUserMessage(filePath: string): string {
   return "";
 }
 
-function listSessionFiles(): Array<{ path: string; name: string; mtime: number }> {
+/** Latest session_info name from jsonl, else first user preview, else filename stem. */
+function sessionDisplayName(filePath: string, filename: string): string {
+  let sessionName: string | undefined;
   try {
-    const cwdSlug = "--" + CWD.replace(/\//g, "-").replace(/^-/, "") + "--";
-    const sessionsDir = join(homedir(), ".pi", "agent", "sessions", cwdSlug);
-    const files = readdirSync(sessionsDir);
-    return files
-      .filter((f) => f.endsWith(".jsonl"))
-      .map((f) => {
-        const fullPath = join(sessionsDir, f);
-        let mtime = 0;
-        try { mtime = statSync(fullPath).mtimeMs; } catch {}
-        const preview = firstUserMessage(fullPath);
-        return { path: fullPath, name: preview || f.replace(".jsonl", ""), mtime };
-      })
-      .sort((a, b) => b.mtime - a.mtime);
+    const content = readFileSync(filePath, "utf8");
+    for (const line of content.split("\n")) {
+      if (!line.trim()) continue;
+      const entry = JSON.parse(line);
+      if (entry.type === "session_info" && typeof entry.name === "string") {
+        const trimmed = entry.name.trim();
+        if (trimmed) sessionName = trimmed;
+      }
+    }
+  } catch {}
+  if (sessionName) return sessionName;
+  const preview = firstUserMessage(filePath);
+  if (preview) return preview;
+  return filename.replace(/\.jsonl$/, "");
+}
+
+function isValidSessionPath(filePath: string): boolean {
+  if (!filePath.endsWith(".jsonl")) return false;
+  const resolved = join(filePath);
+  return resolved.startsWith(SESSIONS_ROOT + "/") || resolved.startsWith(SESSIONS_ROOT + "\\");
+}
+
+function getLeafIdFromSessionFile(filePath: string): string | null {
+  let leafId: string | null = null;
+  try {
+    const content = readFileSync(filePath, "utf8");
+    for (const line of content.split("\n")) {
+      if (!line.trim()) continue;
+      const entry = JSON.parse(line);
+      if (typeof entry.id === "string") leafId = entry.id;
+    }
+  } catch {}
+  return leafId;
+}
+
+function appendSessionNameToFile(filePath: string, name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed || !isValidSessionPath(filePath)) return false;
+  const leafId = getLeafIdFromSessionFile(filePath);
+  if (!leafId) return false;
+  const entry = {
+    type: "session_info",
+    id: randomUUID().slice(0, 8),
+    parentId: leafId,
+    timestamp: new Date().toISOString(),
+    name: trimmed,
+  };
+  appendFileSync(filePath, JSON.stringify(entry) + "\n", "utf8");
+  return true;
+}
+
+function cwdToSlug(cwd: string): string {
+  return "--" + cwd.replace(/\//g, "-").replace(/^-/, "") + "--";
+}
+
+function slugToWorkspaceLabel(slug: string): string {
+  const parts = slug.replace(/^--/, "").replace(/--$/, "").split("-").filter(Boolean);
+  if (parts.length === 0) return slug;
+  if (parts.length >= 2) return parts.slice(-2).join("/");
+  return parts[parts.length - 1] ?? slug;
+}
+
+function listSessionFiles(): Array<{
+  path: string;
+  name: string;
+  mtime: number;
+  workspaceSlug: string;
+  workspaceLabel: string;
+  isCurrentWorkspace: boolean;
+}> {
+  const sessionsRoot = SESSIONS_ROOT;
+  const currentSlug = cwdToSlug(CWD);
+  const results: Array<{
+    path: string;
+    name: string;
+    mtime: number;
+    workspaceSlug: string;
+    workspaceLabel: string;
+    isCurrentWorkspace: boolean;
+  }> = [];
+
+  let workspaceDirs: string[] = [];
+  try {
+    workspaceDirs = readdirSync(sessionsRoot).filter((name) => name.startsWith("--"));
   } catch {
     return [];
   }
+
+  for (const workspaceSlug of workspaceDirs) {
+    const sessionsDir = join(sessionsRoot, workspaceSlug);
+    let files: string[] = [];
+    try {
+      files = readdirSync(sessionsDir).filter((f) => f.endsWith(".jsonl"));
+    } catch {
+      continue;
+    }
+    const workspaceLabel = slugToWorkspaceLabel(workspaceSlug);
+    for (const f of files) {
+      const fullPath = join(sessionsDir, f);
+      let mtime = 0;
+      try {
+        mtime = statSync(fullPath).mtimeMs;
+      } catch {}
+      const preview = sessionDisplayName(fullPath, f);
+      results.push({
+        path: fullPath,
+        name: preview || f.replace(".jsonl", ""),
+        mtime,
+        workspaceSlug,
+        workspaceLabel,
+        isCurrentWorkspace: workspaceSlug === currentSlug,
+      });
+    }
+  }
+
+  return results.sort((a, b) => b.mtime - a.mtime);
 }
 
 // File listing for autocomplete (cache with short TTL)
@@ -535,6 +654,35 @@ function handleClientMessage(ws: any, raw: string): void {
   if (cmd.type === "list_sessions") {
     const sessions = listSessionFiles();
     sendToWs(ws, JSON.stringify({ type: "response", command: "list_sessions", success: true, id: cmd.id, data: { sessions } }));
+    return;
+  }
+
+  // rename_session: active → pi set_session_name; inactive → append session_info to jsonl
+  if (cmd.type === "rename_session") {
+    const sessionPath = String(cmd.sessionPath ?? "");
+    const name = String(cmd.name ?? "").trim();
+    if (!name) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "rename_session", success: false, id: cmd.id, error: "Name cannot be empty" }));
+      return;
+    }
+    if (!isValidSessionPath(sessionPath)) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "rename_session", success: false, id: cmd.id, error: "Invalid session path" }));
+      return;
+    }
+    if (loadedSessionFile === sessionPath) {
+      if (cmd.id != null) pendingResponseRoutes.set(cmd.id, ws);
+      sendToPi({ type: "set_session_name", name, id: cmd.id });
+      return;
+    }
+    const ok = appendSessionNameToFile(sessionPath, name);
+    sendToWs(ws, JSON.stringify({
+      type: "response",
+      command: "rename_session",
+      success: ok,
+      id: cmd.id,
+      data: ok ? { sessionPath, name } : undefined,
+      error: ok ? undefined : "Could not rename session file",
+    }));
     return;
   }
 
@@ -687,7 +835,7 @@ const server = Bun.serve({
 
     if (url.pathname === "/api/push/test" && req.method === "POST") {
       return req.json().catch(() => ({})).then(async (body: any) => {
-        const title = body?.title ?? "pi remote";
+        const title = body?.title ?? "pi";
         const message = body?.body ?? "Test push notification from bridge.";
         const report = await notifyPushSubscribers(title, message);
         return Response.json({ ok: true, count: pushPrefs.subscriptions?.length ?? 0, report });

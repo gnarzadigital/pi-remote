@@ -8,3 +8,8 @@ frontend/dist/
 .env
 .env.local
 qa-*.png
+backups/
+test-results/
+.validate/
+BUILD.txt
+pi-remote-icon-preview.png

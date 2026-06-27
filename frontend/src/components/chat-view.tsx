@@ -1,66 +1,79 @@
-import { ChevronLeft, MoreHorizontal, Square } from "lucide-react";
+import { ChevronLeft, Square } from "lucide-react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ChatOverflowMenu } from "@/components/chat-overflow-menu";
 import { ConversationView } from "@/components/conversation-view";
 import { InputArea } from "@/components/input-area";
+import { ScreenHeader } from "@/components/screen-header";
+import { SessionRenameSheet } from "@/components/session-rename-sheet";
+import { StreamingStatusBar } from "@/components/streaming-status-bar";
 import { SettingsPanel } from "@/components/settings-panel";
+import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { hapticTap } from "@/lib/utils";
 
 export function ChatView() {
   const { snapshot, bridge } = usePiBridge();
-  const modelLabel = snapshot.activeModel?.name ?? snapshot.activeModel?.id ?? "pi remote";
+  const [renameOpen, setRenameOpen] = useState(false);
+  const bottomDockRef = useRef<HTMLDivElement>(null);
+  useChatBottomInset(bottomDockRef);
+  const sessionTitle = snapshot.activeSessionName ?? "New session";
+  const canRename = Boolean(snapshot.activeSessionPath);
 
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-canvas">
-      <header className="shrink-0 border-b border-hairline px-3 pt-[max(env(safe-area-inset-top),8px)]">
-        <div className="flex h-10 items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex min-h-[44px] items-center text-[14px] text-graphite hover:opacity-70"
-            onClick={() => {
-              hapticTap();
-              bridge.setView("sessions");
-            }}
-          >
-            <ChevronLeft className="size-4" />
-            <span>Sessions</span>
-          </button>
-          <div className="min-w-0 flex-1 truncate text-center text-[14px] font-medium text-graphite">
-            {modelLabel}
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="More actions">
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => bridge.exportConversation()}>Export</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => bridge.compact()}>Compact context</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <SettingsPanel />
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={!snapshot.streaming}
-            aria-label="Stop"
-            onClick={() => bridge.abort()}
-          >
-            <Square className="size-3.5 fill-current" />
-          </Button>
-        </div>
-        <p className="pb-2 text-center text-[12px] text-concrete">{bridge.getStatusText()}</p>
-      </header>
+    <div className="chat-view-root flex h-full min-h-0 w-full min-w-0 flex-1 flex-col bg-canvas">
+      <ScreenHeader innerClassName="gap-2">
+        <button
+          type="button"
+          className="inline-flex min-h-[44px] shrink-0 items-center text-[14px] text-graphite hover:opacity-70"
+          onClick={() => {
+            hapticTap();
+            bridge.setView("sessions");
+          }}
+        >
+          <ChevronLeft className="size-4" />
+          <span>Sessions</span>
+        </button>
+        <button
+          type="button"
+          disabled={!canRename}
+          className="min-w-0 flex-1 truncate text-center text-[14px] font-medium text-graphite disabled:opacity-100"
+          onClick={() => {
+            if (!canRename) return;
+            hapticTap();
+            setRenameOpen(true);
+          }}
+        >
+          {sessionTitle}
+        </button>
+        <ChatOverflowMenu onRename={() => setRenameOpen(true)} />
+        <SettingsPanel />
+        <Button
+          variant="outline"
+          size="icon-sm"
+          disabled={!snapshot.streaming}
+          aria-label="Stop"
+          onClick={() => bridge.abort()}
+        >
+          <Square className="size-3.5 fill-current" />
+        </Button>
+      </ScreenHeader>
 
       <ConversationView />
-      <InputArea />
+
+      <div ref={bottomDockRef} className="chat-bottom-dock">
+        <StreamingStatusBar />
+        <InputArea />
+      </div>
+
+      {canRename && snapshot.activeSessionPath ? (
+        <SessionRenameSheet
+          open={renameOpen}
+          initialName={sessionTitle === "New session" ? "" : sessionTitle}
+          onOpenChange={setRenameOpen}
+          onSave={(name) => bridge.renameSession(snapshot.activeSessionPath!, name)}
+        />
+      ) : null}
     </div>
   );
 }

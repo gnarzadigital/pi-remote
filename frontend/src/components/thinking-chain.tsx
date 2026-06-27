@@ -6,7 +6,7 @@ import {
   ChainOfThoughtTrigger,
 } from "@/components/ui/chain-of-thought"
 import { Markdown } from "@/components/ui/markdown"
-import { ThinkingBar } from "@/components/ui/thinking-bar"
+import { TextShimmer } from "@/components/ui/text-shimmer"
 import type { TurnBlock } from "@/lib/types"
 import { parseThinkingItems, stepTitle } from "@/lib/thinking-steps"
 import { Brain } from "lucide-react"
@@ -15,10 +15,8 @@ type ThinkingBlock = Extract<TurnBlock, { kind: "thinking" }>
 
 export function ThinkingChain({
   blocks,
-  onStop,
 }: {
   blocks: ThinkingBlock[]
-  onStop?: () => void
 }) {
   if (blocks.length === 0) return null
 
@@ -26,14 +24,14 @@ export function ThinkingChain({
 
   return (
     <div className="my-1 space-y-2 rounded-[10px] border border-hairline bg-mist/50 px-3 py-2">
-      {anyStreaming ? (
-        <ThinkingBar text="Thinking" onStop={onStop} stopLabel="Stop" />
-      ) : (
-        <div className="flex items-center gap-2 text-[12px] font-medium text-concrete">
-          <Brain className="size-3.5" />
-          Chain of thought
-        </div>
-      )}
+      <div className="flex items-center gap-2 text-[12px] font-medium text-concrete">
+        <Brain className="size-3.5 shrink-0" />
+        {anyStreaming ? (
+          <TextShimmer className="text-[12px]">Chain of thought</TextShimmer>
+        ) : (
+          <span>Chain of thought</span>
+        )}
+      </div>
       <ChainOfThought>
         {blocks.map((block, blockIdx) => {
           const items = parseThinkingItems(block.text)

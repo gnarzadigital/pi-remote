@@ -2,15 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="pi" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <script>
+      (function () {
+        var d = document.documentElement;
+        d.style.setProperty("--vv-offset-top", "0px");
+        d.style.setProperty("--vv-offset-bottom", "0px");
+        var raw = localStorage.getItem("pi-remote-text-scale");
+        var scale = raw ? parseFloat(raw) : 1;
+        if (!isNaN(scale) && scale >= 0.85 && scale <= 1.35) {
+          var s = document.createElement("style");
+          s.id = "session-list-text-scale-boot";
+          s.textContent =
+            ".session-cursor-list,.session-list-preview{--session-list-text-scale:" + scale + "}";
+          document.head.appendChild(s);
+        }
+      })();
+    </script>
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
-    <title>pi remote</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <title>pi</title>
   </head>
   <body>
     <div id="root"></div>

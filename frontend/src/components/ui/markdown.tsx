@@ -125,6 +125,13 @@ const INITIAL_COMPONENTS: Partial<Components> = {
   pre: function PreComponent({ children }) {
     return <>{children}</>
   },
+  table: function TableComponent({ children, ...props }) {
+    return (
+      <div className="markdown-table-scroll" tabIndex={0} role="region" aria-label="Scrollable table">
+        <table {...props}>{children}</table>
+      </div>
+    )
+  },
 }
 
 const MemoizedMarkdownBlock = memo(
@@ -162,7 +169,7 @@ function MarkdownComponent({
   const blocks = useMemo(() => parseMarkdownIntoBlocks(children), [children])
 
   return (
-    <div className={className}>
+    <div className={cn("max-w-full min-w-0", className)}>
       {blocks.map((block, index) => (
         <MemoizedMarkdownBlock
           key={`${blockId}-block-${index}`}

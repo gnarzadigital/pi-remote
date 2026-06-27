@@ -35,7 +35,7 @@ UI components from [prompt-kit](https://www.prompt-kit.com/docs/chat-container):
 - **Reasoning** — collapsible thinking blocks
 - **Tool** — collapsible tool call cards
 - **PromptInput** — autosizing input; mode, thinking, and model live in `PromptInputActions` (not a separate footer row)
-- **PromptSuggestion** — slash-command chips float above the input when empty
+- **PromptSuggestion** — slash-command chips on **empty sessions only**, after typing `/`
 - **ChainOfThought** — thinking steps with vertical rail (`ThinkingChain`)
 - **ThinkingBar** + **TextShimmer** — streaming indicator with stop
 - **Steps** — grouped consecutive tool runs
@@ -70,7 +70,10 @@ pnpm start
 
 ## iOS / PWA notes
 
-- `useVisualViewport` hook keeps layout aligned when the keyboard opens
+- `useVisualViewport` hook keeps layout aligned when the keyboard opens; uses full `window.innerHeight` when keyboard is closed to avoid footer gaps
+- Shared `.screen-header` / `.screen-substrip` — symmetric 10px padding below safe-area on all screens
+- Page pinch zoom disabled (`maximum-scale=1`); chat transcript scrolls via `.chat-scroll-zone`
+- Safe-area bottom padding lives on `.app-shell` once (not doubled on footer)
 - Slash command picker floats above the input (`absolute bottom-full`), not inline in footer flow
 - Textarea is 16px on mobile to prevent Safari zoom
 - Safe-area padding drops when keyboard is open (`html.keyboard-open`)
@@ -80,3 +83,4 @@ pnpm start
 - Do not restore `public/client.js` or `public/style.css` (legacy vanilla UI)
 - Do not change `bridge.ts` or WebSocket RPC protocol for UI work
 - Bridge client lives in `frontend/src/lib/pi-bridge-client.ts` — port logic there, not in bridge
+- **Scroll engineering:** `initial={false}` on chat container; follow only at live edge; see `chat-scroll-controller.tsx` and [shadcn thread](https://x.com/shadcn/status/2070394918720221522)

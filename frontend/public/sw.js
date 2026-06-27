@@ -1,5 +1,13 @@
-const CACHE_NAME = "pi-remote-v4";
-const PRECACHE_ASSETS = ["/", "/index.html", "/manifest.json", "/icon.svg"];
+const CACHE_NAME = "pi-remote-v7";
+const PRECACHE_ASSETS = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/icon-32.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+];
 const NETWORK_FIRST_PATHS = new Set(["/", "/index.html", "/manifest.json"]);
 
 self.addEventListener("install", (evt) => {
@@ -43,7 +51,7 @@ self.addEventListener("fetch", (evt) => {
 });
 
 self.addEventListener("push", (evt) => {
-  let data = { title: "pi remote", body: "LLM finished working." };
+  let data = { title: "pi", body: "LLM finished working." };
   try {
     if (evt.data) data = { ...data, ...evt.data.json() };
   } catch {}

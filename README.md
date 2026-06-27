@@ -94,6 +94,30 @@ PORT=8080 bun run bridge.ts
 http://<tailscale-ip>:7700
 ```
 
+### Default launcher (recommended)
+
+Always use the canonical build at `~/repos/pi-remote`:
+
+```bash
+# Foreground — Ctrl+C to stop
+pi-remote
+pi-remote ~/Projects/gnarza-digital
+
+# Background — pi-remote stop to turn off
+pi-remote start -d ~/Projects/gnarza-digital
+pi-remote status
+pi-remote stop
+
+# Snapshot built UI
+pi-remote backup
+```
+
+`~/bin/pi-remote` → `scripts/pi-remote.sh`. See `AGENTS.md` for agent handoff.
+
+`PI_REMOTE_ROOT` overrides the UI/bridge repo path. `AGENT_CWD` is which pi sessions/workspace to attach (folder + branch in the UI).
+
+Snapshot a release: `pnpm run backup` or `pi-remote backup` → `backups/<timestamp>/`
+
 ## Terminal controls
 
 While bridge is running, you can send commands from terminal:

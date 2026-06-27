@@ -9,10 +9,15 @@
     "dev": "bun --watch bridge.ts",
     "dev:ui": "pnpm --dir frontend dev",
     "build:ui": "pnpm --dir frontend build && node frontend/scripts/post-build.mjs",
-    "build": "pnpm run build:ui"
+    "build": "pnpm run build:ui",
+    "test:layout": "playwright test qa/visual-layout.spec.ts",
+    "backup": "bash scripts/backup-release.sh"
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "*",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.52.0"
   }
 }

@@ -14,11 +14,11 @@ function AppShell() {
   const hasChat = onChat || snapshot.lines.length > 0;
 
   return (
-    <div className="grid h-full min-h-0 w-full min-w-0 grid-cols-1 md:grid-cols-[min(360px,40vw)_1fr]">
+    <div className="grid h-full min-h-0 w-full min-w-0 flex-1 grid-cols-1 md:grid-cols-[min(360px,40vw)_1fr]">
       {/* Sessions — full screen on mobile when not in chat */}
       <div
         className={cn(
-          "flex min-h-0 min-w-0 flex-col border-hairline md:border-r",
+          "flex h-full min-h-0 min-w-0 flex-col border-hairline md:border-r",
           onChat ? "hidden md:flex" : "flex"
         )}
       >
@@ -28,7 +28,7 @@ function AppShell() {
       {/* Chat — full screen on mobile when in chat */}
       <div
         className={cn(
-          "flex min-h-0 min-w-0 flex-col",
+          "flex h-full min-h-0 min-w-0 flex-col",
           onChat ? "flex" : "hidden md:flex"
         )}
       >
@@ -59,7 +59,7 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <div className="app-shell flex h-[var(--app-height,100dvh)] w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
+      <div className="app-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
         <AppShell />
         <ExtensionDialog />
       </div>
