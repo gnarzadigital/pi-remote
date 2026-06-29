@@ -23,7 +23,6 @@ import {
 import {
   formatSessionName,
   groupSessionsByWorkspace,
-  workspaceSlugToPath,
 } from "@/lib/session-utils";
 import type { PiSession } from "@/lib/types";
 import { applyTextScale, getTextScale } from "@/lib/text-size";
@@ -90,13 +89,8 @@ export function SessionsView() {
   const handleSelect = (session: PiSession) => {
     hapticTap();
     if (session.isCurrentWorkspace === false) {
-      const path = session.workspaceSlug
-        ? workspaceSlugToPath(session.workspaceSlug)
-        : "that project folder";
-      setHint(`Start pi-remote from ${path}`);
-      return;
+      setHint(null);
     }
-    setHint(null);
     bridge.switchSession(session);
   };
 

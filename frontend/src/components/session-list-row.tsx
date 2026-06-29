@@ -24,7 +24,6 @@ export function SessionListRow({
   active,
   pinned,
   unread,
-  foreign,
   onSelect,
   onTogglePin,
   onArchive,
@@ -44,7 +43,6 @@ export function SessionListRow({
   const snapClosed = () => setOffset(0);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (foreign) return;
     startX.current = e.touches[0].clientX;
     startOffset.current = offset;
     setDragging(true);
@@ -55,7 +53,6 @@ export function SessionListRow({
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (foreign) return;
     if (longPressRef.current != null) {
       window.clearTimeout(longPressRef.current);
       longPressRef.current = null;
@@ -115,8 +112,7 @@ export function SessionListRow({
         className={cn(
           "session-row-slide group relative flex min-h-[44px] items-center gap-1.5 rounded-md px-2 py-2",
           active && "bg-[var(--session-row-active)]",
-          foreign && "opacity-45",
-          !foreign && !active && "hover:bg-[var(--session-row-hover)]",
+          !active && "hover:bg-[var(--session-row-hover)]",
           dragging ? "transition-none" : "transition-transform duration-200 ease-out"
         )}
         style={{ transform: `translateX(-${offset}px)` }}
@@ -125,7 +121,7 @@ export function SessionListRow({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
         onContextMenu={(e) => {
-          if (foreign || !onRename) return;
+          if (!onRename) return;
           e.preventDefault();
           hapticTap();
           onRename(session);
@@ -145,7 +141,6 @@ export function SessionListRow({
 
         <button
           type="button"
-          disabled={foreign}
           className="min-w-0 flex-1 truncate text-left session-list-name text-graphite disabled:cursor-default"
           onClick={() => {
             if (open) {
@@ -162,32 +157,30 @@ export function SessionListRow({
         </button>
 
         <div className="hidden shrink-0 items-center gap-0.5 md:group-hover:flex">
-          {!foreign ? (
-            <>
-              <button
-                type="button"
-                aria-label={pinned ? "Unpin" : "Pin"}
-                className="flex size-9 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
-                onClick={() => {
-                  hapticTap();
-                  onTogglePin(session);
-                }}
-              >
-                <Pin className={cn("size-3.5", pinned && "fill-current text-graphite")} />
-              </button>
-              <button
-                type="button"
-                aria-label="Archive"
-                className="flex size-9 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
-                onClick={() => {
-                  hapticTap();
-                  onArchive(session);
-                }}
-              >
-                <Archive className="size-3.5" />
-              </button>
-            </>
-          ) : null}
+          <>
+            <button
+              type="button"
+              aria-label={pinned ? "Unpin" : "Pin"}
+              className="flex size-9 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
+              onClick={() => {
+                hapticTap();
+                onTogglePin(session);
+              }}
+            >
+              <Pin className={cn("size-3.5", pinned && "fill-current text-graphite")} />
+            </button>
+            <button
+              type="button"
+              aria-label="Archive"
+              className="flex size-9 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
+              onClick={() => {
+                hapticTap();
+                onArchive(session);
+              }}
+            >
+              <Archive className="size-3.5" />
+            </button>
+          </>
         </div>
 
         <span
