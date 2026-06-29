@@ -93,6 +93,11 @@ export class PiBridgeClient {
 
   private pendingPatch: Partial<BridgeSnapshot> | null = null;
   private patchQueued = false;
+  /** Messages from pi `notify` extension calls that the user dismissed.
+   *  Persisted to localStorage so they don't reappear on reconnect. */
+  private dismissedNotifies = new Set<string>(
+    (() => { try { return JSON.parse(localStorage.getItem("pi-dismissed-notifies") ?? "[]"); } catch { return []; } })()
+  );
 
   private queuePatch(partial: Partial<BridgeSnapshot>) {
     // Accumulate the patch — do NOT touch this.snapshot synchronously,
@@ -645,6 +650,24 @@ export class PiBridgeClient {
   private handleExtensionUI(req: Record<string, unknown>) {
     const method = String(req.method ?? "");
     if (method === "setStatus" || method === "setWidget" || method === "setTitle") return;
+
+    // `notify` is fire-and-forget — pi uses it for advisory messages
+    // (e.g. "@qhqn/pi-goal also installed"). Persist dismissal so the same
+    // message never pops up again, even across reconnects.
+    if (method === "notify") {
+      const message = String(req.message ?? req.title ?? "").slice(0, 120);
+      if (message) {
+        if (!this.dismissedNotifies.has(message)) {
+          this.dismissedNotifies.add(message);
+          try { localStorage.setItem("pi-dismissed-notifies", JSON.stringify([...this.dismissedNotifies])); } catch {}
+          this.appendSystem(`ℹ ${message}`);
+        }
+        // Always ack so pi doesn't block or re-send
+        this.send({ type: "extension_ui_response", id: String(req.id), cancelled: true, value: null });
+      }
+      return;
+    }
+
     const dialog: ExtensionDialogState = {
       id: String(req.id),
       method,
