@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
-type Props = { children: ReactNode; fallback?: ReactNode };
+type Props = { children: ReactNode; fallback?: ReactNode; inline?: boolean };
 type State = { error: Error | null };
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -17,6 +17,13 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       if (this.props.fallback) return this.props.fallback;
+      if (this.props.inline) {
+        return (
+          <div style={{ padding: 8, color: "#a1a1a1", fontFamily: "monospace", fontSize: 11 }}>
+            [render error: {this.state.error.message}]
+          </div>
+        );
+      }
       return (
         <div style={{ padding: 20, color: "#f5f5f5", fontFamily: "monospace", fontSize: 13, whiteSpace: "pre-wrap" }}>
           <h2 style={{ fontSize: 16, marginBottom: 8 }}>Something went wrong</h2>

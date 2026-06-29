@@ -11,6 +11,7 @@ import { SystemMessage } from "@/components/ui/system-message";
 import { Tool } from "@/components/ui/tool";
 import { ChatScrollController } from "@/components/chat-scroll-controller";
 import { ThinkingChain } from "@/components/thinking-chain";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { groupTurnBlocks } from "@/lib/block-groups";
 import { mapToolBlock } from "@/lib/tool-part-mapper";
@@ -104,6 +105,40 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
   );
 }
 
+function ConversationLine({ line }: { line: ChatLine }) {
+  if (line.kind === "user") {
+    return (
+      <Message
+        {...lineAnchorProps(line.id)}
+        className="flex-col items-end gap-1"
+      >
+        <span className="text-[11px] text-concrete">You</span>
+        <MessageContent className={userContentClass}>{line.text}</MessageContent>
+        {line.images && line.images.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-1">
+            {line.images.map((img, i) => (
+              <img key={i} src={img.preview ?? `data:${img.mimeType};base64,${img.data}`} alt="" className="max-h-32 rounded-lg" />
+            ))}
+          </div>
+        )}
+      </Message>
+    );
+  }
+  if (line.kind === "system" || line.kind === "error") {
+    return (
+      <SystemMessage
+        {...lineAnchorProps(line.id)}
+        variant={line.kind === "error" ? "error" : "action"}
+        fill
+        className="border-hairline bg-mist text-graphite"
+      >
+        {line.text}
+      </SystemMessage>
+    );
+  }
+  return <TurnLine line={line} />;
+}
+
 export function ConversationView() {
   const { snapshot } = usePiBridge();
 
@@ -112,47 +147,11 @@ export function ConversationView() {
       <ChatContainerRoot className="min-h-0 flex-1 w-full min-w-0 overscroll-contain px-4 py-3">
         <ChatScrollController />
         <ChatContainerContent className="gap-3">
-          {snapshot.lines.map((line) => {
-            if (line.kind === "user") {
-              return (
-                <Message
-                  key={line.id}
-                  {...lineAnchorProps(line.id)}
-                  className="flex-col items-end gap-1"
-                >
-                  <span className="text-[11px] text-concrete">You</span>
-                  <MessageContent className={userContentClass}>{line.text}</MessageContent>
-                </Message>
-              );
-            }
-            if (line.kind === "system") {
-              return (
-                <SystemMessage
-                  key={line.id}
-                  {...lineAnchorProps(line.id)}
-                  variant="action"
-                  fill
-                  className="border-hairline bg-mist text-graphite"
-                >
-                  {line.text}
-                </SystemMessage>
-              );
-            }
-            if (line.kind === "error") {
-              return (
-                <SystemMessage
-                  key={line.id}
-                  {...lineAnchorProps(line.id)}
-                  variant="error"
-                  fill
-                  className="border-hairline bg-mist text-graphite"
-                >
-                  {line.text}
-                </SystemMessage>
-              );
-            }
-            return <TurnLine key={line.id} line={line} />;
-          })}
+          {snapshot.lines.map((line) => (
+            <ErrorBoundary key={line.id} inline>
+              <ConversationLine line={line} />
+            </ErrorBoundary>
+          ))}
           <ChatContainerScrollAnchor />
         </ChatContainerContent>
         <div className="chat-scroll-jump pointer-events-none absolute inset-x-0 z-50">
