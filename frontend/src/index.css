@@ -133,8 +133,6 @@ html {
 }
 
 body {
-  position: fixed;
-  top: var(--vv-offset-top, 0);
   right: 0;
   bottom: var(--vv-offset-bottom, 0);
   left: 0;

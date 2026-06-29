@@ -4,7 +4,6 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -77,7 +76,7 @@ function PromptInput({
   }
 
   return (
-    <TooltipProvider>
+    <>
       <PromptInputContext.Provider
         value={{
           isLoading,
@@ -101,7 +100,7 @@ function PromptInput({
           {children}
         </div>
       </PromptInputContext.Provider>
-    </TooltipProvider>
+    </>
   )
 }
 

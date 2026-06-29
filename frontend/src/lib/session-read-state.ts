@@ -12,35 +12,46 @@ function emit() {
   listeners.forEach((fn) => fn());
 }
 
+// Cached reads — invalidated only when we write.
+let cachedReadState: ReadState | null = null;
+let cachedForcedUnread: Set<string> | null = null;
+
 function loadState(): ReadState {
+  if (cachedReadState) return cachedReadState;
   try {
     const raw = localStorage.getItem(READ_STATE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object") return {};
-    return parsed as ReadState;
+    cachedReadState = parsed as ReadState;
+    return cachedReadState;
   } catch {
     return {};
   }
 }
 
 function saveState(state: ReadState) {
+  cachedReadState = state;
   localStorage.setItem(READ_STATE_KEY, JSON.stringify(state));
   emit();
 }
 
 function loadForcedUnread(): Set<string> {
+  if (cachedForcedUnread) return cachedForcedUnread;
   try {
     const raw = localStorage.getItem(FORCED_UNREAD_KEY);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as unknown;
-    return new Set(Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : []);
+    const set = new Set(Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : []);
+    cachedForcedUnread = set;
+    return set;
   } catch {
     return new Set();
   }
 }
 
 function saveForcedUnread(set: Set<string>) {
+  cachedForcedUnread = set;
   localStorage.setItem(FORCED_UNREAD_KEY, JSON.stringify([...set]));
   emit();
 }
@@ -82,12 +93,10 @@ export function markSessionUnread(path: string) {
   const forced = loadForcedUnread();
   forced.add(path);
   saveForcedUnread(forced);
-  emit();
 }
 
 export function isSessionUnread(session: PiSession): boolean {
-  if (loadForcedUnread().has(session.path)) return true;
-  return session.mtime > getLastReadAt(session.path) + 500;
+  return loadForcedUnread().has(session.path) || session.mtime > getLastReadAt(session.path) + 500;
 }
 
 export function countUnread(sessions: PiSession[]): number {

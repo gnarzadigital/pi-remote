@@ -33,6 +33,7 @@ export function SessionListRow({
   const name = formatSessionName(session.name);
   const time = formatRelativeTimeShort(session.mtime);
   const [offset, setOffset] = useState(0);
+  const offsetRef = useRef(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
   const startOffset = useRef(0);
@@ -61,6 +62,7 @@ export function SessionListRow({
     }
     const dx = startX.current - e.touches[0].clientX;
     const next = Math.max(0, Math.min(ACTION_W, startOffset.current + dx));
+    offsetRef.current = next;
     setOffset(next);
   };
 
@@ -70,7 +72,7 @@ export function SessionListRow({
       longPressRef.current = null;
     }
     setDragging(false);
-    if (offset >= SWIPE_THRESHOLD) snapOpen();
+    if (offsetRef.current >= SWIPE_THRESHOLD) snapOpen();
     else snapClosed();
   };
 
@@ -86,7 +88,7 @@ export function SessionListRow({
         <button
           type="button"
           aria-label={pinned ? "Unpin" : "Pin"}
-          className="flex size-8 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
           onClick={() => {
             hapticTap();
             onTogglePin(session);
@@ -98,7 +100,7 @@ export function SessionListRow({
         <button
           type="button"
           aria-label="Archive"
-          className="flex size-8 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
           onClick={() => {
             hapticTap();
             onArchive(session);
@@ -111,7 +113,7 @@ export function SessionListRow({
 
       <div
         className={cn(
-          "session-row-slide group relative flex min-h-[28px] items-center gap-1.5 rounded-md px-2 py-[5px]",
+          "session-row-slide group relative flex min-h-[44px] items-center gap-1.5 rounded-md px-2 py-2",
           active && "bg-[var(--session-row-active)]",
           foreign && "opacity-45",
           !foreign && !active && "hover:bg-[var(--session-row-hover)]",
@@ -165,7 +167,7 @@ export function SessionListRow({
               <button
                 type="button"
                 aria-label={pinned ? "Unpin" : "Pin"}
-                className="flex size-7 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
+                className="flex size-9 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
                 onClick={() => {
                   hapticTap();
                   onTogglePin(session);
@@ -176,7 +178,7 @@ export function SessionListRow({
               <button
                 type="button"
                 aria-label="Archive"
-                className="flex size-7 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
+                className="flex size-9 items-center justify-center rounded-md text-concrete hover:bg-mist hover:text-graphite"
                 onClick={() => {
                   hapticTap();
                   onArchive(session);

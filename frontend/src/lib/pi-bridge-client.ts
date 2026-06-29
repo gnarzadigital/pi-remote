@@ -127,10 +127,14 @@ export class PiBridgeClient {
         this.sendWithId({ type: "set_thinking_level", level: this.snapshot.thinkingLevel });
       }
       this.fetchSessions();
+      // Re-bootstrap state after reconnect
+      this.sendWithId({ type: "get_state" });
+      this.sendWithId({ type: "get_available_models" });
     });
 
     this.ws.addEventListener("close", () => {
       this.ws = null;
+      this.streaming = null;
       this.patch({ connected: false, connectionPhase: "connecting", streaming: false });
       this.scheduleConnectionWatchdog();
       setTimeout(() => this.connect(), this.reconnectDelay);
@@ -277,6 +281,13 @@ export class PiBridgeClient {
       if (msg.command !== "abort") {
         this.patch({ statusError: msg.command ? `${msg.command} failed` : "command failed" });
         setTimeout(() => this.patch({ statusError: null }), 4000);
+        if (msg.command === "switch_session") {
+          this.patch({ view: "sessions" });
+        }
+        if (msg.command === "rename_session") {
+          this.pendingRenames.delete(String(msg.id));
+          this.fetchSessions();
+        }
       }
       return;
     }
@@ -320,10 +331,13 @@ export class PiBridgeClient {
       }
       case "switch_session":
         if (!msg.data?.cancelled) {
+          this.pendingRenames.delete(`switch-${msg.id}`);
           this.appendSystem("✓ Session loaded");
           this.clearConversation();
           this.send({ type: "get_messages", id: this.nextId() });
           this.send({ type: "get_session_stats", id: this.nextId() });
+        } else {
+          this.patch({ view: "sessions" });
         }
         break;
       case "new_session":
@@ -360,8 +374,13 @@ export class PiBridgeClient {
 
   private handleMirroredCommand(msg: Record<string, unknown>) {
     const text = String(msg.message ?? "");
-    if (text) this.appendUser(text);
-    if (msg.type === "prompt") this.startStreamingTurn();
+    if (msg.type === "prompt") {
+      if (text) this.appendUser(text);
+      this.startStreamingTurn();
+    } else {
+      const prefix = msg.type === "steer" ? "[steer]" : "[follow-up]";
+      if (text) this.appendSystem(`${prefix} ${text}`);
+    }
   }
 
   private setSelectedModel(model: PiModel) {
@@ -500,7 +519,11 @@ export class PiBridgeClient {
       }
       case "thinking_delta": {
         this.updateStreamingBlocks((blocks) => {
-          const idx = blocks.findIndex((b) => b.kind === "thinking");
+          // Find the last thinking block to support multi-phase thinking
+          let idx = -1;
+          for (let i = blocks.length - 1; i >= 0; i--) {
+            if (blocks[i].kind === "thinking") { idx = i; break; }
+          }
           if (idx >= 0 && blocks[idx].kind === "thinking") {
             const copy = [...blocks];
             const tb = copy[idx];
@@ -554,14 +577,34 @@ export class PiBridgeClient {
   }
 
   private updateTool(toolCallId: string, patch: Partial<TurnBlock & { kind: "tool" }>) {
-    if (!this.streaming) return;
-    this.updateStreamingBlocks((blocks) => {
-      const idx = this.streaming!.toolIndex.get(toolCallId);
-      if (idx == null) return blocks;
-      const copy = [...blocks];
-      const b = copy[idx];
-      if (b.kind === "tool") copy[idx] = { ...b, ...patch };
-      return copy;
+    if (this.streaming) {
+      // Normal path: streaming turn is active
+      this.updateStreamingBlocks((blocks) => {
+        const idx = this.streaming!.toolIndex.get(toolCallId);
+        if (idx == null) return blocks;
+        const copy = [...blocks];
+        const b = copy[idx];
+        if (b.kind === "tool") copy[idx] = { ...b, ...patch };
+        return copy;
+      });
+      return;
+    }
+    // Fallback: turn already finalized but tool event arrived late
+    // Find the most recent turn and try to patch its tool blocks
+    this.patch({
+      lines: this.snapshot.lines.map((l) => {
+        if (l.kind !== "turn") return l;
+        const toolIdx = l.blocks.findIndex(
+          (b) => b.kind === "tool" && b.id === toolCallId
+        );
+        if (toolIdx < 0) return l;
+        const copy = [...l.blocks];
+        const block = copy[toolIdx];
+        if (block.kind === "tool") {
+          copy[toolIdx] = { ...block, ...patch };
+        }
+        return { ...l, blocks: copy };
+      }),
     });
   }
 
@@ -825,7 +868,7 @@ pre{background:#f2f2f2;border:1px solid #e5e5e5;padding:12px;border-radius:10px;
         if (l.kind === "turn") {
           const inner = l.blocks
             .map((b) => {
-              if (b.kind === "text") return `<div class="assistant">${b.text}</div>`;
+              if (b.kind === "text") return `<div class="assistant">${escapeHtml(b.text)}</div>`;
               if (b.kind === "tool")
                 return `<pre>${escapeHtml(b.name)}\n${escapeHtml(b.output ?? "")}</pre>`;
               return "";

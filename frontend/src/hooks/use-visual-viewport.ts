@@ -71,10 +71,11 @@ export function useVisualViewport() {
     window.addEventListener("orientationchange", deferredSync);
     window.addEventListener("resize", deferredSync);
     document.addEventListener("focusin", deferredSync);
-    document.addEventListener("focusout", () => {
+    const focusoutHandler = () => {
       clearSyncTimers();
       syncTimers.push(window.setTimeout(sync, 120));
-    });
+    };
+    document.addEventListener("focusout", focusoutHandler);
 
     return () => {
       clearSyncTimers();
@@ -83,6 +84,7 @@ export function useVisualViewport() {
       window.removeEventListener("orientationchange", deferredSync);
       window.removeEventListener("resize", deferredSync);
       document.removeEventListener("focusin", deferredSync);
+      document.removeEventListener("focusout", focusoutHandler);
       document.documentElement.style.removeProperty("--vv-offset-top");
       document.documentElement.style.removeProperty("--vv-offset-bottom");
       document.documentElement.style.removeProperty("--app-visible-height");

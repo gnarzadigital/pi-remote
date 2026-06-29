@@ -58,12 +58,18 @@ function CodeBlockCode({
 
   useEffect(() => {
     const root = document.documentElement
+    let cancelled = false
     const observer = new MutationObserver(() => {
-      if (!code) return
-      highlightCode(code, language).then(setHighlightedHtml)
+      if (!code || cancelled) return
+      highlightCode(code, language).then((html) => {
+        if (!cancelled) setHighlightedHtml(html)
+      })
     })
     observer.observe(root, { attributes: true, attributeFilter: ["class"] })
-    return () => observer.disconnect()
+    return () => {
+      cancelled = true
+      observer.disconnect()
+    }
   }, [code, language])
 
   const classNames = cn(

@@ -3,6 +3,7 @@ import { ChatView } from "@/components/chat-view";
 import { ExtensionDialog } from "@/components/extension-dialog";
 import { SessionsView } from "@/components/sessions-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { useVisualViewport } from "@/hooks/use-visual-viewport";
 import { cn } from "@/lib/utils";
@@ -59,10 +60,12 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <div className="app-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
-        <AppShell />
-        <ExtensionDialog />
-      </div>
+      <ErrorBoundary>
+        <div className="app-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
+          <AppShell />
+          <ExtensionDialog />
+        </div>
+      </ErrorBoundary>
     </TooltipProvider>
   );
 }

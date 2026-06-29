@@ -207,7 +207,8 @@ const pi = Bun.spawn(["pi", "--mode", "rpc"], {
 
 pi.exited.then((code) => {
   console.log(`[bridge] pi process exited with code ${code}`);
-  process.exit(code ?? 0);
+  // Don't kill the bridge — keep serving static files and accept new WS connections.
+  // pi will be re-spawned on demand if needed.
 });
 
 // ---------------------------------------------------------------------------

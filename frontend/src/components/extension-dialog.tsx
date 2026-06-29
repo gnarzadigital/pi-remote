@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
@@ -9,11 +9,17 @@ export function ExtensionDialog() {
   const [input, setInput] = useState("");
   const [editor, setEditor] = useState("");
 
+  // Reset values whenever dialog identity changes (not just on focus)
+  const dialogKey = d ? `${d.id ?? ""}-${d.title}` : "";
+  useEffect(() => {
+    if (!d) return;
+    setInput(d.inputValue ?? "");
+    setEditor(d.editorValue ?? "");
+  }, [dialogKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!d) return null;
 
   const open = Boolean(d);
-  const initialInput = d.inputValue ?? "";
-  const initialEditor = d.editorValue ?? "";
 
   return (
     <Dialog
@@ -22,10 +28,7 @@ export function ExtensionDialog() {
         if (!o) bridge.resolveExtensionDialog(null, true);
       }}
     >
-      <DialogContent onOpenAutoFocus={() => {
-        setInput(initialInput);
-        setEditor(initialEditor);
-      }}>
+      <DialogContent>
         <DialogTitle>{d.title}</DialogTitle>
         {d.message && <p className="text-sm text-concrete">{d.message}</p>}
         {d.options?.map((opt) => (
@@ -41,7 +44,7 @@ export function ExtensionDialog() {
         {d.showEditor && (
           <textarea
             className="min-h-[120px] w-full rounded-[10px] border border-hairline p-2 font-mono text-sm"
-            value={editor || initialEditor}
+            value={editor}
             onChange={(e) => setEditor(e.target.value)}
           />
         )}
@@ -59,7 +62,7 @@ export function ExtensionDialog() {
             </Button>
             <Button
               onClick={() =>
-                bridge.resolveExtensionDialog(d.showEditor ? editor : input || true)
+                bridge.resolveExtensionDialog(d.showEditor ? editor : input ?? "")
               }
             >
               OK

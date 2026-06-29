@@ -64,7 +64,7 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
                 markdown
                 className={cn(messageContentClass, "w-full max-w-full")}
               >
-                {block.text + (block.streaming ? " ▍" : "")}
+                {block.text + (block.streaming ? " ▋" : "")}
               </MessageContent>
             );
           }
@@ -88,8 +88,8 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
                   Tool runs ({group.blocks.length})
                 </StepsTrigger>
                 <StepsContent>
-                  {group.blocks.map((block, ti) => (
-                    <StepsItem key={ti} className="py-1">
+                  {group.blocks.map((block) => (
+                    <StepsItem key={block.id} className="py-1">
                       <Tool toolPart={mapToolBlock(block)} className="mt-0 border-hairline bg-chalk" />
                     </StepsItem>
                   ))}

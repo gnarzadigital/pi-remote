@@ -83,7 +83,7 @@ export function WorkspaceFolderSection({
           {hiddenCount > 0 ? (
             <button
               type="button"
-              className="w-full px-2 py-1.5 text-left text-[12px] text-concrete hover:text-graphite"
+              className="w-full min-h-[44px] px-2 py-2.5 text-left text-[12px] text-concrete hover:text-graphite"
               onClick={() => {
                 hapticTap();
                 onShowMore(slug);

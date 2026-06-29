@@ -27,7 +27,7 @@ export function CollapsibleSectionHeader({
     <button
       type="button"
       className={cn(
-        "session-folder-header flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-concrete hover:text-graphite",
+        "session-folder-header flex w-full min-h-[44px] items-center gap-1.5 px-2 py-2.5 text-left text-concrete hover:text-graphite",
         className
       )}
       onClick={() => {

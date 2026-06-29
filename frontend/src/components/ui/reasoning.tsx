@@ -161,9 +161,7 @@ function ReasoningContent({
         "overflow-hidden transition-[max-height] duration-150 ease-out",
         className
       )}
-      style={{
-        maxHeight: isOpen ? contentRef.current?.scrollHeight : "0px",
-      }}
+      style={{ maxHeight: isOpen ? `${innerRef.current?.scrollHeight ?? 0}px` : "0px" }}
       {...props}
     >
       <div

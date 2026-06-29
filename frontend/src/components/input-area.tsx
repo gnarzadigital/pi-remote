@@ -161,7 +161,9 @@ export function InputArea() {
               }, 300);
             }}
             onBlur={() => {
-              window.setTimeout(() => bridge.hideCmdPicker(), 150);
+              // iOS fires blur before touchend on picker items.
+              // Delay to allow the touch event to register first.
+              window.setTimeout(() => bridge.hideCmdPicker(), 300);
             }}
             onKeyDown={(e) => {
               if (snapshot.cmdPickerOpen && matches.length > 0) {
@@ -195,6 +197,7 @@ export function InputArea() {
                   accept="image/*"
                   multiple
                   className="sr-only"
+                  aria-label="Attach image"
                   onChange={(e) => e.target.files && bridge.addPendingImages(e.target.files)}
                 />
                 <Paperclip className="size-4" />
@@ -205,7 +208,7 @@ export function InputArea() {
               <>
                 <InputToolbarChip
                   tooltip="Send mode (Prompt → Steer → Follow-up)"
-                  active={snapshot.mode === "prompt"}
+                  active={snapshot.mode !== "prompt"}
                   onClick={() => bridge.cycleMode()}
                 >
                   {MODE_LABELS[snapshot.mode]}
