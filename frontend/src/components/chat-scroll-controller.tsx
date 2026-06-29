@@ -1,5 +1,5 @@
 import { usePiBridge } from "@/hooks/use-pi-bridge";
-import { findLastUserLineId, scrollLineToViewportStart } from "@/lib/chat-scroll";
+import { scrollLineToViewportStart } from "@/lib/chat-scroll";
 import { useEffect, useRef } from "react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
@@ -9,7 +9,7 @@ import { useStickToBottomContext } from "use-stick-to-bottom";
  */
 export function ChatScrollController() {
   const { snapshot } = usePiBridge();
-  const { scrollRef, stopScroll, isAtBottom } = useStickToBottomContext();
+  const { scrollRef, stopScroll, isAtBottom, scrollToBottom } = useStickToBottomContext();
   const prevLineCount = useRef(0);
   const prevSessionPath = useRef<string | null | undefined>(undefined);
   const prevLastUserId = useRef<string | null>(null);
@@ -23,20 +23,18 @@ export function ChatScrollController() {
     }
   }, [snapshot.activeSessionPath]);
 
-  // Session load / reconnect: open at last user message (#11), not bottom.
+  // Session load / reconnect: scroll to BOTTOM so the latest response is visible.
+  // Uses the library's scrollToBottom + retries to handle async content rendering
+  // (markdown + shiki code highlighting load after initial paint, growing height).
   useEffect(() => {
     if (!resumeAtUserTurn.current || snapshot.lines.length === 0) return;
-
-    const lastUserId = findLastUserLineId(snapshot.lines);
-    if (!lastUserId) return;
-
     resumeAtUserTurn.current = false;
-    stopScroll();
-    requestAnimationFrame(() => {
-      const root = scrollRef.current;
-      if (root) scrollLineToViewportStart(root, lastUserId);
-    });
-  }, [snapshot.lines, scrollRef, stopScroll]);
+    const go = () => scrollToBottom({ animation: "instant" });
+    const raf = requestAnimationFrame(go);
+    const t1 = setTimeout(go, 150);
+    const t2 = setTimeout(go, 400);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); };
+  }, [snapshot.lines, scrollToBottom]);
 
   // New user message: start turn near top of viewport (#4, #6).
   useEffect(() => {
