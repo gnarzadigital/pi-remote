@@ -13,29 +13,30 @@ Bun bridge + React PWA for controlling `pi --mode rpc` from a phone over Tailsca
 - Port: `7700`
 - UI: `http://<tailscale-host>:7700`
 
-## On / off (quick reference)
+## Service (launchd — auto-restart)
+
+The bridge runs as a launchd service that survives crashes and reboots:
 
 | Goal | Command |
 |---|---|
-| **Use remote (foreground)** | `pi-remote` or `pi-remote ~/path/to/repo` — Ctrl+C stops |
-| **Use remote (background)** | `pi-remote start -d ~/path/to/repo` |
-| **Turn off** | `pi-remote stop` |
-| **Check if running** | `pi-remote status` |
-| **Restart** | `pi-remote restart ~/path/to/repo` |
+| **Check status** | `launchctl list \| grep pi-remote` |
+| **Stop** | `launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.gnarza.pi-remote.plist` |
+| **Start** | `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gnarza.pi-remote.plist` |
+| **Restart** | `launchctl kickstart -k gui/$(id -u)/com.gnarza.pi-remote` |
+| **Logs** | `tail -f /tmp/pi-remote-bridge.log` |
 
-Nothing runs automatically. Remote access only exists while the bridge process is up. Tailscale must be on for phone access, but that alone does not start pi-remote.
+Config: `~/Library/LaunchAgents/com.gnarza.pi-remote.plist` — edit AGENT_CWD to change the project, then re-bootstrap. KeepAlive=true means it always restarts. RunAtLoad=true means it starts at login.
 
-## Start from any agent or shell
+## Manual run (foreground, for debugging)
 
 ```bash
 pi-remote                                    # foreground, current dir
 pi-remote ~/Projects/gnarza-digital/...      # foreground, specific repo
-pi-remote start -d ~/Projects/gnarza-digital # background daemon
+pi-remote start -d ~/Projects/gnarza-digital # background daemon (nohup, no auto-restart)
 pi-remote stop                               # kill background bridge
-pi-remote backup                             # build UI + local snapshot
 ```
 
-`~/bin/pi-remote` → `scripts/pi-remote.sh`
+`~/bin/pi-remote` → `scripts/pi-remote.sh`. Prefer the launchd service for always-on use.
 
 ### Env overrides
 
