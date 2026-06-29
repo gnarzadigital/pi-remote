@@ -215,8 +215,11 @@ export class PiBridgeClient {
       return;
     }
     if (msg.type === "bridge_error") {
+      const text = String(msg.message ?? "");
+      // Suppress deprecation warnings from cluttering the chat
+      if (text.includes("deprecated") || text.includes("DeprecationWarning") || text.includes("DEP0")) return;
       const cmd = msg.command ? ` (${msg.command})` : "";
-      this.appendError(`Bridge${cmd}: ${msg.message ?? "unknown error"}`);
+      this.appendError(`Bridge${cmd}: ${text}`);
       this.queuePatch({ statusError: String(msg.command ?? "error") });
       setTimeout(() => this.queuePatch({ statusError: null }), 4000);
       return;

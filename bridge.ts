@@ -335,6 +335,11 @@ function sendToWs(ws: any, msg: string): void {
 
 // Forward pi stderr lines to clients as UI-visible bridge_error events
 attachJsonlReader(pi.stderr as ReadableStream<Uint8Array>, (line) => {
+  // Suppress deprecation warnings (e.g. node-domexception) from cluttering the UI
+  if (line.includes("(node:") && (line.includes("DEP") || line.includes("deprecated") || line.includes("DeprecationWarning"))) {
+    console.error(`[pi:stderr] ${line}`);
+    return;
+  }
   const msg = JSON.stringify({
     type: "bridge_error",
     source: "pi-stderr",
