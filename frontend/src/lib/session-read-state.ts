@@ -8,6 +8,10 @@ type ReadState = Record<string, number>;
 
 const listeners = new Set<() => void>();
 
+// Monotonic revision counter — increments on every write, used as the
+// useSyncExternalStore snapshot so React sees a stable value between writes.
+let revision = 0;
+
 function emit() {
   listeners.forEach((fn) => fn());
 }
@@ -33,6 +37,7 @@ function loadState(): ReadState {
 function saveState(state: ReadState) {
   cachedReadState = state;
   localStorage.setItem(READ_STATE_KEY, JSON.stringify(state));
+  revision++;
   emit();
 }
 
@@ -53,12 +58,18 @@ function loadForcedUnread(): Set<string> {
 function saveForcedUnread(set: Set<string>) {
   cachedForcedUnread = set;
   localStorage.setItem(FORCED_UNREAD_KEY, JSON.stringify([...set]));
+  revision++;
   emit();
 }
 
 export function subscribeReadState(fn: () => void) {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+/** Returns the current revision counter — stable between writes. */
+export function getReadStateRevision(): number {
+  return revision;
 }
 
 export function getLastReadAt(path: string): number {

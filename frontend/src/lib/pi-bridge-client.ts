@@ -77,7 +77,6 @@ export class PiBridgeClient {
   private pendingImages: ImageAttachment[] = [];
   private connectionWatchdog: ReturnType<typeof setTimeout> | null = null;
   private pendingRenames = new Map<string, { sessionPath: string; name: string }>();
-  private patchQueued = false;
 
   snapshot: BridgeSnapshot = initialSnapshot();
 
@@ -92,14 +91,24 @@ export class PiBridgeClient {
     this.listeners.forEach((fn) => fn());
   }
 
+  private pendingPatch: Partial<BridgeSnapshot> | null = null;
+  private patchQueued = false;
+
   private queuePatch(partial: Partial<BridgeSnapshot>) {
-    this.snapshot = { ...this.snapshot, ...partial };
+    // Accumulate the patch — do NOT touch this.snapshot synchronously,
+    // because useSyncExternalStore.getSnapshot() may be called mid-render
+    // by another component. Apply on a macrotask, fully outside React's cycle.
+    this.pendingPatch = this.pendingPatch ? { ...this.pendingPatch, ...partial } : partial;
     if (!this.patchQueued) {
       this.patchQueued = true;
-      queueMicrotask(() => {
+      setTimeout(() => {
         this.patchQueued = false;
-        this.emit();
-      });
+        if (this.pendingPatch) {
+          this.snapshot = { ...this.snapshot, ...this.pendingPatch };
+          this.pendingPatch = null;
+          this.emit();
+        }
+      }, 0);
     }
   }
 
