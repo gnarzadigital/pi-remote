@@ -77,6 +77,7 @@ export class PiBridgeClient {
   private pendingImages: ImageAttachment[] = [];
   private connectionWatchdog: ReturnType<typeof setTimeout> | null = null;
   private pendingRenames = new Map<string, { sessionPath: string; name: string }>();
+  private patchQueued = false;
 
   snapshot: BridgeSnapshot = initialSnapshot();
 
@@ -91,10 +92,17 @@ export class PiBridgeClient {
     this.listeners.forEach((fn) => fn());
   }
 
-  private patch(partial: Partial<BridgeSnapshot>) {
+  private queuePatch(partial: Partial<BridgeSnapshot>) {
     this.snapshot = { ...this.snapshot, ...partial };
-    this.emit();
+    if (!this.patchQueued) {
+      this.patchQueued = true;
+      queueMicrotask(() => {
+        this.patchQueued = false;
+        this.emit();
+      });
+    }
   }
+
 
   private nextId() {
     return `client-${++this.reqCounter}`;
@@ -115,14 +123,14 @@ export class PiBridgeClient {
   connect() {
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const clientId = encodeURIComponent(this.getPushClientId());
-    this.patch({ connectionPhase: "connecting" });
+    this.queuePatch({ connectionPhase: "connecting" });
     this.scheduleConnectionWatchdog();
     this.ws = new WebSocket(`${proto}://${location.host}?clientId=${clientId}`);
 
     this.ws.addEventListener("open", () => {
       this.reconnectDelay = 1000;
       this.clearConnectionWatchdog();
-      this.patch({ connected: true, connectionPhase: "connected", statusError: null });
+      this.queuePatch({ connected: true, connectionPhase: "connected", statusError: null });
       if (this.snapshot.thinkingLevel !== "none") {
         this.sendWithId({ type: "set_thinking_level", level: this.snapshot.thinkingLevel });
       }
@@ -135,7 +143,7 @@ export class PiBridgeClient {
     this.ws.addEventListener("close", () => {
       this.ws = null;
       this.streaming = null;
-      this.patch({ connected: false, connectionPhase: "connecting", streaming: false });
+      this.queuePatch({ connected: false, connectionPhase: "connecting", streaming: false });
       this.scheduleConnectionWatchdog();
       setTimeout(() => this.connect(), this.reconnectDelay);
       this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, 15000);
@@ -162,7 +170,7 @@ export class PiBridgeClient {
     this.clearConnectionWatchdog();
     this.connectionWatchdog = setTimeout(() => {
       if (!this.snapshot.connected) {
-        this.patch({ connectionPhase: "disconnected" });
+        this.queuePatch({ connectionPhase: "disconnected" });
       }
     }, 6000);
   }
@@ -197,11 +205,11 @@ export class PiBridgeClient {
       return;
     }
     if (msg.type === "prefs") {
-      this.patch({ recentModels: (msg.recentModels as PiModel[]) ?? [] });
+      this.queuePatch({ recentModels: (msg.recentModels as PiModel[]) ?? [] });
       return;
     }
     if (msg.type === "session_info") {
-      this.patch({
+      this.queuePatch({
         sessionInfo: `${msg.folder} · ${msg.branch}`,
       });
       return;
@@ -209,20 +217,20 @@ export class PiBridgeClient {
     if (msg.type === "bridge_error") {
       const cmd = msg.command ? ` (${msg.command})` : "";
       this.appendError(`Bridge${cmd}: ${msg.message ?? "unknown error"}`);
-      this.patch({ statusError: String(msg.command ?? "error") });
-      setTimeout(() => this.patch({ statusError: null }), 4000);
+      this.queuePatch({ statusError: String(msg.command ?? "error") });
+      setTimeout(() => this.queuePatch({ statusError: null }), 4000);
       return;
     }
 
     switch (msg.type) {
       case "agent_start":
-        this.patch({ streaming: true });
+        this.queuePatch({ streaming: true });
         this.startStreamingTurn();
         if (navigator.vibrate) navigator.vibrate(30);
         this.startStatsPolling();
         break;
       case "agent_end":
-        this.patch({ streaming: false });
+        this.queuePatch({ streaming: false });
         this.finaliseStreamingTurn();
         this.stopStatsPolling();
         this.send({ type: "get_session_stats", id: this.nextId() });
@@ -279,10 +287,10 @@ export class PiBridgeClient {
   }) {
     if (!msg.success) {
       if (msg.command !== "abort") {
-        this.patch({ statusError: msg.command ? `${msg.command} failed` : "command failed" });
-        setTimeout(() => this.patch({ statusError: null }), 4000);
+        this.queuePatch({ statusError: msg.command ? `${msg.command} failed` : "command failed" });
+        setTimeout(() => this.queuePatch({ statusError: null }), 4000);
         if (msg.command === "switch_session") {
-          this.patch({ view: "sessions" });
+          this.queuePatch({ view: "sessions" });
         }
         if (msg.command === "rename_session") {
           this.pendingRenames.delete(String(msg.id));
@@ -294,10 +302,10 @@ export class PiBridgeClient {
     switch (msg.command) {
       case "get_state":
         if (msg.data) {
-          this.patch({ streaming: Boolean(msg.data.isStreaming) });
+          this.queuePatch({ streaming: Boolean(msg.data.isStreaming) });
           if (msg.data.model) this.setSelectedModel(msg.data.model as PiModel);
           if (typeof msg.data.sessionName === "string" && msg.data.sessionName.trim()) {
-            this.patch({ activeSessionName: msg.data.sessionName.trim() });
+            this.queuePatch({ activeSessionName: msg.data.sessionName.trim() });
           }
         }
         break;
@@ -311,22 +319,22 @@ export class PiBridgeClient {
         }
         break;
       case "get_commands":
-        this.patch({ commands: (msg.data?.commands as PiCommand[]) ?? [] });
+        this.queuePatch({ commands: (msg.data?.commands as PiCommand[]) ?? [] });
         break;
       case "get_available_models":
-        this.patch({ allModels: (msg.data?.models as PiModel[]) ?? [] });
+        this.queuePatch({ allModels: (msg.data?.models as PiModel[]) ?? [] });
         break;
       case "set_model":
         if (msg.data) this.setSelectedModel(msg.data as unknown as PiModel);
         break;
       case "get_session_stats":
-        this.patch({ stats: msg.data as SessionStats });
+        this.queuePatch({ stats: msg.data as SessionStats });
         break;
       case "list_sessions": {
         const raw = (msg.data?.sessions as PiSession[]) ?? [];
         const sessions = raw.map(enrichSessionWorkspace);
         ensureReadBaseline(sessions);
-        this.patch({ sessions });
+        this.queuePatch({ sessions });
         break;
       }
       case "switch_session":
@@ -337,7 +345,7 @@ export class PiBridgeClient {
           this.send({ type: "get_messages", id: this.nextId() });
           this.send({ type: "get_session_stats", id: this.nextId() });
         } else {
-          this.patch({ view: "sessions" });
+          this.queuePatch({ view: "sessions" });
         }
         break;
       case "new_session":
@@ -352,7 +360,7 @@ export class PiBridgeClient {
           const sessionPath = String(msg.data.sessionPath);
           const newName = String(msg.data.name);
           if (this.snapshot.activeSessionPath === sessionPath) {
-            this.patch({ activeSessionName: newName });
+            this.queuePatch({ activeSessionName: newName });
           }
         }
         this.fetchSessions();
@@ -363,7 +371,7 @@ export class PiBridgeClient {
           if (pending) {
             this.pendingRenames.delete(msg.id);
             if (this.snapshot.activeSessionPath === pending.sessionPath) {
-              this.patch({ activeSessionName: pending.name });
+              this.queuePatch({ activeSessionName: pending.name });
             }
           }
         }
@@ -384,28 +392,28 @@ export class PiBridgeClient {
   }
 
   private setSelectedModel(model: PiModel) {
-    this.patch({ activeModel: model });
+    this.queuePatch({ activeModel: model });
   }
 
   private clearConversation() {
     this.streaming = null;
-    this.patch({ lines: [] });
+    this.queuePatch({ lines: [] });
   }
 
   private appendUser(text: string, images?: ImageAttachment[]) {
-    this.patch({
+    this.queuePatch({
       lines: [...this.snapshot.lines, { id: uid("user"), kind: "user", text, images }],
     });
   }
 
   private appendSystem(text: string) {
-    this.patch({
+    this.queuePatch({
       lines: [...this.snapshot.lines, { id: uid("sys"), kind: "system", text }],
     });
   }
 
   private appendError(text: string) {
-    this.patch({
+    this.queuePatch({
       lines: [...this.snapshot.lines, { id: uid("err"), kind: "error", text: `⚠ ${text}` }],
     });
   }
@@ -456,14 +464,14 @@ export class PiBridgeClient {
       }
     }
     this.streaming = null;
-    this.patch({ lines });
+    this.queuePatch({ lines });
   }
 
   private startStreamingTurn() {
     this.finaliseStreamingTurn();
     const turnId = uid("turn");
     this.streaming = { turnId, blocks: [], toolIndex: new Map() };
-    this.patch({
+    this.queuePatch({
       lines: [
         ...this.snapshot.lines,
         { id: turnId, kind: "turn", blocks: [], streaming: true },
@@ -485,7 +493,7 @@ export class PiBridgeClient {
         : l
     );
     this.streaming = null;
-    this.patch({ lines });
+    this.queuePatch({ lines });
   }
 
   private updateStreamingBlocks(updater: (blocks: TurnBlock[]) => TurnBlock[]) {
@@ -496,7 +504,7 @@ export class PiBridgeClient {
       this.streaming!.blocks = blocks;
       return { ...l, blocks };
     });
-    this.patch({ lines });
+    this.queuePatch({ lines });
   }
 
   private handleMessageUpdate(msg: Record<string, unknown>) {
@@ -591,7 +599,7 @@ export class PiBridgeClient {
     }
     // Fallback: turn already finalized but tool event arrived late
     // Find the most recent turn and try to patch its tool blocks
-    this.patch({
+    this.queuePatch({
       lines: this.snapshot.lines.map((l) => {
         if (l.kind !== "turn") return l;
         const toolIdx = l.blocks.findIndex(
@@ -637,7 +645,7 @@ export class PiBridgeClient {
       inputValue: "",
       editorValue: String(req.text ?? ""),
     };
-    this.patch({ extensionDialog: dialog });
+    this.queuePatch({ extensionDialog: dialog });
   }
 
   resolveExtensionDialog(value: unknown, cancelled = false) {
@@ -649,7 +657,7 @@ export class PiBridgeClient {
       cancelled,
       value,
     });
-    this.patch({ extensionDialog: null });
+    this.queuePatch({ extensionDialog: null });
   }
 
   // ─── Public actions ───────────────────────────────────────────────────────
@@ -663,12 +671,12 @@ export class PiBridgeClient {
   }
 
   setView(view: "sessions" | "chat") {
-    this.patch({ view });
+    this.queuePatch({ view });
     if (view === "sessions") this.fetchSessions();
   }
 
   switchSession(session: PiSession) {
-    this.patch({
+    this.queuePatch({
       activeSessionName: formatSessionName(session.name),
       activeSessionPath: session.path,
       view: "chat",
@@ -684,12 +692,12 @@ export class PiBridgeClient {
     const id = this.sendWithId({ type: "rename_session", sessionPath, name: trimmed });
     this.pendingRenames.set(id, { sessionPath, name: trimmed });
     if (this.snapshot.activeSessionPath === sessionPath) {
-      this.patch({ activeSessionName: trimmed });
+      this.queuePatch({ activeSessionName: trimmed });
     }
   }
 
   newSession() {
-    this.patch({
+    this.queuePatch({
       activeSessionName: "New session",
       activeSessionPath: null,
       view: "chat",
@@ -701,7 +709,7 @@ export class PiBridgeClient {
   setTheme(theme: "light" | "dark") {
     localStorage.setItem("pi-remote-theme", theme);
     document.documentElement.classList.toggle("dark", theme === "dark");
-    this.patch({ theme });
+    this.queuePatch({ theme });
   }
 
   toggleTheme() {
@@ -709,7 +717,7 @@ export class PiBridgeClient {
   }
 
   setMode(mode: SendMode) {
-    this.patch({ mode });
+    this.queuePatch({ mode });
   }
 
   cycleMode() {
@@ -719,7 +727,7 @@ export class PiBridgeClient {
 
   setThinkingLevel(level: ThinkingLevel, sendRpc = true) {
     localStorage.setItem("thinking-level", level);
-    this.patch({ thinkingLevel: level });
+    this.queuePatch({ thinkingLevel: level });
     if (sendRpc) this.sendWithId({ type: "set_thinking_level", level });
   }
 
@@ -804,7 +812,7 @@ export class PiBridgeClient {
   }
 
   showCmdPicker(filter: string) {
-    this.patch({
+    this.queuePatch({
       cmdPickerOpen: true,
       cmdFilter: filter,
       cmdSelectedIdx: 0,
@@ -812,7 +820,7 @@ export class PiBridgeClient {
   }
 
   hideCmdPicker() {
-    this.patch({ cmdPickerOpen: false, cmdFilter: "", cmdSelectedIdx: 0 });
+    this.queuePatch({ cmdPickerOpen: false, cmdFilter: "", cmdSelectedIdx: 0 });
   }
 
   moveCmdSelection(delta: number) {
@@ -828,7 +836,7 @@ export class PiBridgeClient {
     if (matches.length === 0) return;
     const next =
       (this.snapshot.cmdSelectedIdx + delta + matches.length) % matches.length;
-    this.patch({ cmdSelectedIdx: next });
+    this.queuePatch({ cmdSelectedIdx: next });
   }
 
   selectCommand(name: string) {
