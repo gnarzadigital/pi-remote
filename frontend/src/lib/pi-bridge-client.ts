@@ -683,7 +683,11 @@ export class PiBridgeClient {
     });
     markSessionRead(session.path, session.mtime);
     this.sendWithId({ type: "switch_session", sessionPath: session.path });
-    this.appendSystem("↻ Switching session…");
+    if (this.snapshot.connected) {
+      this.appendSystem("↻ Switching session…");
+    } else {
+      this.appendSystem("⚠ pi not connected — commands will not work");
+    }
   }
 
   renameSession(sessionPath: string, name: string) {
