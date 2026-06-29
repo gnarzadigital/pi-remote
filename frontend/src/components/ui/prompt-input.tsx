@@ -206,16 +206,12 @@ function PromptInputAction({
   side = "top",
   ...props
 }: PromptInputActionProps) {
-  const { disabled } = usePromptInput()
-
   return (
     <Tooltip {...props}>
-      <TooltipTrigger
-        asChild
-        disabled={disabled}
-        onClick={(event) => event.stopPropagation()}
-      >
-        {children}
+      <TooltipTrigger asChild>
+        <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
+          {children}
+        </span>
       </TooltipTrigger>
       <TooltipContent side={side} className={className}>
         {tooltip}

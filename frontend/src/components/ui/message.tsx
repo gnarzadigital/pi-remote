@@ -106,7 +106,9 @@ const MessageAction = ({
 }: MessageActionProps) => {
   return (
     <Tooltip {...props}>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">{children}</span>
+      </TooltipTrigger>
       <TooltipContent side={side} className={className}>
         {tooltip}
       </TooltipContent>
