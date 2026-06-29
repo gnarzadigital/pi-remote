@@ -202,7 +202,17 @@ const pi = Bun.spawn(["pi", "--mode", "rpc"], {
   stdin: "pipe",
   stdout: "pipe",
   stderr: "pipe",
-  env: { ...process.env },
+  env: {
+    ...process.env,
+    // Ensure pi can resolve @earendil-works/pi-tui and other global modules
+    NODE_PATH: [
+      process.env.NODE_PATH,
+      "/opt/homebrew/lib/node_modules",
+      "/Users/nicholasgarza/.nvm/versions/node/v22.21.1/lib/node_modules",
+    ]
+      .filter(Boolean)
+      .join(":"),
+  },
 });
 
 pi.exited.then((code) => {
