@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { ContextMeter } from "@/components/context-meter";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { formatSessionMeta, getModelContextWindowTokens } from "@/lib/message-utils";
 import { isPinned, togglePin } from "@/lib/pinned-sessions";
@@ -56,6 +57,7 @@ export function ChatOverflowMenu({ onRename }: { onRename?: () => void }) {
                 {sessionMeta}
               </DropdownMenuLabel>
             ) : null}
+            <ContextMeter />
             <DropdownMenuSeparator />
           </>
         ) : null}

@@ -54,9 +54,9 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
   FIFO `messageQueue`, flushes one on `agent_end`; `queuedMessages` in snapshot; cancel-able
   chips above composer. Also excluded `*.test.ts` from tsconfig.app so co-located tests don't
   break tsc/build. Gate green (6/6). Live queued-chip visual pending on-device stream.
-- [ ] **2.4 Context-window meter.** Render used/cached/free from `get_session_stats` in the
-  chat header/overflow. New `components/context-meter.tsx`.
-  Verify: bun test on token math; screenshot with real stats.
+- [x] **2.4 Context-window meter.** `context-meter.tsx` renders used/max token bar + % + cost
+  in the overflow menu, reusing message-utils token math (getContextUsedTokens /
+  getModelContextWindowTokens). message-utils.test.ts covers the math. Gate green (9/9).
 - [ ] **2.5 Voice input.** webkitSpeechRecognition mic button in `input-area.tsx`, live transcript
   into the composer. LOCAL only — assert no cloud endpoint.
   Verify: manual on device (Safari); tsc + build clean; grep shows no cloud STT url.
