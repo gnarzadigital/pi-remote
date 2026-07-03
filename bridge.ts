@@ -585,6 +585,39 @@ function listSessionFiles(): Array<{
   return results.sort((a, b) => b.mtime - a.mtime);
 }
 
+/** Full-text search across session names + jsonl content. Returns hits with a snippet. */
+function searchSessionFiles(query: string, limit = 40) {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const files = listSessionFiles(); // already junk-filtered, mtime-sorted
+  const hits: Array<Record<string, unknown>> = [];
+  for (const f of files) {
+    if (hits.length >= limit) break;
+    const nameHit = f.name.toLowerCase().includes(q);
+    let snippet = "";
+    let contentHit = false;
+    try {
+      if (statSync(f.path).size <= 2_000_000) {
+        const text = readFileSync(f.path, "utf8");
+        const idx = text.toLowerCase().indexOf(q);
+        if (idx >= 0) {
+          contentHit = true;
+          const start = Math.max(0, idx - 40);
+          snippet = text
+            .slice(start, idx + q.length + 60)
+            .replace(/[^\x20-\x7e]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+      }
+    } catch {
+      // unreadable session — skip content, keep name match
+    }
+    if (nameHit || contentHit) hits.push({ ...f, snippet });
+  }
+  return hits;
+}
+
 // File listing for autocomplete (cache with short TTL)
 let fileListCache: string[] = [];
 let fileListCacheTime = 0;
@@ -709,6 +742,12 @@ function handleClientMessage(ws: any, raw: string): void {
   if (cmd.type === "list_files") {
     const files = getFileList(cmd.forceRefresh ?? false);
     sendToWs(ws, JSON.stringify({ type: "response", command: "list_files", success: true, id: cmd.id, data: { files } }));
+    return;
+  }
+
+  if (cmd.type === "search_sessions") {
+    const results = searchSessionFiles(String(cmd.query ?? ""));
+    sendToWs(ws, JSON.stringify({ type: "response", command: "search_sessions", success: true, id: cmd.id, data: { results } }));
     return;
   }
 

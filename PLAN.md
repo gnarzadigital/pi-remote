@@ -43,9 +43,10 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
   shadow is the floating ScrollButton (allowed by DESIGN.md). No change needed.
 
 ## Phase 2 — Picot features (mobile-relevant)  [independent of Phase 3]
-- [ ] **2.1 Session search.** Add a search field to `sessions-view.tsx` filtering by name +
-  (bridge) content. Add bridge `search_sessions` RPC scanning session jsonl (see Picot /api/search).
-  Verify: bun test on the match/highlight fn; WS smoke returns hits; screenshot highlights.
+- [x] **2.1 Session search.** Bridge `search_sessions` greps name + jsonl content (2MB cap,
+  40-hit cap), returns hits with a snippet. sessions-view has a debounced search bar; results
+  render as a flat list with the query highlighted. Verify: WS smoke — "airtable" 27 hits (name),
+  "opportunity lifecycle" hits with real content snippets. Gate green.
 - [ ] **2.2 Inline diff viewer.** Render agent edit tool-results as add/remove diff blocks.
   New `lib/diff-parse.ts` + `components/ui/diff.tsx`; map in `tool-part-mapper.ts`.
   Verify: bun test on diff-parse (unified-diff → lines); screenshot of a real edit; build clean.

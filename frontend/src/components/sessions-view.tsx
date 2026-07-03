@@ -24,7 +24,33 @@ import {
 import type { PiSession } from "@/lib/types";
 import { applyTextScale, getTextScale } from "@/lib/text-size";
 import { hapticTap } from "@/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+
+/** Wrap case-insensitive matches of `q` in `text` with a subtle highlight. */
+function highlight(text: string, q: string): ReactNode {
+  if (!q) return text;
+  const lower = text.toLowerCase();
+  const ql = q.toLowerCase();
+  const out: ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  for (;;) {
+    const idx = lower.indexOf(ql, i);
+    if (idx < 0) {
+      out.push(text.slice(i));
+      break;
+    }
+    if (idx > i) out.push(text.slice(i, idx));
+    out.push(
+      <mark key={key++} className="rounded bg-mist font-semibold text-graphite">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+    );
+    i = idx + q.length;
+  }
+  return out;
+}
 
 export function SessionsView() {
   const { snapshot, bridge } = usePiBridge();
@@ -35,6 +61,12 @@ export function SessionsView() {
   const [hint, setHint] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<PiSession | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const t = window.setTimeout(() => bridge.searchSessions(search), 250);
+    return () => window.clearTimeout(t);
+  }, [search, bridge]);
 
   const pinnedPaths = useMemo(
     () => new Set(getPinnedPaths()),
@@ -133,6 +165,30 @@ export function SessionsView() {
         </div>
       </ScreenHeader>
 
+      <div className="shrink-0 border-b border-hairline px-3 py-2">
+        <div className="flex items-center gap-2 rounded-[10px] border border-hairline bg-mist px-2.5 py-1.5">
+          <Search className="size-3.5 shrink-0 text-concrete" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search sessions"
+            aria-label="Search sessions"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-graphite outline-none placeholder:text-concrete"
+          />
+          {search ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              className="shrink-0 text-concrete hover:text-graphite"
+              onClick={() => setSearch("")}
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       {hint ? (
         <div className="shrink-0 border-b border-hairline bg-mist px-3 py-2 text-[12px] text-graphite">
           {hint}
@@ -140,50 +196,81 @@ export function SessionsView() {
       ) : null}
 
       <div className="sessions-scroll session-cursor-list min-h-0 flex-1 overflow-y-auto overscroll-contain bg-canvas py-2">
-        {groups.length === 0 ? (
-          <p className="session-list-meta px-3 py-8 text-center text-concrete">
-            {showArchived ? "No archived sessions" : "No sessions"}
-          </p>
+        {snapshot.searchResults !== null ? (
+          snapshot.searchResults.length === 0 ? (
+            <p className="session-list-meta px-3 py-8 text-center text-concrete">No matches</p>
+          ) : (
+            <div className="px-1">
+              {snapshot.searchResults.map((hit) => (
+                <button
+                  key={hit.path}
+                  type="button"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-[8px] px-2 py-2 text-left hover:bg-mist"
+                  onClick={() => handleSelect(hit)}
+                >
+                  <span className="w-full truncate text-[13px] text-graphite">
+                    {highlight(formatSessionName(hit.name), search)}
+                  </span>
+                  {hit.snippet ? (
+                    <span className="line-clamp-2 w-full text-[12px] text-concrete">
+                      {highlight(hit.snippet, search)}
+                    </span>
+                  ) : null}
+                  {hit.workspaceLabel ? (
+                    <span className="text-[11px] text-concrete">{hit.workspaceLabel}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          )
         ) : (
-          groups.map((group) => (
-            <WorkspaceFolderSection
-              key={group.workspaceSlug ?? group.label}
-              group={group}
-              collapsed={isWorkspaceCollapsed(
-                group.workspaceSlug ?? group.label,
-                group.isCurrentWorkspace ?? false
-              )}
-              expanded={expandedFolders.has(group.workspaceSlug ?? group.label)}
-              activeSessionPath={snapshot.activeSessionPath}
-              pinnedPaths={pinnedPaths}
-              onToggleCollapse={handleToggleCollapse}
-              onShowMore={handleShowMore}
-              onSelect={handleSelect}
-              onTogglePin={handleTogglePin}
-              onArchive={handleArchive}
-              onRename={handleRename}
-              isUnread={isSessionUnread}
-            />
-          ))
-        )}
-
-        {archivedCount > 0 ? (
-          <button
-            type="button"
-            className="session-list-meta mt-2 flex w-full items-center gap-1.5 px-2 py-2 text-left text-concrete hover:text-graphite"
-            onClick={() => {
-              hapticTap();
-              setShowArchived((v) => !v);
-            }}
-          >
-            {showArchived ? (
-              <ArchiveRestore className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} />
+          <>
+            {groups.length === 0 ? (
+              <p className="session-list-meta px-3 py-8 text-center text-concrete">
+                {showArchived ? "No archived sessions" : "No sessions"}
+              </p>
             ) : (
-              <Archive className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} />
+              groups.map((group) => (
+                <WorkspaceFolderSection
+                  key={group.workspaceSlug ?? group.label}
+                  group={group}
+                  collapsed={isWorkspaceCollapsed(
+                    group.workspaceSlug ?? group.label,
+                    group.isCurrentWorkspace ?? false
+                  )}
+                  expanded={expandedFolders.has(group.workspaceSlug ?? group.label)}
+                  activeSessionPath={snapshot.activeSessionPath}
+                  pinnedPaths={pinnedPaths}
+                  onToggleCollapse={handleToggleCollapse}
+                  onShowMore={handleShowMore}
+                  onSelect={handleSelect}
+                  onTogglePin={handleTogglePin}
+                  onArchive={handleArchive}
+                  onRename={handleRename}
+                  isUnread={isSessionUnread}
+                />
+              ))
             )}
-            {showArchived ? "Hide archived" : `Archived (${archivedCount})`}
-          </button>
-        ) : null}
+
+            {archivedCount > 0 ? (
+              <button
+                type="button"
+                className="session-list-meta mt-2 flex w-full items-center gap-1.5 px-2 py-2 text-left text-concrete hover:text-graphite"
+                onClick={() => {
+                  hapticTap();
+                  setShowArchived((v) => !v);
+                }}
+              >
+                {showArchived ? (
+                  <ArchiveRestore className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} />
+                ) : (
+                  <Archive className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} />
+                )}
+                {showArchived ? "Hide archived" : `Archived (${archivedCount})`}
+              </button>
+            ) : null}
+          </>
+        )}
       </div>
 
       {renameTarget ? (

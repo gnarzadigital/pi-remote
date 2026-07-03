@@ -80,6 +80,10 @@ export interface ExtensionDialogState {
   showConfirm?: boolean;
 }
 
+export interface SessionHit extends PiSession {
+  snippet?: string;
+}
+
 export type Theme = "light" | "dark" | "console";
 
 export interface BridgeSnapshot {
@@ -93,6 +97,8 @@ export interface BridgeSnapshot {
   queuedMessages: string[];
   /** Current git branch of the active workspace, null if not a repo. */
   gitBranch: string | null;
+  /** Full-text search hits; null when not searching. */
+  searchResults: SessionHit[] | null;
   sessions: PiSession[];
   activeSessionName: string | null;
   activeSessionPath: string | null;
