@@ -1,5 +1,5 @@
-import { ArrowUp, Paperclip, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { ArrowUp, Mic, Paperclip, X } from "lucide-react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   PromptInput,
@@ -11,6 +11,7 @@ import { PromptSuggestionsRow } from "@/components/prompt-suggestions-row";
 import { ModelPickerAction } from "@/components/model-picker-action";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import type { PiCommand } from "@/lib/types";
+import { createRecognition, isVoiceSupported, transcriptFromEvent, type Recognition } from "@/lib/speech";
 import { cn, hapticTap } from "@/lib/utils";
 
 const MODE_LABELS = { prompt: "Prompt", steer: "Steer", follow_up: "Follow-up" };
@@ -102,10 +103,37 @@ function InputToolbarChip({
 export function InputArea() {
   const { snapshot, bridge } = usePiBridge();
   const [input, setInput] = useState("");
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<Recognition | null>(null);
+  const baseInputRef = useRef("");
+  const voiceSupported = useMemo(() => isVoiceSupported(), []);
   const matches = useMemo(
     () => filterCommands(snapshot.commands, snapshot.cmdFilter),
     [snapshot.commands, snapshot.cmdFilter]
   );
+
+  const toggleVoice = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const rec = createRecognition();
+    if (!rec) return;
+    baseInputRef.current = input ? `${input} ` : "";
+    rec.onresult = (e) => setInput(baseInputRef.current + transcriptFromEvent(e).text);
+    rec.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    rec.onerror = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = rec;
+    setListening(true);
+    hapticTap();
+    rec.start();
+  };
 
   const handleValueChange = (value: string) => {
     setInput(value);
@@ -229,6 +257,22 @@ export function InputArea() {
                 <Paperclip className="size-4" />
               </label>
             </PromptInputAction>
+
+            {voiceSupported && (
+              <PromptInputAction tooltip={listening ? "Stop dictation" : "Voice input"}>
+                <button
+                  type="button"
+                  aria-label={listening ? "Stop dictation" : "Voice input"}
+                  onClick={toggleVoice}
+                  className={cn(
+                    "inline-flex size-8 items-center justify-center rounded-full text-concrete hover:bg-mist hover:text-graphite",
+                    listening && "bg-mist text-graphite ring-1 ring-hairline animate-pulse"
+                  )}
+                >
+                  <Mic className="size-4" />
+                </button>
+              </PromptInputAction>
+            )}
 
             {!snapshot.cmdPickerOpen && (
               <>

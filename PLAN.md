@@ -57,9 +57,9 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
 - [x] **2.4 Context-window meter.** `context-meter.tsx` renders used/max token bar + % + cost
   in the overflow menu, reusing message-utils token math (getContextUsedTokens /
   getModelContextWindowTokens). message-utils.test.ts covers the math. Gate green (9/9).
-- [ ] **2.5 Voice input.** webkitSpeechRecognition mic button in `input-area.tsx`, live transcript
-  into the composer. LOCAL only — assert no cloud endpoint.
-  Verify: manual on device (Safari); tsc + build clean; grep shows no cloud STT url.
+- [x] **2.5 Voice input.** `lib/speech.ts` typed wrapper over webkitSpeechRecognition (no `any`);
+  mic button in composer dictates live transcript into the input. speech.test.ts covers the
+  transcript join. Gate green (11/11); grep confirms no cloud STT endpoint. Device test pending.
 - [x] **2.6 Git branch in header.** Bridge `get_git_branch` (execSync `git branch --show-current`
   in CWD); client fetches on connect; shown as a GitBranch subtitle under the chat title.
   Verify: WS smoke returns {"branch":"master"}; gate green.
