@@ -157,15 +157,25 @@ function ConversationLine({ line }: { line: ChatLine }) {
   return <TurnLine line={line} />;
 }
 
-export function ConversationView() {
+type ConversationViewProps = {
+  /** Override the primary snapshot's lines/streaming — used for the attached-agent
+   * chat view (Phase 3.8-full), which renders a different agent's turn stream. */
+  lines?: ChatLine[];
+  streaming?: boolean;
+};
+
+export function ConversationView({ lines: linesOverride, streaming: streamingOverride }: ConversationViewProps = {}) {
   const { snapshot } = usePiBridge();
+  const lines = linesOverride ?? snapshot.lines;
+  const streaming = streamingOverride ?? snapshot.streaming;
+  const isPrimary = linesOverride === undefined;
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <ChatContainerRoot className="min-h-0 flex-1 w-full min-w-0 overscroll-contain px-4 py-3">
-        <ChatScrollController />
+        {isPrimary && <ChatScrollController />}
         <ChatContainerContent className="gap-3">
-          {snapshot.lines.map((line) => (
+          {lines.map((line) => (
             <ErrorBoundary key={line.id} inline>
               <ConversationLine line={line} />
             </ErrorBoundary>
@@ -176,7 +186,7 @@ export function ConversationView() {
           <ScrollButton
             variant="outline"
             size="icon"
-            streaming={snapshot.streaming}
+            streaming={streaming}
             className="pointer-events-auto ml-auto mr-4 border-hairline bg-card shadow-md"
           />
         </div>

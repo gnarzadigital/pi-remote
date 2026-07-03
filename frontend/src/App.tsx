@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { AgentChatView } from "@/components/agent-chat-view";
 import { ChatView } from "@/components/chat-view";
 import { ExtensionDialog } from "@/components/extension-dialog";
 import { SessionsView } from "@/components/sessions-view";
@@ -11,7 +12,8 @@ import { piBridge } from "@/lib/pi-bridge-client";
 
 function AppShell() {
   const { snapshot } = usePiBridge();
-  const onChat = snapshot.view === "chat";
+  const onAgentChat = snapshot.view === "agent-chat";
+  const onChat = snapshot.view === "chat" || onAgentChat;
   const hasChat = onChat || snapshot.lines.length > 0;
 
   return (
@@ -33,7 +35,9 @@ function AppShell() {
           onChat ? "flex" : "hidden md:flex"
         )}
       >
-        {hasChat ? (
+        {onAgentChat ? (
+          <AgentChatView />
+        ) : hasChat ? (
           <ChatView />
         ) : (
           <div className="hidden flex-1 items-center justify-center text-sm text-concrete md:flex">

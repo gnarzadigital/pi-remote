@@ -97,7 +97,16 @@ export function AgentsPanel() {
                 >
                   {agent.depth > 0 && <ChevronRight className="size-3 shrink-0 text-concrete" />}
                   <StatusDot status={agent.status} />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-graphite">{agent.label}</span>
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 truncate text-left text-[13px] text-graphite hover:underline"
+                    onClick={() => {
+                      hapticTap();
+                      bridge.attachToAgent(agent.id, agent.label);
+                    }}
+                  >
+                    {agent.label}
+                  </button>
                   {agent.contextMode && (
                     <span className="shrink-0 rounded-full border border-hairline px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-concrete">
                       {MODE_LABELS[agent.contextMode]}

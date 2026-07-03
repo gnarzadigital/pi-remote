@@ -25,7 +25,7 @@ import { StringDecoder } from "string_decoder";
 import { createInterface } from "readline";
 import { execSync } from "child_process";
 import { isJunkWorkspace } from "./workspace-filter";
-import { spawnAgent, listAgents, sendToAgent, confirmAgent, type ContextMode } from "./agents";
+import { spawnAgent, listAgents, sendToAgent, confirmAgent, resolveAgentSessionPath, type ContextMode } from "./agents";
 import { buildAgentTree, flattenTree } from "./lineage";
 import { resolveRoute } from "./broker-route";
 
@@ -884,7 +884,13 @@ function handleClientMessage(ws: any, raw: string): void {
     return;
   }
 
-  // --- Attachable RPC agents (3.2): N pi --mode rpc processes, session-routed ---
+  // --- Attachable RPC agents (3.2/3.8): N pi --mode rpc processes, session-routed ---
+  if (cmd.type === "resolve_agent_session" && cmd.agentId) {
+    const sessionPath = resolveAgentSessionPath(String(cmd.agentId));
+    sendToWs(ws, JSON.stringify({ type: "response", command: "resolve_agent_session", success: true, id: cmd.id, data: { sessionPath } }));
+    return;
+  }
+
   if (cmd.type === "attach_agent" && cmd.agentId && cmd.sessionPath) {
     attachRpcAgent(String(cmd.agentId), String(cmd.sessionPath), ws);
     sendToWs(ws, JSON.stringify({ type: "response", command: "attach_agent", success: true, id: cmd.id, data: { agentId: String(cmd.agentId) } }));

@@ -7,7 +7,7 @@
 // spawn fails loudly rather than faking success.
 
 import { execFileSync } from "child_process";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
@@ -120,6 +120,42 @@ interface RegistryEntry {
   status?: string;
   registered_at?: number;
   surface_ref?: string;
+}
+
+function cwdToSlug(cwd: string): string {
+  return "--" + cwd.replace(/\//g, "-").replace(/^-/, "") + "--";
+}
+
+/**
+ * For an agent we spawned with runtime "pi", find the session file pi created
+ * for it: the newest .jsonl under ~/.pi/agent/sessions/<slug(cwd)>/ modified at
+ * or after the agent's spawn time. Returns null if pi hasn't written one yet
+ * (spawn is async — the caller should retry) or the agent isn't ours/isn't pi.
+ */
+export function resolveAgentSessionPath(agentId: string): string | null {
+  const store = load();
+  const agent = store[agentId];
+  if (!agent) return null;
+  const dir = join(homedir(), ".pi", "agent", "sessions", cwdToSlug(agent.cwd));
+  let files: string[];
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
+  } catch {
+    return null;
+  }
+  let best: { path: string; mtime: number } | null = null;
+  for (const f of files) {
+    const p = join(dir, f);
+    let mtime: number;
+    try {
+      mtime = statSync(p).mtimeMs;
+    } catch {
+      continue;
+    }
+    if (mtime < agent.spawnedAt - 5000) continue; // must be from around/after spawn
+    if (!best || mtime > best.mtime) best = { path: p, mtime };
+  }
+  return best?.path ?? null;
 }
 
 function shortCwd(cwd?: string): string {

@@ -31,6 +31,7 @@ import type {
 } from "./types";
 import { applyTheme } from "./utils";
 import { shouldQueue } from "./message-queue";
+import { initialAgentChatState, reduceAgentEvent, type AgentChatState } from "./agent-turn-reducer";
 
 const MODE_CYCLE: SendMode[] = ["prompt", "steer", "follow_up"];
 const THINKING_CYCLE: ThinkingLevel[] = ["none", "low", "high"];
@@ -57,6 +58,10 @@ function initialSnapshot(): BridgeSnapshot {
     gitBranch: null,
     searchResults: null,
     agents: [],
+    attachedAgentId: null,
+    attachedAgentLabel: null,
+    attachedAgentLines: [],
+    attachedAgentStreaming: false,
     sessions: [],
     activeSessionName: null,
     activeSessionPath: null,
@@ -85,6 +90,8 @@ export class PiBridgeClient {
   private statsInterval: ReturnType<typeof setInterval> | null = null;
   private streaming: StreamingState | null = null;
   private messageQueue: string[] = [];
+  private agentChatState: AgentChatState = initialAgentChatState();
+  private pendingAttachAgentId: string | null = null;
   private pendingImages: ImageAttachment[] = [];
   private connectionWatchdog: ReturnType<typeof setTimeout> | null = null;
   private pendingRenames = new Map<string, { sessionPath: string; name: string }>();
@@ -218,6 +225,21 @@ export class PiBridgeClient {
     }
     if (msg.type === "extension_ui_request") {
       this.handleExtensionUI(msg as Record<string, unknown>);
+      return;
+    }
+    if (msg.type === "agent_event" && msg.agentId === this.snapshot.attachedAgentId) {
+      const event = msg.event as Record<string, unknown>;
+      if (event.type === "extension_ui_request") {
+        // Same approval/input flow the primary session uses, tagged so the
+        // response routes back to this agent instead of the primary pi.
+        this.handleExtensionUI(event, String(msg.agentId));
+        return;
+      }
+      this.agentChatState = reduceAgentEvent(this.agentChatState, event);
+      this.queuePatch({
+        attachedAgentLines: this.agentChatState.lines,
+        attachedAgentStreaming: this.agentChatState.streaming,
+      });
       return;
     }
     if (msg.type === "prompt" || msg.type === "steer" || msg.type === "follow_up") {
@@ -371,6 +393,29 @@ export class PiBridgeClient {
       case "send_to_agent":
       case "confirm_agent":
         this.listAgents(); // refresh the tree after any mutation
+        break;
+      case "resolve_agent_session": {
+        const sessionPath = msg.data?.sessionPath as string | null | undefined;
+        const agentId = this.pendingAttachAgentId;
+        this.pendingAttachAgentId = null;
+        if (sessionPath && agentId) {
+          this.sendWithId({ type: "attach_agent", agentId, sessionPath });
+        } else {
+          this.queuePatch({ statusError: "Agent session not ready yet — try again in a moment" });
+          setTimeout(() => this.queuePatch({ statusError: null }), 3000);
+        }
+        break;
+      }
+      case "attach_agent":
+        if (msg.data?.agentId) {
+          this.agentChatState = initialAgentChatState();
+          this.queuePatch({
+            attachedAgentId: String(msg.data.agentId),
+            attachedAgentLines: [],
+            attachedAgentStreaming: false,
+            view: "agent-chat",
+          });
+        }
         break;
       case "get_session_stats":
         this.queuePatch({ stats: msg.data as SessionStats });
@@ -675,9 +720,20 @@ export class PiBridgeClient {
     this.statsInterval = null;
   }
 
-  private handleExtensionUI(req: Record<string, unknown>) {
+  /** agentId is set when this request came from an attached agent's agent_event,
+   * not the primary session — the response routes back via agent_command instead
+   * of a top-level extension_ui_response. */
+  private handleExtensionUI(req: Record<string, unknown>, agentId?: string) {
     const method = String(req.method ?? "");
     if (method === "setStatus" || method === "setWidget" || method === "setTitle") return;
+
+    const respond = (payload: { id: string; cancelled: boolean; value: unknown }) => {
+      if (agentId) {
+        this.send({ type: "agent_command", agentId, payload: { type: "extension_ui_response", ...payload } });
+      } else {
+        this.send({ type: "extension_ui_response", ...payload });
+      }
+    };
 
     // `notify` is fire-and-forget — pi uses it for advisory messages
     // (e.g. "@qhqn/pi-goal also installed"). Persist dismissal so the same
@@ -691,7 +747,7 @@ export class PiBridgeClient {
           this.appendSystem(`ℹ ${message}`);
         }
         // Always ack so pi doesn't block or re-send
-        this.send({ type: "extension_ui_response", id: String(req.id), cancelled: true, value: null });
+        respond({ id: String(req.id), cancelled: true, value: null });
       }
       return;
     }
@@ -707,6 +763,7 @@ export class PiBridgeClient {
       showConfirm: method !== "notify",
       inputValue: "",
       editorValue: String(req.text ?? ""),
+      agentId,
     };
     this.queuePatch({ extensionDialog: dialog });
   }
@@ -714,12 +771,12 @@ export class PiBridgeClient {
   resolveExtensionDialog(value: unknown, cancelled = false) {
     const d = this.snapshot.extensionDialog;
     if (!d) return;
-    this.send({
-      type: "extension_ui_response",
-      id: d.id,
-      cancelled,
-      value,
-    });
+    const payload = { id: d.id, cancelled, value };
+    if (d.agentId) {
+      this.send({ type: "agent_command", agentId: d.agentId, payload: { type: "extension_ui_response", ...payload } });
+    } else {
+      this.send({ type: "extension_ui_response", ...payload });
+    }
     this.queuePatch({ extensionDialog: null });
   }
 
@@ -747,6 +804,36 @@ export class PiBridgeClient {
 
   confirmAgent(surface: string) {
     this.sendWithId({ type: "confirm_agent", surface });
+  }
+
+  /** Attach the rich chat view to a spawned pi agent (resolves its session file first). */
+  attachToAgent(agentId: string, label: string) {
+    this.pendingAttachAgentId = agentId;
+    this.queuePatch({ attachedAgentLabel: label });
+    this.sendWithId({ type: "resolve_agent_session", agentId });
+  }
+
+  detachFromAgent() {
+    const agentId = this.snapshot.attachedAgentId;
+    if (agentId) this.send({ type: "detach_agent", agentId, id: this.nextId() });
+    this.agentChatState = initialAgentChatState();
+    this.queuePatch({
+      attachedAgentId: null,
+      attachedAgentLabel: null,
+      attachedAgentLines: [],
+      attachedAgentStreaming: false,
+      view: "sessions",
+    });
+  }
+
+  sendToAttachedAgent(text: string) {
+    const agentId = this.snapshot.attachedAgentId;
+    if (!agentId || !text.trim()) return;
+    const turnId = uid("user");
+    this.queuePatch({
+      attachedAgentLines: [...this.snapshot.attachedAgentLines, { id: turnId, kind: "user", text }],
+    });
+    this.sendWithId({ type: "agent_command", agentId, payload: { type: "prompt", message: text } });
   }
 
   searchSessions(query: string) {

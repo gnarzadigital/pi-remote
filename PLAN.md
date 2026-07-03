@@ -97,8 +97,7 @@ Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).
 - [x] **3.9 Done-protocol from mobile.** Picker shows active/awaiting-confirm/done via 5s status
   poll; a Check button on awaiting-confirm runs `confirm_agent` → `cmux-agent confirm`.
 
-## Remaining — RISK LEVEL 1 (touches the LIVE bridge). 3.2 now shipped additively;
-only the UI-attach half remains.
+## Phase 3 complete. All cards below are done and verified.
 - [x] **3.2 Bridge N-process RPC (ADDITIVE).** Primary single `pi` + its routing untouched.
   Added `Map<agentId,{proc,ws,sessionPath}>` for attachable RPC agents: `attach_agent
   {agentId, sessionPath}` spawns `pi --mode rpc --session <path>` with the shared
@@ -107,13 +106,25 @@ only the UI-attach half remains.
   torn down on WS close via detachAgentsForClient. Routes via broker-route.resolveRoute.
   Verify: WS smoke — attached a real session, received 2 tagged agent_event frames + clean
   detach; primary path (list_sessions, pi alive) confirmed unregressed. Gate green.
-- [ ] **3.8-full RPC chat attach (UI).** Tap a picker node → send `attach_agent`, open the
-  existing chat UI keyed by agentId, render its tagged `agent_event` stream (reuse
-  conversation-view's turn-block rendering, keyed by agentId instead of the primary snapshot).
-  Steer/follow-up route via `agent_command`. Needs: per-agent chat state in the client (a
-  Map<agentId, streaming-turn-state> parallel to the primary one), and picker nav to open it.
-  Verify: screenshot — switch between two attached agents, each keeps its own live stream;
-  gate green.
+- [x] **3.8-full RPC chat attach (UI).** Tapping an agent's label in the picker now:
+  resolves its pi session file (agents.ts `resolveAgentSessionPath`, matches newest .jsonl
+  under the agent's cwd slug modified at/after spawn), attaches an RPC process to it
+  (existing 3.2 path), and opens a new `agent-chat` view rendering its live tagged
+  `agent_event` stream — reusing ConversationView's turn-block rendering via new optional
+  `lines`/`streaming` override props (agent-turn-reducer.ts, a pure fold of agent_start/
+  agent_end/message_update/tool_execution_* into ChatLine[], mirrors the primary client's
+  logic; 6 unit tests incl. the "last thinking block" case). Extension permission dialogs
+  from an attached agent route through the SAME ExtensionDialog UI, tagged with agentId so
+  the response goes back to that agent instead of the primary pi (real gap found + fixed
+  during e2e testing — these dialogs are pi's normal extension-confirmation flow, not
+  something safe to auto-bypass).
+  Verify: FULL LIVE END-TO-END — spawned a real pi agent, resolved its session file, attached,
+  injected a prompt through the exact `sendToAttachedAgent` code path, observed agent_start →
+  streamed text ("pong") → agent_end, all correctly tagged/routed. Gate green (38/38, tsc,
+  build). Primary chat path confirmed unregressed throughout. Test agents cleaned up after.
+  Known scope limit: only one attached agent's dialog can show at a time (shares the single
+  `extensionDialog` snapshot field with the primary session) — acceptable for this ship,
+  noted for later if it proves to matter.
 
 ## Fixes from live device feedback (2026-07-03, same session)
 - [x] Empty-state hero: brand-new sessions no longer show a blank body + bottom-pinned input

@@ -34,7 +34,7 @@ export interface PiCommand {
 
 export type SendMode = "prompt" | "steer" | "follow_up";
 export type ThinkingLevel = "none" | "low" | "high";
-export type MobileView = "sessions" | "chat";
+export type MobileView = "sessions" | "chat" | "agent-chat";
 export type ConnectionPhase = "connected" | "connecting" | "disconnected";
 
 export type TurnBlock =
@@ -78,6 +78,9 @@ export interface ExtensionDialogState {
   showInput?: boolean;
   showEditor?: boolean;
   showConfirm?: boolean;
+  /** Set when this dialog came from an attached agent, not the primary session —
+   * routes the response back to that agent instead of the primary pi. */
+  agentId?: string;
 }
 
 export interface SessionHit extends PiSession {
@@ -117,6 +120,11 @@ export interface BridgeSnapshot {
   searchResults: SessionHit[] | null;
   /** Spawned parallel/subagents (depth-tagged tree) for the nested picker. */
   agents: AgentTreeNode[];
+  /** The agent currently attached for the rich chat view ("agent-chat"), if any. */
+  attachedAgentId: string | null;
+  attachedAgentLabel: string | null;
+  attachedAgentLines: ChatLine[];
+  attachedAgentStreaming: boolean;
   sessions: PiSession[];
   activeSessionName: string | null;
   activeSessionPath: string | null;
