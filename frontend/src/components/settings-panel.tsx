@@ -1,4 +1,4 @@
-import { Moon, Settings, Sun } from "lucide-react";
+import { Moon, Settings, Sun, Terminal } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -51,7 +51,7 @@ export function SettingsPanel() {
 
           <section className="space-y-2">
             <p className="text-[12px] font-medium uppercase tracking-wide text-concrete">Appearance</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <ThemeOption
                 active={snapshot.theme === "light"}
                 label="Light"
@@ -68,6 +68,15 @@ export function SettingsPanel() {
                 onSelect={() => {
                   hapticTap();
                   bridge.setTheme("dark");
+                }}
+              />
+              <ThemeOption
+                active={snapshot.theme === "console"}
+                label="Console"
+                icon={<Terminal className="size-4" />}
+                onSelect={() => {
+                  hapticTap();
+                  bridge.setTheme("console");
                 }}
               />
             </div>

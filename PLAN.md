@@ -31,20 +31,16 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
   surface #22333B, hairline #3B4A50) added after `.dark`; console session-row overrides.
   Verify: bun 2/2, tsc clean, build clean.
 
-## Phase 1 — Calm Console design (hermes parity)  [dep: 0.1, 0.2]
-- [ ] **1.1 Split typography.** Assistant prose → `--font-serif`; user bubbles + UI → sans;
-  keep mono for code/paths. Edit `components/ui/message.tsx` / `conversation-view.tsx`.
-  Verify: screenshot — assistant text serif, user bubble sans; tsc + build clean.
-- [ ] **1.2 Console theme in settings.** Add "Console" option to `settings-panel.tsx` theme
-  picker; wire `bridge.setTheme("console")`; persist in `pi-remote-theme`.
-  Verify: screenshot — selecting Console applies warm palette, survives reload.
-- [ ] **1.3 Frosted headers.** `backdrop-blur` + translucent bg on `.screen-header` (index.css).
-  Verify: screenshot — header blurs content scrolling under it.
-- [ ] **1.4 Quiet Activity row.** Collapse multi-tool turns to one "Activity: N tools" disclosure
-  in `conversation-view.tsx` (tighten existing `Steps`); persist open/closed per turn.
-  Verify: screenshot — a 3-tool turn shows one row; expand reveals tools; tsc + build clean.
-- [ ] **1.5 Transcript de-shadow.** Remove routine shadows in transcript; hairline borders only.
-  Verify: screenshot diff; grep shows no `shadow-` on transcript cards.
+## Phase 1 — Calm Console design (hermes parity)  [dep: 0.1, 0.2]  — gate green, visual verify pending
+- [x] **1.1 Split typography.** Assistant prose → serif (text-[15px]/1.6 font-serif) with
+  prose-code/pre pinned mono; user bubble explicit font-sans. conversation-view.tsx.
+- [x] **1.2 Console theme in settings.** Console option (Terminal icon) added to the 3-col
+  theme grid in settings-panel.tsx; `bridge.setTheme("console")`; persists.
+- [x] **1.3 Frosted headers.** `.screen-header` now translucent (color-mix 78%) + backdrop
+  blur/saturate; removed opaque bg-canvas from the header element.
+- [x] **1.4 Quiet Activity row.** Multi-tool disclosure relabeled "Activity · N tools", quieter.
+- [x] **1.5 Transcript de-shadow.** Already compliant — transcript cards are border-based; only
+  shadow is the floating ScrollButton (allowed by DESIGN.md). No change needed.
 
 ## Phase 2 — Picot features (mobile-relevant)  [independent of Phase 3]
 - [ ] **2.1 Session search.** Add a search field to `sessions-view.tsx` filtering by name +

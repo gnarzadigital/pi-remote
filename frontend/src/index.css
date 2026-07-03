@@ -214,6 +214,11 @@ html.keyboard-open body {
   padding-top: var(--safe-top);
   padding-left: 16px;
   padding-right: 16px;
+  /* Frosted: translucent canvas + blur. Visible where content underlaps
+     (overscroll bounce); harmless otherwise. */
+  background: color-mix(in srgb, var(--color-canvas) 78%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  backdrop-filter: saturate(1.4) blur(14px);
 }
 
 .screen-header-inner {

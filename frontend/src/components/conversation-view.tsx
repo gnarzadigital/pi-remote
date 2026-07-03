@@ -19,11 +19,14 @@ import type { ChatLine } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Wrench } from "lucide-react";
 
+// Assistant prose = editorial serif (Calm Console). Code/pre stay mono via the
+// typography plugin's own `code`/`pre` font-family; font-serif only affects prose text.
 const messageContentClass =
-  "max-w-full min-w-0 overflow-x-clip rounded-[14px] border border-hairline bg-card px-3 py-2.5 text-[14px] leading-relaxed text-graphite prose prose-sm max-w-none break-words [overflow-wrap:anywhere] dark:prose-invert prose-pre:max-w-full prose-pre:overflow-x-auto prose-pre:bg-mist prose-pre:border prose-pre:border-hairline prose-code:break-all prose-code:bg-mist prose-code:px-1 prose-code:py-0.5 prose-code:before:content-none prose-code:after:content-none prose-table:my-0";
+  "max-w-full min-w-0 overflow-x-clip rounded-[14px] border border-hairline bg-card px-3 py-2.5 text-[15px] leading-[1.6] font-serif text-graphite prose prose-sm max-w-none break-words [overflow-wrap:anywhere] dark:prose-invert prose-pre:max-w-full prose-pre:overflow-x-auto prose-pre:bg-mist prose-pre:border prose-pre:border-hairline prose-pre:font-mono prose-code:font-mono prose-code:break-all prose-code:bg-mist prose-code:px-1 prose-code:py-0.5 prose-code:before:content-none prose-code:after:content-none prose-table:my-0";
 
+// User bubble = crisp sans (functional voice), explicit so it never inherits serif.
 const userContentClass =
-  "max-w-[92%] rounded-[14px] border border-hairline bg-mist px-3 py-2.5 text-[14px] text-graphite";
+  "max-w-[92%] rounded-[14px] border border-hairline bg-mist px-3 py-2.5 text-[14px] font-sans text-graphite";
 
 function lineAnchorProps(lineId: string) {
   return {
@@ -84,9 +87,9 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
               <Steps key={`tools-${gi}`} defaultOpen={running} className="rounded-[10px] border border-hairline bg-mist px-3 py-2">
                 <StepsTrigger
                   leftIcon={<Wrench className="size-3.5" />}
-                  className="text-[13px] text-concrete hover:text-graphite"
+                  className="text-[12px] text-concrete hover:text-graphite"
                 >
-                  Tool runs ({group.blocks.length})
+                  Activity · {group.blocks.length} tools
                 </StepsTrigger>
                 <StepsContent>
                   {group.blocks.map((block) => (
