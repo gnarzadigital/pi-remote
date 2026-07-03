@@ -48,6 +48,23 @@ RPC chat-attach. Foundation (broker-route.ts) tested and ready. Recommend fresh-
   screenshot with status dots + TASK badges.
 - All screenshot + gate verified live on Browser 1.
 
+## 2026-07-03 — Phase 3.8-full shipped. PLAN.md complete: 0 unchecked cards.
+- Tap-to-attach: agents-panel label now triggers resolve_agent_session -> attach_agent ->
+  opens a new "agent-chat" view rendering the attached pi agent's live turn stream.
+- agent-turn-reducer.ts: pure fold of agent RPC events into ChatLine[]/streaming, 6 unit
+  tests. ConversationView gained optional lines/streaming overrides (primary path unchanged
+  when omitted).
+- Found + fixed a real gap during e2e testing: attached-agent extension_ui_request (pi's
+  normal permission/confirm dialog flow) was silently dropped, which would stall an attached
+  agent forever on any confirmation prompt. Routed through the existing ExtensionDialog UI,
+  tagged by agentId so responses go back to the right process.
+- FULL LIVE E2E VERIFIED: spawned a real pi agent, resolved its session, attached, injected
+  a prompt through the actual client code path, watched agent_start -> real streamed text
+  ("pong") -> agent_end. Primary chat path confirmed unregressed. Test agents cleaned up via
+  cmux-agent confirm afterward.
+- Cleaned a stale duplicate/superseded 3.2 stub left over from the original provisional plan.
+- PLAN.md: grep confirms zero `- [ ]` remain — every card across Phase 0/1/2/3 checked.
+
 ## Card log (append one line per completed card)
 - 0.1/0.2 theme foundations — commit 6126cf6 (gate green)
 - 1.1-1.5 Calm Console design — commit 459d00d (gate green; visually verified in Console theme:

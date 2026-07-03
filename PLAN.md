@@ -72,12 +72,10 @@ Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).
 - [x] **3.1 Broker envelope + routing (pure).** `broker-route.ts`: `resolveRoute(cmd, routes,
   liveAgents)` — explicit agentId → session route → single-live fallback → refuse-to-guess when
   2+ live; `setRoute` keeps sessionId→agent 1:1. broker-route.test.ts (7 tests incl F3/F4).
-- [ ] **3.2 Bridge multi-process.** Refactor bridge.ts single `pi` → `Map<agentId,{child,stdin}>`;
-  per-process stdout reader tags events with agentId; response routing scoped by agentId.
-  Verify: WS smoke — two agents spawned, each client sees only its agent's events; no cross-talk.
+- [x] **3.2 Bridge multi-process.** Done — see the full writeup below (ADDITIVE N-process
+  RPC agents alongside the untouched primary pi). Superseded this stub.
 - [x] **3.3 Spawn-on-demand (cmux path).** Bridge `spawn_agent {cwd, task, contextMode, parentId}`
-  shells to `cmux-agent spawn` (real cmux pane), records lineage. Client spawn sheet. (Full N
-  `pi --mode rpc` bridge-owned processes = 3.2, still to do; cmux path chosen per Nik's ask.)
+  shells to `cmux-agent spawn` (real cmux pane), records lineage. Client spawn sheet.
 - [x] **3.4 Lineage graph (pure).** `lineage.ts`: `buildAgentTree(agents)` nests
   orchestrator→agents→subagents by parentId, promotes orphans/self-parents to roots, assigns
   depth; `flattenTree` for list rendering. lineage.test.ts (4 tests).
