@@ -13,6 +13,8 @@ import {
   markSessionUnread,
 } from "./session-read-state";
 import type {
+  AgentContextMode,
+  AgentTreeNode,
   BridgeSnapshot,
   ChatLine,
   ExtensionDialogState,
@@ -54,6 +56,7 @@ function initialSnapshot(): BridgeSnapshot {
     queuedMessages: [],
     gitBranch: null,
     searchResults: null,
+    agents: [],
     sessions: [],
     activeSessionName: null,
     activeSessionPath: null,
@@ -158,6 +161,7 @@ export class PiBridgeClient {
       }
       this.fetchSessions();
       this.fetchGitBranch();
+      this.listAgents();
       // Re-bootstrap state after reconnect
       this.sendWithId({ type: "get_state" });
       this.sendWithId({ type: "get_available_models" });
@@ -359,6 +363,14 @@ export class PiBridgeClient {
         break;
       case "search_sessions":
         this.queuePatch({ searchResults: (msg.data?.results as SessionHit[]) ?? [] });
+        break;
+      case "list_agents":
+        this.queuePatch({ agents: (msg.data?.agents as AgentTreeNode[]) ?? [] });
+        break;
+      case "spawn_agent":
+      case "send_to_agent":
+      case "confirm_agent":
+        this.listAgents(); // refresh the tree after any mutation
         break;
       case "get_session_stats":
         this.queuePatch({ stats: msg.data as SessionStats });
@@ -719,6 +731,22 @@ export class PiBridgeClient {
 
   fetchGitBranch() {
     this.sendWithId({ type: "get_git_branch" });
+  }
+
+  listAgents() {
+    this.sendWithId({ type: "list_agents" });
+  }
+
+  spawnAgent(req: { cwd?: string; task: string; contextMode: AgentContextMode; parentId?: string | null }) {
+    this.sendWithId({ type: "spawn_agent", ...req });
+  }
+
+  steerAgent(surface: string, message: string) {
+    this.sendWithId({ type: "send_to_agent", surface, message });
+  }
+
+  confirmAgent(surface: string) {
+    this.sendWithId({ type: "confirm_agent", surface });
   }
 
   searchSessions(query: string) {

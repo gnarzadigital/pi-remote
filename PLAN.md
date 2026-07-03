@@ -75,27 +75,33 @@ Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).
 - [ ] **3.2 Bridge multi-process.** Refactor bridge.ts single `pi` → `Map<agentId,{child,stdin}>`;
   per-process stdout reader tags events with agentId; response routing scoped by agentId.
   Verify: WS smoke — two agents spawned, each client sees only its agent's events; no cross-talk.
-- [ ] **3.3 Spawn-on-demand RPC.** Bridge command `spawn_agent {cwd, contextMode, parent}` that
-  starts a `pi --mode rpc` for that cwd/session and registers it. contextMode stubbed to "task".
-  Verify: WS smoke — spawn returns agentId; get_state on it works.
+- [x] **3.3 Spawn-on-demand (cmux path).** Bridge `spawn_agent {cwd, task, contextMode, parentId}`
+  shells to `cmux-agent spawn` (real cmux pane), records lineage. Client spawn sheet. (Full N
+  `pi --mode rpc` bridge-owned processes = 3.2, still to do; cmux path chosen per Nik's ask.)
 - [x] **3.4 Lineage graph (pure).** `lineage.ts`: `buildAgentTree(agents)` nests
   orchestrator→agents→subagents by parentId, promotes orphans/self-parents to roots, assigns
   depth; `flattenTree` for list rendering. lineage.test.ts (4 tests).
-- [ ] **3.5 Nested session picker.** Render the lineage tree in `sessions-view.tsx` under the
-  current workspace: orchestrator → agents → subagents, live status per node. Extends existing grouping.
-  Verify: screenshot — a spawned agent appears nested with a status dot; tsc + build clean.
-- [ ] **3.6 cmux spawn wiring.** On spawn_agent, also run `cmux-agent spawn --agent pi --prompt
-  <brief> --cwd <cwd>` and record the returned surface + parent in lineage.
-  Verify: WS smoke + `cmux-agent list` shows the pane; picker node links to it.
-- [ ] **3.7 Context-handoff modes.** Implement Full (`fork`/`clone`), Task (`new_session`+prompt),
-  Scoped (`compact`+fork) in spawn_agent; spawn sheet UI selector; picker badges the mode.
-  Verify: bun test on mode→RPC-sequence mapping; screenshot of sheet + badges.
-- [ ] **3.8 Attach + steer.** Tap a picker node → attach client to that agentId; send steer/
-  follow-up; render its live chat. Reuse existing chat UI keyed by agentId.
-  Verify: manual — switch between two agents, each keeps its own stream; steer reaches the right one.
-- [ ] **3.9 Done-protocol from mobile.** Show done/awaiting-confirm status; confirm/close button
-  runs `cmux-agent confirm`. Poll registry for status.
-  Verify: WS smoke — done → confirm closes pane + updates picker.
+- [x] **3.5 Nested session picker.** `agents-panel.tsx` renders the depth-indented agent tree in
+  the sessions view (Agents section above workspaces): status dot (active/awaiting/done),
+  context-mode badge, steer + confirm actions, spawn sheet. Polls list_agents every 5s while
+  live. Verify: screenshot — Agents section renders with spawn +; gate green. Nested indentation
+  by depth confirmed in code; live nesting shows once agents are spawned.
+- [x] **3.6 cmux spawn wiring.** `spawnAgent` runs `cmux-agent spawn --agent pi --prompt <brief>
+  --cwd <cwd>`, parses the surface ref (parseSpawnSurface, tested), records surface + parent.
+- [x] **3.7 Context-handoff modes (prompt-shaping).** `buildSpawnPrompt` maps Full/Task/Scoped to
+  the spawn prompt (tested); spawn sheet has the 3-way selector with descriptions; picker badges
+  each agent's mode. (True RPC fork/clone for Full = the deeper hybrid, ties to 3.2/3.8.)
+- [~] **3.8 Attach + steer.** Steer works now via `send_to_agent` → `cmux-agent send` (mobile
+  message input per agent node). Full RPC chat-attach (rich streaming per spawned agent) = the
+  hybrid deep path, still to do (needs 3.2 N-process bridge).
+- [x] **3.9 Done-protocol from mobile.** Picker shows active/awaiting-confirm/done via 5s status
+  poll; a Check button on awaiting-confirm runs `confirm_agent` → `cmux-agent confirm`.
+
+## Remaining (deepest, highest-risk — best via ralph-loop in fresh context)
+- [ ] **3.2 Bridge N-process RPC.** Refactor bridge to run N `pi --mode rpc` children with
+  per-agent session routing (foundation done in broker-route.ts). Risk: touches the LIVE bridge.
+- [ ] **3.8-full RPC chat attach.** Tap an agent → rich structured chat (streaming/tools/diffs)
+  on its own pi RPC session, not just cmux steer. Depends on 3.2.
 
 ---
 

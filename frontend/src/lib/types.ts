@@ -84,6 +84,22 @@ export interface SessionHit extends PiSession {
   snippet?: string;
 }
 
+export type AgentContextMode = "full" | "task" | "scoped";
+export type AgentRunStatus = "active" | "awaiting-confirm" | "done" | "closed";
+
+/** A spawned parallel agent / subagent node (depth-tagged, from the bridge tree). */
+export interface AgentTreeNode {
+  id: string;
+  parentId: string | null;
+  label: string;
+  cwd?: string;
+  contextMode?: AgentContextMode;
+  surface: string | null;
+  status: AgentRunStatus;
+  depth: number;
+  spawnedAt?: number;
+}
+
 export type Theme = "light" | "dark" | "console";
 
 export interface BridgeSnapshot {
@@ -99,6 +115,8 @@ export interface BridgeSnapshot {
   gitBranch: string | null;
   /** Full-text search hits; null when not searching. */
   searchResults: SessionHit[] | null;
+  /** Spawned parallel/subagents (depth-tagged tree) for the nested picker. */
+  agents: AgentTreeNode[];
   sessions: PiSession[];
   activeSessionName: string | null;
   activeSessionPath: string | null;

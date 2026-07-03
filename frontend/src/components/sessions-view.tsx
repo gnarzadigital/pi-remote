@@ -4,6 +4,7 @@ import { PiLogo } from "@/components/pi-logo";
 import { ScreenHeader } from "@/components/screen-header";
 import { SessionRenameSheet } from "@/components/session-rename-sheet";
 import { WorkspaceFolderSection } from "@/components/workspace-folder-section";
+import { AgentsPanel } from "@/components/agents-panel";
 import { Button } from "@/components/ui/button";
 import { SettingsPanel } from "@/components/settings-panel";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
@@ -225,6 +226,7 @@ export function SessionsView() {
           )
         ) : (
           <>
+            {!showArchived && <AgentsPanel />}
             {groups.length === 0 ? (
               <p className="session-list-meta px-3 py-8 text-center text-concrete">
                 {showArchived ? "No archived sessions" : "No sessions"}
