@@ -69,19 +69,18 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
 
 ## Phase 3 — Mobile multi-agent / cmux (flagship)  [dep: research done]
 Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).
-- [ ] **3.1 Broker envelope + routing (pure).** New `broker-route.ts`: given a command + a
-  `Map<sessionId,port>` + live-port set, return target port | undeliverable, per Picot rules
-  (session route → sourcePort hint → active fallback only if ≤1 live). No bridge wiring yet.
-  Verify: bun test — the F3/F4 cases (2+ live refuses to guess; 1:1 eviction on switch_session).
+- [x] **3.1 Broker envelope + routing (pure).** `broker-route.ts`: `resolveRoute(cmd, routes,
+  liveAgents)` — explicit agentId → session route → single-live fallback → refuse-to-guess when
+  2+ live; `setRoute` keeps sessionId→agent 1:1. broker-route.test.ts (7 tests incl F3/F4).
 - [ ] **3.2 Bridge multi-process.** Refactor bridge.ts single `pi` → `Map<agentId,{child,stdin}>`;
   per-process stdout reader tags events with agentId; response routing scoped by agentId.
   Verify: WS smoke — two agents spawned, each client sees only its agent's events; no cross-talk.
 - [ ] **3.3 Spawn-on-demand RPC.** Bridge command `spawn_agent {cwd, contextMode, parent}` that
   starts a `pi --mode rpc` for that cwd/session and registers it. contextMode stubbed to "task".
   Verify: WS smoke — spawn returns agentId; get_state on it works.
-- [ ] **3.4 Lineage graph (pure).** New `lineage.ts`: bridge-owned spawn graph (agentId→parent),
-  merge with a `cmux tree`/registry snapshot into a nested tree model.
-  Verify: bun test — orchestrator→2 children→1 subagent nests correctly; orphans handled.
+- [x] **3.4 Lineage graph (pure).** `lineage.ts`: `buildAgentTree(agents)` nests
+  orchestrator→agents→subagents by parentId, promotes orphans/self-parents to roots, assigns
+  depth; `flattenTree` for list rendering. lineage.test.ts (4 tests).
 - [ ] **3.5 Nested session picker.** Render the lineage tree in `sessions-view.tsx` under the
   current workspace: orchestrator → agents → subagents, live status per node. Extends existing grouping.
   Verify: screenshot — a spawned agent appears nested with a status dot; tsc + build clean.
