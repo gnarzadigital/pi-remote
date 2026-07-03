@@ -76,7 +76,15 @@ export function buildSpawnPrompt(
 
 function load(): Record<string, SpawnedAgent> {
   try {
-    return JSON.parse(readFileSync(STORE, "utf8")) as Record<string, SpawnedAgent>;
+    const parsed = JSON.parse(readFileSync(STORE, "utf8")) as Record<string, SpawnedAgent>;
+    // Backfill fields added after some entries were already persisted (JSON on
+    // disk doesn't get migrated just because the TS type changed) — confirmed
+    // live: 8 pre-existing store entries had no `runtime` at all, showing up as
+    // "undefined" in the picker. All of pi-remote's own spawns default to pi.
+    for (const a of Object.values(parsed)) {
+      if (!a.runtime) a.runtime = "pi";
+    }
+    return parsed;
   } catch {
     return {};
   }
@@ -313,16 +321,199 @@ export function extractCmuxTitles(tree: unknown): CmuxTitles {
   return { bySurfaceKey, byWorkspaceRef };
 }
 
-/** I/O wrapper — degrades to empty maps (all callers fall back to their existing
- * label) if cmux is unavailable or the call fails. Read-only: never writes a title
- * back to cmux, cmux's tracked title is already the best source, nothing to sync. */
-function fetchCmuxTitles(): CmuxTitles {
+/** I/O — the single `cmux --json tree --all` fetch shared by title-extraction AND
+ * ambient-agent discovery (one call per listAgents() poll, not two). */
+function fetchTree(): unknown {
   try {
     const raw = execFileSync(CMUX_BIN, ["--json", "tree", "--all"], { encoding: "utf8", timeout: 5000 });
-    return extractCmuxTitles(JSON.parse(raw));
+    return JSON.parse(raw);
   } catch {
-    return { bySurfaceKey: new Map(), byWorkspaceRef: new Map() };
+    return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Ambient agent discovery: surface ANY agent terminal session running in cmux,
+// regardless of whether it was spawned via cmux-agent or hooked into its
+// registry (confirmed live: 46 real terminal panes existed, the registry only
+// actively tracked 5 — everything else, e.g. a codex/hermes/claude session
+// someone just typed into a pane, was invisible). Detection is independent of
+// cmux-agent entirely: walk cmux's own tree for every terminal surface's tty,
+// then ask the OS what's actually running there via `ps`.
+// ---------------------------------------------------------------------------
+
+export interface TerminalSurface {
+  workspaceRef: string;
+  surfaceRef: string;
+  tty: string | null;
+}
+
+/** Every terminal-type surface in the tree, with its tty for process lookup. */
+export function enumerateTerminalSurfaces(tree: unknown): TerminalSurface[] {
+  const out: TerminalSurface[] = [];
+  const windows = (tree as { windows?: unknown })?.windows;
+  for (const win of Array.isArray(windows) ? windows : []) {
+    const workspaces = (win as { workspaces?: unknown })?.workspaces;
+    for (const ws of Array.isArray(workspaces) ? workspaces : []) {
+      const workspaceRef = (ws as { ref?: unknown })?.ref;
+      if (typeof workspaceRef !== "string") continue;
+      const panes = (ws as { panes?: unknown })?.panes;
+      for (const pane of Array.isArray(panes) ? panes : []) {
+        const surfaces = (pane as { surfaces?: unknown })?.surfaces;
+        for (const surface of Array.isArray(surfaces) ? surfaces : []) {
+          const s = surface as { ref?: unknown; type?: unknown; tty?: unknown };
+          if (typeof s?.ref !== "string" || s.type !== "terminal") continue;
+          out.push({ workspaceRef, surfaceRef: s.ref, tty: typeof s.tty === "string" ? s.tty : null });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Known agent CLI binaries, matched against a process's full argv (not just
+ * `comm`) because: (a) hermes is a Python shebang script — `comm` shows
+ * "Python"/"python3", never "hermes" — the actual script path only appears in
+ * argv; (b) claude is aliased to claude-yolo, more reliably caught in argv too.
+ * IMPORTANT: only match the DEEPEST (highest-pid) process for a given tty (see
+ * parseTtyRuntimes) — matching the whole process chain gives false positives,
+ * since cmux's own pi/codex/etc launch wrapper sets a `CMUX_CUSTOM_CLAUDE_PATH`
+ * env var containing the literal string "claude-yolo" in EVERY session's shell
+ * command line, including ones actually running pi (confirmed live).
+ */
+const RUNTIME_PATTERNS: Array<{ runtime: string; pattern: RegExp }> = [
+  { runtime: "codex", pattern: /\bcodex\b/ },
+  { runtime: "claude", pattern: /\bclaude(-yolo)?\b/ },
+  { runtime: "hermes", pattern: /\bhermes(_cli)?\b/ },
+  { runtime: "cursor-agent", pattern: /\bcursor-agent\b/ },
+  { runtime: "antigravity", pattern: /\bagy\b/ },
+  { runtime: "pi", pattern: /(^|\/)pi(\s|$)/ }, // checked last: "pi" is a short, common token
+];
+
+export function matchRuntimeFromArgs(args: string): string | null {
+  for (const { runtime, pattern } of RUNTIME_PATTERNS) {
+    if (pattern.test(args)) return runtime;
+  }
+  return null;
+}
+
+export interface TtyRuntime {
+  runtime: string;
+  pid: number;
+}
+
+/**
+ * Parse `ps -eo pid,tty,args` output into tty -> {runtime, pid}, one entry per
+ * tty that has a currently-running agent. Only the DEEPEST process per tty
+ * (highest pid — the most recently started, i.e. the actual foreground
+ * command, not the login/shell wrapper chain in front of it) is matched; see
+ * RUNTIME_PATTERNS' doc comment for why matching the whole chain is wrong.
+ * ttys whose deepest process doesn't match anything are omitted (idle shell,
+ * or running something that isn't a known agent CLI).
+ */
+export function parseTtyRuntimes(psOutput: string): Map<string, TtyRuntime> {
+  const byTty = new Map<string, Array<{ pid: number; args: string }>>();
+  const lines = psOutput.split("\n").slice(1); // drop the header row
+  for (const line of lines) {
+    const m = line.match(/^\s*(\d+)\s+(\S+)\s+(.*)$/);
+    if (!m) continue;
+    const [, pidStr, tty, args] = m;
+    if (!tty.startsWith("ttys")) continue; // "??" = no controlling terminal, not a cmux pane
+    const list = byTty.get(tty) ?? [];
+    list.push({ pid: Number(pidStr), args });
+    byTty.set(tty, list);
+  }
+
+  const result = new Map<string, TtyRuntime>();
+  for (const [tty, procs] of byTty) {
+    const deepest = procs.reduce((a, b) => (b.pid > a.pid ? b : a));
+    const runtime = matchRuntimeFromArgs(deepest.args);
+    if (runtime) result.set(tty, { runtime, pid: deepest.pid });
+  }
+  return result;
+}
+
+/** I/O — best-effort, returns null on any failure (permissions, ps unavailable). */
+function fetchPsOutput(): string | null {
+  try {
+    return execFileSync("ps", ["-eo", "pid,tty,args"], { encoding: "utf8", timeout: 5000, maxBuffer: 8 * 1024 * 1024 });
+  } catch {
+    return null;
+  }
+}
+
+/** cwd is only needed to support attach for ambient "pi" agents (steer works
+ * for any runtime without it). One extra shell-out, only for pi matches. */
+function resolveCwdForPid(pid: number): string | null {
+  try {
+    const raw = execFileSync("lsof", ["-a", "-d", "cwd", "-p", String(pid)], { encoding: "utf8", timeout: 3000 });
+    const line = raw.trim().split("\n").at(-1);
+    const cwd = line?.trim().split(/\s+/).at(-1);
+    return cwd && cwd.startsWith("/") ? cwd : null;
+  } catch {
+    return null;
+  }
+}
+
+// Bridge.ts is a single-process event loop; execFileSync blocks it entirely
+// while it runs. Measured live: cmux tree + system-wide ps together cost
+// ~350-400ms. The frontend polls listAgents() every 5s while the Agents panel
+// is open, which would mean a ~400ms full-bridge stall (including the ACTIVE
+// pi chat's streaming) every 5 seconds — a real, measured risk, not
+// speculative. Cache the expensive, knownKeys-independent data (tree + ps) for
+// a bounded window so it actually runs at most once per window regardless of
+// poll frequency; the fast, pure per-call filtering (buildAmbientAgents) still
+// runs fresh every time so newly-known agents are excluded promptly.
+const AMBIENT_CACHE_TTL_MS = 10_000;
+let ambientCache: { surfaces: TerminalSurface[]; ttyRuntimes: Map<string, TtyRuntime>; titles: CmuxTitles; at: number } | null = null;
+
+function getAmbientDiscoveryData(): { surfaces: TerminalSurface[]; ttyRuntimes: Map<string, TtyRuntime>; titles: CmuxTitles } {
+  if (ambientCache && Date.now() - ambientCache.at < AMBIENT_CACHE_TTL_MS) return ambientCache;
+  const tree = fetchTree();
+  const titles = extractCmuxTitles(tree);
+  const surfaces = enumerateTerminalSurfaces(tree);
+  const psOutput = fetchPsOutput();
+  const ttyRuntimes = psOutput ? parseTtyRuntimes(psOutput) : new Map<string, TtyRuntime>();
+  ambientCache = { surfaces, ttyRuntimes, titles, at: Date.now() };
+  return ambientCache;
+}
+
+/**
+ * Build ambient agent entries for every terminal surface running a known agent
+ * CLI that ISN'T already known from the registry/store (knownKeys). cwdResolver
+ * is injected for testability; the real bridge path passes resolveCwdForPid.
+ */
+export function buildAmbientAgents(
+  surfaces: TerminalSurface[],
+  ttyRuntimes: Map<string, TtyRuntime>,
+  knownKeys: Set<string>,
+  titles: CmuxTitles,
+  cwdResolver: (pid: number) => string | null
+): SpawnedAgent[] {
+  const out: SpawnedAgent[] = [];
+  for (const s of surfaces) {
+    const key = `${s.workspaceRef}/${s.surfaceRef}`;
+    if (knownKeys.has(key) || !s.tty) continue;
+    const match = ttyRuntimes.get(s.tty);
+    if (!match) continue; // idle shell or an unrecognized process — not an agent
+    const title = titles.bySurfaceKey.get(key);
+    const cwd = match.runtime === "pi" ? (cwdResolver(match.pid) ?? "") : "";
+    out.push({
+      id: key,
+      parentId: null,
+      label: title ?? `${match.runtime} · ${s.surfaceRef}`,
+      cwd,
+      contextMode: "task",
+      surface: s.surfaceRef,
+      workspace: s.workspaceRef,
+      workspaceLabel: titles.byWorkspaceRef.get(s.workspaceRef),
+      runtime: match.runtime,
+      status: "active",
+      spawnedAt: 0, // unknown start time — resolveAgentSessionPath's window check is skipped when 0 (see there)
+    });
+  }
+  return out;
 }
 
 /**
@@ -352,18 +543,17 @@ export function listAgents(): SpawnedAgent[] {
     knownKeys.add(a.workspace ? `${a.workspace}/${a.surface}` : a.surface);
   }
 
-  // Refresh status for agents we spawned ourselves.
+  // Refresh status for agents we spawned ourselves. Try the exact
+  // workspace/surface key first; cmux-agent's registry can re-key the SAME
+  // surface under "default" later even after we resolved its canonical
+  // workspace:N ref at spawn time (confirmed live — a stale-status symptom,
+  // not just a spawn-time concern) — fall back to a bare-surface scan so a
+  // real status change is never silently missed just because of that alias.
   for (const a of Object.values(store)) {
     if (!a.surface) continue;
-    if (a.workspace) {
-      const live = registry[`${a.workspace}/${a.surface}`];
-      if (live) a.status = mapStatus(live.status);
-    } else {
-      // Legacy entry from before workspace tracking — best-effort bare-surface
-      // scan (may pick the wrong workspace's entry if a collision exists).
-      const live = Object.values(registry).find((e) => e.surface_ref === a.surface);
-      if (live) a.status = mapStatus(live.status);
-    }
+    const live = (a.workspace && registry[`${a.workspace}/${a.surface}`]) ||
+      Object.values(registry).find((e) => e.surface_ref === a.surface);
+    if (live) a.status = mapStatus(live.status);
   }
   save(store);
 
@@ -376,6 +566,7 @@ export function listAgents(): SpawnedAgent[] {
     const status = mapStatus(entry.status);
     if (status === "closed") continue;
     const workspace = entry.workspace ?? key.slice(0, key.length - surface.length - 1);
+    knownKeys.add(key); // so the ambient pass below doesn't duplicate this one
     foreign.push({
       id: key,
       parentId: null,
@@ -390,8 +581,15 @@ export function listAgents(): SpawnedAgent[] {
     });
   }
 
-  const merged = [...Object.values(store), ...foreign].sort((x, y) => y.spawnedAt - x.spawnedAt);
-  return applyCmuxTitles(merged, fetchCmuxTitles());
+  // Ambient agents: any terminal pane running a known agent CLI that neither
+  // pi-remote spawned NOR cmux-agent's registry knows about (no spawn/hook
+  // required — see buildAmbientAgents' doc comment). Tree+ps are cached (see
+  // getAmbientDiscoveryData) — this call is cheap on a cache hit.
+  const { surfaces, ttyRuntimes, titles } = getAmbientDiscoveryData();
+  const ambient = buildAmbientAgents(surfaces, ttyRuntimes, knownKeys, titles, resolveCwdForPid);
+
+  const merged = [...Object.values(store), ...foreign, ...ambient].sort((x, y) => y.spawnedAt - x.spawnedAt);
+  return applyCmuxTitles(merged, titles);
 }
 
 /**

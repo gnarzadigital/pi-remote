@@ -248,6 +248,51 @@ now opens the steer input correctly. Tapped "π - pi-remote" (ambient, not self-
 now attaches and opens the live chat correctly. 54/54 tests pass (5 new), frontend + backend
 tsc clean, build clean, zero console errors on both paths.
 
+## Ambient agent discovery — surface every terminal session, not just registered ones (2026-07-03)
+Nik clarified the actual goal: pi-remote should surface ANY agent terminal session running in
+cmux (codex, hermes, claude code, pi, cursor-agent, antigravity), not just ones spawned via
+`/cmux-agents` or hooked into cmux-agent's registry. Measured the real gap first: **46 live
+terminal panes existed in cmux, the registry only actively tracked 5.**
+
+- [x] **Detection is independent of cmux-agent's registry/hooks entirely.** For every terminal
+  surface in `cmux --json tree --all`, resolve its `tty`, then ask the OS what's actually
+  running there via a single system-wide `ps -eo pid,tty,args` call (grouped by tty client-side —
+  one call, not N). Verified real binary paths before matching (not guessed): pi, codex,
+  claude (aliased to claude-yolo), hermes (a Python shebang — matched via args, comm alone
+  shows "python3"), cursor-agent, antigravity (via its "agy" alias). "zcode" was investigated
+  and found to not be a persistent binary at all (the real `zai-coding`/`zai` scripts are
+  one-shot, non-interactive) — not built, flagged instead of guessed.
+- [x] **Real bug found and fixed during verification: matching the whole process chain gives
+  false positives.** cmux's own launch wrapper sets a `CMUX_CUSTOM_CLAUDE_PATH` env var
+  containing the literal string "claude-yolo" in EVERY session's command line — including ones
+  actually running pi. Fixed by only ever matching the DEEPEST (highest-pid) process per tty,
+  never the wrapper chain in front of it. Regression-tested with the exact wrapper line that
+  would have false-positived.
+- [x] **Operational risk found and fixed: the new shell-outs would have periodically stalled
+  the live chat.** Measured the real latency (~350-400ms for tree+ps combined) and confirmed
+  bridge.ts is a single-process event loop where `execFileSync` blocks it entirely — a ~400ms
+  stall every 5s poll would have hit the ACTIVE pi chat's streaming too. Fixed with a 10s TTL
+  cache around the expensive, knownKeys-independent data (tree+ps); the cheap per-call
+  filtering still runs fresh every time. Verified live: first call 125-155ms, cached calls
+  67-96ms — no longer a noticeable stall.
+- [x] **Data-integrity bug found and fixed in passing:** 8 pre-existing store entries (my own
+  earlier test spawns, persisted before the `runtime` field existed) showed up as
+  `runtime: undefined`. Fixed the root cause (`load()` now backfills a sensible default for
+  any legacy entry missing a since-added field, not just this one instance) and cleaned the
+  stale data. Also hardened the status-refresh loop: it was missing status updates for
+  self-spawned agents whenever cmux-agent's registry re-keyed the same surface under the
+  "default" alias after spawn (the same alias inconsistency as the earlier workspace-collision
+  fix, but recurring — extended the existing legacy-entry fallback to always apply, not just
+  when `.workspace` was unset).
+- cwd for ambient agents (needed only for pi-runtime attach; steer needs nothing) is resolved
+  via `lsof -a -d cwd -p <pid>`, called only for pi matches — verified working live.
+
+Verified live: agent count went from ~11 (registry-only) to 30 real agents (after cleaning up
+my own 8 stale test entries) to 38 (before cleanup) — a real, large, confirmed coverage
+increase. Zero `runtime: undefined` after the backfill fix. Zero console errors. 65/65 tests
+pass (11 new), frontend + backend tsc clean, build clean, cache verified reducing latency from
+~400ms (uncached) to 67-155ms (measured across repeated live calls).
+
 ---
 
 ## Sequencing

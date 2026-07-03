@@ -1,12 +1,16 @@
 import { expect, test } from "bun:test";
 import {
   applyCmuxTitles,
+  buildAmbientAgents,
   buildSpawnPrompt,
   canonicalizeCwd,
+  enumerateTerminalSurfaces,
   extractCmuxTitles,
   findRegistryWorkspace,
   findTreeWorkspace,
+  matchRuntimeFromArgs,
   parseSpawnSurface,
+  parseTtyRuntimes,
   type SpawnedAgent,
 } from "./agents";
 
@@ -30,7 +34,9 @@ const SAMPLE_TREE = {
           panes: [
             {
               ref: "pane:54",
-              surfaces: [{ ref: "surface:58", title: "π - pi-remote-diff-test" }],
+              surfaces: [
+                { ref: "surface:58", title: "π - pi-remote-diff-test", type: "terminal", tty: "ttys045" },
+              ],
             },
           ],
         },
@@ -45,7 +51,14 @@ const SAMPLE_TREE = {
           panes: [
             {
               ref: "pane:56",
-              surfaces: [{ ref: "surface:58", title: "⠐ Complete RevOps orchestrator handoff" }],
+              surfaces: [
+                {
+                  ref: "surface:58",
+                  title: "⠐ Complete RevOps orchestrator handoff",
+                  type: "terminal",
+                  tty: "ttys046",
+                },
+              ],
             },
           ],
         },
@@ -126,6 +139,106 @@ test("findTreeWorkspace resolves the canonical workspace:N ref for a surface, di
 test("findTreeWorkspace returns null when the surface isn't in the tree yet (just spawned, pane not rendered)", () => {
   expect(findTreeWorkspace(SAMPLE_TREE, "surface:999")).toBe(null);
   expect(findTreeWorkspace(null, "surface:58")).toBe(null);
+});
+
+test("enumerateTerminalSurfaces lists every terminal surface with its tty, across windows", () => {
+  const surfaces = enumerateTerminalSurfaces(SAMPLE_TREE);
+  expect(surfaces).toEqual([
+    { workspaceRef: "workspace:1", surfaceRef: "surface:58", tty: "ttys045" },
+    { workspaceRef: "workspace:22", surfaceRef: "surface:58", tty: "ttys046" },
+  ]);
+});
+
+test("enumerateTerminalSurfaces degrades to empty array on malformed/missing input", () => {
+  expect(enumerateTerminalSurfaces(null)).toEqual([]);
+  expect(enumerateTerminalSurfaces({ windows: "nope" })).toEqual([]);
+});
+
+test("matchRuntimeFromArgs recognizes each known agent CLI", () => {
+  expect(matchRuntimeFromArgs("/Users/nicholasgarza/.local/bin/pi --session x")).toBe("pi");
+  expect(matchRuntimeFromArgs("pi")).toBe("pi"); // bare, exactly as observed live
+  expect(matchRuntimeFromArgs("/Users/nicholasgarza/.nvm/.../bin/codex")).toBe("codex");
+  expect(matchRuntimeFromArgs("/opt/homebrew/bin/claude-yolo")).toBe("claude");
+  expect(matchRuntimeFromArgs("python3 -m hermes_cli.main gateway run")).toBe("hermes");
+  expect(matchRuntimeFromArgs("/Users/nicholasgarza/bin/cursor-agent")).toBe("cursor-agent");
+  expect(matchRuntimeFromArgs("/Users/nicholasgarza/bin/agy")).toBe("antigravity");
+});
+
+test("matchRuntimeFromArgs does not false-positive on an unrelated plain shell", () => {
+  expect(matchRuntimeFromArgs("-/bin/zsh")).toBe(null);
+  expect(matchRuntimeFromArgs("/usr/bin/login -q -flp nicholasgarza /bin/bash")).toBe(null);
+});
+
+test("matchRuntimeFromArgs ignores an incidental env-var mention (regression: the wrapper line that launches EVERY session, including pi ones, contains the literal string 'claude-yolo' in an unrelated CMUX_CUSTOM_CLAUDE_PATH env var — only the deepest/actual process should ever be checked, not this wrapper line)", () => {
+  const wrapperLine =
+    "/bin/zsh -lic /usr/bin/env CMUX_CUSTOM_CLAUDE_PATH=/opt/homebrew/bin/claude-yolo /bin/zsh -lc { cd -- x } && /Users/nicholasgarza/.local/bin/pi --session y";
+  // This documents the risk: the wrapper line DOES match "claude-yolo" if checked directly.
+  // parseTtyRuntimes avoids this by only ever checking the deepest (highest-pid) process
+  // per tty, never the wrapper line itself — covered in the next test.
+  expect(matchRuntimeFromArgs(wrapperLine)).toBe("claude");
+});
+
+test("parseTtyRuntimes only matches the deepest (highest-pid) process per tty, avoiding the wrapper-line false positive", () => {
+  const psOutput = [
+    "  PID TTY      COMM           ARGS",
+    " 2590 ttys033  /usr/bin/login /usr/bin/login -q -flp nicholasgarza /bin/bash",
+    " 2738 ttys033  -/bin/zsh      -/bin/zsh",
+    " 3359 ttys033  /bin/zsh       /bin/zsh -lic CMUX_CUSTOM_CLAUDE_PATH=/opt/homebrew/bin/claude-yolo /bin/zsh -lc pi",
+    "19421 ttys033  pi             pi",
+  ].join("\n");
+  const result = parseTtyRuntimes(psOutput);
+  expect(result.get("ttys033")).toEqual({ runtime: "pi", pid: 19421 });
+});
+
+test("parseTtyRuntimes omits a tty whose deepest process isn't a known agent (idle shell)", () => {
+  const psOutput = ["  PID TTY      COMM           ARGS", "58287 ttys046  -/bin/zsh      -/bin/zsh"].join("\n");
+  expect(parseTtyRuntimes(psOutput).has("ttys046")).toBe(false);
+});
+
+test("parseTtyRuntimes ignores processes with no controlling terminal ('??')", () => {
+  const psOutput = ["  PID TTY      COMM           ARGS", "  100 ??       python3        python3 -m hermes_cli.main"].join(
+    "\n"
+  );
+  expect(parseTtyRuntimes(psOutput).size).toBe(0);
+});
+
+test("buildAmbientAgents surfaces a terminal running a known agent CLI that isn't already known", () => {
+  const titles = extractCmuxTitles(SAMPLE_TREE);
+  const surfaces = enumerateTerminalSurfaces(SAMPLE_TREE);
+  const ttyRuntimes = new Map([["ttys045", { runtime: "pi", pid: 111 }]]);
+  const agents = buildAmbientAgents(surfaces, ttyRuntimes, new Set(), titles, () => "/Users/nicholasgarza/repos/pi-remote");
+  expect(agents.length).toBe(1);
+  expect(agents[0]).toMatchObject({
+    id: "workspace:1/surface:58",
+    workspace: "workspace:1",
+    surface: "surface:58",
+    runtime: "pi",
+    label: "π - pi-remote-diff-test", // cmux's own title, same overlay as everywhere else
+    cwd: "/Users/nicholasgarza/repos/pi-remote",
+  });
+});
+
+test("buildAmbientAgents skips a surface already known (in the store or registry), and one with no matching tty runtime", () => {
+  const titles = extractCmuxTitles(SAMPLE_TREE);
+  const surfaces = enumerateTerminalSurfaces(SAMPLE_TREE);
+  const known = new Set(["workspace:1/surface:58"]);
+  const ttyRuntimes = new Map([["ttys046", { runtime: "claude", pid: 222 }]]);
+  const agents = buildAmbientAgents(surfaces, ttyRuntimes, known, titles, () => null);
+  // workspace:1 is already known (skipped); workspace:22's tty has no runtime match... wait it does (ttys046).
+  expect(agents.map((a) => a.id)).toEqual(["workspace:22/surface:58"]);
+});
+
+test("buildAmbientAgents only resolves cwd (via lsof) for pi-runtime matches — other runtimes don't need it (steer works without a cwd)", () => {
+  const titles = extractCmuxTitles(SAMPLE_TREE);
+  const surfaces = enumerateTerminalSurfaces(SAMPLE_TREE);
+  const ttyRuntimes = new Map([["ttys046", { runtime: "claude", pid: 222 }]]);
+  let resolverCalled = false;
+  const agents = buildAmbientAgents(surfaces, ttyRuntimes, new Set(), titles, () => {
+    resolverCalled = true;
+    return "/should-not-be-used";
+  });
+  expect(resolverCalled).toBe(false);
+  expect(agents[0].cwd).toBe("");
 });
 
 test("extractCmuxTitles degrades to empty maps on malformed/missing input, never throws", () => {
