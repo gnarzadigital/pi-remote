@@ -25,6 +25,8 @@ import { StringDecoder } from "string_decoder";
 import { createInterface } from "readline";
 import { execSync } from "child_process";
 import { isJunkWorkspace } from "./workspace-filter";
+import { spawnAgent, listAgents, sendToAgent, confirmAgent, type ContextMode } from "./agents";
+import { buildAgentTree, flattenTree } from "./lineage";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -748,6 +750,54 @@ function handleClientMessage(ws: any, raw: string): void {
   if (cmd.type === "search_sessions") {
     const results = searchSessionFiles(String(cmd.query ?? ""));
     sendToWs(ws, JSON.stringify({ type: "response", command: "search_sessions", success: true, id: cmd.id, data: { results } }));
+    return;
+  }
+
+  // --- Multi-agent (additive; does not touch the primary pi chat path) ---
+  if (cmd.type === "list_agents") {
+    // Build the nested tree server-side and send a depth-tagged flat list so the
+    // frontend renders indentation without duplicating the lineage logic.
+    const flat = flattenTree(buildAgentTree(listAgents())).map(({ children, ...n }) => n);
+    sendToWs(ws, JSON.stringify({ type: "response", command: "list_agents", success: true, id: cmd.id, data: { agents: flat } }));
+    return;
+  }
+
+  if (cmd.type === "spawn_agent") {
+    const cm = cmd.contextMode;
+    const contextMode: ContextMode = cm === "full" || cm === "scoped" ? cm : "task";
+    try {
+      const agent = spawnAgent({
+        cwd: String(cmd.cwd ?? CWD),
+        task: String(cmd.task ?? ""),
+        contextMode,
+        parentId: cmd.parentId ? String(cmd.parentId) : null,
+        parentSummary: cmd.parentSummary ? String(cmd.parentSummary) : undefined,
+        now: Date.now(),
+      });
+      sendToWs(ws, JSON.stringify({ type: "response", command: "spawn_agent", success: true, id: cmd.id, data: { agent } }));
+    } catch (e) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "spawn_agent", success: false, id: cmd.id, error: String(e) }));
+    }
+    return;
+  }
+
+  if (cmd.type === "send_to_agent" && cmd.surface) {
+    try {
+      sendToAgent(String(cmd.surface), String(cmd.message ?? ""));
+      sendToWs(ws, JSON.stringify({ type: "response", command: "send_to_agent", success: true, id: cmd.id }));
+    } catch (e) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "send_to_agent", success: false, id: cmd.id, error: String(e) }));
+    }
+    return;
+  }
+
+  if (cmd.type === "confirm_agent" && cmd.surface) {
+    try {
+      confirmAgent(String(cmd.surface));
+      sendToWs(ws, JSON.stringify({ type: "response", command: "confirm_agent", success: true, id: cmd.id }));
+    } catch (e) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "confirm_agent", success: false, id: cmd.id, error: String(e) }));
+    }
     return;
   }
 
