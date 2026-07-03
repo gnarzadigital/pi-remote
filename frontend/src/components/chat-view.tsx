@@ -1,4 +1,4 @@
-import { ChevronLeft, Square } from "lucide-react";
+import { ChevronLeft, GitBranch, Square } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatOverflowMenu } from "@/components/chat-overflow-menu";
@@ -37,14 +37,22 @@ export function ChatView() {
         <button
           type="button"
           disabled={!canRename}
-          className="min-w-0 flex-1 truncate text-center text-[14px] font-medium text-graphite disabled:opacity-100"
+          className="flex min-w-0 flex-1 flex-col items-center justify-center disabled:opacity-100"
           onClick={() => {
             if (!canRename) return;
             hapticTap();
             setRenameOpen(true);
           }}
         >
-          {sessionTitle}
+          <span className="max-w-full truncate text-[14px] font-medium text-graphite">
+            {sessionTitle}
+          </span>
+          {snapshot.gitBranch && (
+            <span className="flex max-w-full items-center gap-1 truncate text-[11px] font-normal text-concrete">
+              <GitBranch className="size-3 shrink-0" />
+              <span className="truncate">{snapshot.gitBranch}</span>
+            </span>
+          )}
         </button>
         <ChatOverflowMenu onRename={() => setRenameOpen(true)} />
         <SettingsPanel />

@@ -51,6 +51,7 @@ function initialSnapshot(): BridgeSnapshot {
     view: "sessions",
     theme,
     queuedMessages: [],
+    gitBranch: null,
     sessions: [],
     activeSessionName: null,
     activeSessionPath: null,
@@ -154,6 +155,7 @@ export class PiBridgeClient {
         this.sendWithId({ type: "set_thinking_level", level: this.snapshot.thinkingLevel });
       }
       this.fetchSessions();
+      this.fetchGitBranch();
       // Re-bootstrap state after reconnect
       this.sendWithId({ type: "get_state" });
       this.sendWithId({ type: "get_available_models" });
@@ -349,6 +351,9 @@ export class PiBridgeClient {
         break;
       case "set_model":
         if (msg.data) this.setSelectedModel(msg.data as unknown as PiModel);
+        break;
+      case "get_git_branch":
+        this.queuePatch({ gitBranch: (msg.data?.branch as string) || null });
         break;
       case "get_session_stats":
         this.queuePatch({ stats: msg.data as SessionStats });
@@ -705,6 +710,10 @@ export class PiBridgeClient {
 
   fetchSessions() {
     this.sendWithId({ type: "list_sessions" });
+  }
+
+  fetchGitBranch() {
+    this.sendWithId({ type: "get_git_branch" });
   }
 
   refreshModels() {

@@ -60,9 +60,9 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
 - [ ] **2.5 Voice input.** webkitSpeechRecognition mic button in `input-area.tsx`, live transcript
   into the composer. LOCAL only — assert no cloud endpoint.
   Verify: manual on device (Safari); tsc + build clean; grep shows no cloud STT url.
-- [ ] **2.6 Git branch in header.** Bridge `get_git_branch` (exec `git branch --show-current`
-  in cwd) → show in chat header.
-  Verify: WS smoke returns branch; screenshot shows it.
+- [x] **2.6 Git branch in header.** Bridge `get_git_branch` (execSync `git branch --show-current`
+  in CWD); client fetches on connect; shown as a GitBranch subtitle under the chat title.
+  Verify: WS smoke returns {"branch":"master"}; gate green.
 
 ## Phase 3 — Mobile multi-agent / cmux (flagship)  [dep: research done]
 Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).

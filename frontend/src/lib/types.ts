@@ -91,6 +91,8 @@ export interface BridgeSnapshot {
   theme: Theme;
   /** Prompts typed while the agent is streaming; auto-sent on turn end (FIFO). */
   queuedMessages: string[];
+  /** Current git branch of the active workspace, null if not a repo. */
+  gitBranch: string | null;
   sessions: PiSession[];
   activeSessionName: string | null;
   activeSessionPath: string | null;

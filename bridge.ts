@@ -712,6 +712,17 @@ function handleClientMessage(ws: any, raw: string): void {
     return;
   }
 
+  if (cmd.type === "get_git_branch") {
+    let branch = "";
+    try {
+      branch = execSync("git branch --show-current", { cwd: CWD, encoding: "utf8", timeout: 2000 }).trim();
+    } catch {
+      // not a git repo / git unavailable — leave branch empty
+    }
+    sendToWs(ws, JSON.stringify({ type: "response", command: "get_git_branch", success: true, id: cmd.id, data: { branch } }));
+    return;
+  }
+
   // extension_ui_response: only forward the first response for each dialog id
   if (cmd.type === "extension_ui_response") {
     if (answeredDialogIds.has(cmd.id)) return; // already answered
