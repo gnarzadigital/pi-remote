@@ -1,20 +1,10 @@
 const COLLAPSED_KEY = "pi-remote-collapsed-workspaces";
+const OPENED_KEY = "pi-remote-opened-workspaces";
 const EXPANDED_KEY = "pi-remote-expanded-workspaces";
-const INBOX_COLLAPSED_KEY = "pi-remote-inbox-collapsed";
 
-export function getInboxCollapsed(): boolean {
-  return localStorage.getItem(INBOX_COLLAPSED_KEY) === "true";
-}
-
-export function toggleInboxCollapsed(): boolean {
-  const next = !getInboxCollapsed();
-  localStorage.setItem(INBOX_COLLAPSED_KEY, String(next));
-  return next;
-}
-
-export function getCollapsedWorkspaces(): Set<string> {
+function loadSet(key: string): Set<string> {
   try {
-    const raw = localStorage.getItem(COLLAPSED_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as unknown;
     return new Set(Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : []);
@@ -23,12 +13,38 @@ export function getCollapsedWorkspaces(): Set<string> {
   }
 }
 
-export function toggleWorkspaceCollapsed(slug: string): boolean {
-  const set = getCollapsedWorkspaces();
-  if (set.has(slug)) set.delete(slug);
-  else set.add(slug);
-  localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set]));
-  return set.has(slug);
+export function getCollapsedWorkspaces(): Set<string> {
+  return loadSet(COLLAPSED_KEY);
+}
+
+export function getOpenedWorkspaces(): Set<string> {
+  return loadSet(OPENED_KEY);
+}
+
+/**
+ * Effective collapse state. Default: only the current workspace is open; every
+ * other workspace is a collapsed folder row. Explicit user toggles win over the
+ * default (opened/collapsed sets), so a project you open stays open.
+ */
+export function isWorkspaceCollapsed(slug: string, isCurrent: boolean): boolean {
+  if (getCollapsedWorkspaces().has(slug)) return true;
+  if (getOpenedWorkspaces().has(slug)) return false;
+  return !isCurrent;
+}
+
+/** Toggle a workspace's collapse state, recording the explicit choice. */
+export function toggleWorkspaceCollapsed(slug: string, isCurrent: boolean): void {
+  const collapsed = getCollapsedWorkspaces();
+  const opened = getOpenedWorkspaces();
+  if (isWorkspaceCollapsed(slug, isCurrent)) {
+    collapsed.delete(slug);
+    opened.add(slug);
+  } else {
+    opened.delete(slug);
+    collapsed.add(slug);
+  }
+  localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+  localStorage.setItem(OPENED_KEY, JSON.stringify([...opened]));
 }
 
 export function getExpandedWorkspaces(): Set<string> {

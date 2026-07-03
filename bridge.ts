@@ -24,6 +24,7 @@ import { fileURLToPath } from "url";
 import { StringDecoder } from "string_decoder";
 import { createInterface } from "readline";
 import { execSync } from "child_process";
+import { isJunkWorkspace } from "./workspace-filter";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -544,9 +545,12 @@ function listSessionFiles(): Array<{
     isCurrentWorkspace: boolean;
   }> = [];
 
+  const homeSlug = cwdToSlug(homedir());
   let workspaceDirs: string[] = [];
   try {
-    workspaceDirs = readdirSync(sessionsRoot).filter((name) => name.startsWith("--"));
+    workspaceDirs = readdirSync(sessionsRoot).filter(
+      (name) => name.startsWith("--") && !isJunkWorkspace(name, homeSlug)
+    );
   } catch {
     return [];
   }

@@ -73,3 +73,28 @@
 5. Build specialist agent chips (sf-architect, sf-flow-master, etc.)
 6. Build trajectory display (which agent "speaks" per turn)
 7. Mobile QA via phone (Tailscale URL)
+
+---
+
+# Session Notes — Sessions/Workspace Org Overhaul (2026-07-03)
+
+## Problem (Nik report)
+"Inbox all crazy" + "airtable-assignment isn't showing as its own group."
+
+## Root cause (one bug, two symptoms)
+- Bridge scanned all 38 dirs under ~/.pi/agent/sessions incl junk (tmp, scratchpad, home, .codex-memories, cmux-verify).
+- "Unread" = mtime > lastRead+500 → every background agent write flagged a session unread.
+- Unread sessions were HOISTED out of their workspace group into a global Inbox (excludePaths). WorkspaceFolderSection returns null when all items excluded → current workspace (airtable, freshly active) rendered empty/missing while the Inbox became a 42-session firehose.
+
+## Changes
+1. bridge: workspace-filter.ts (isJunkWorkspace) filters junk dirs. Wired in bridge.ts listSessionFiles. Unit test workspace-filter.test.ts (2 pass).
+2. frontend: killed global Inbox. Deleted inbox-folder-section.tsx. Removed excludePaths → sessions stay in their workspace folder with unread dot.
+3. frontend: unread = forced-only (agent-finished-while-away / manual), dropped mtime. session-read-state.ts isSessionUnread.
+4. frontend: default-collapse non-current workspaces (current stays open). session-list-state.ts two-set model (collapsed + opened) + isWorkspaceCollapsed(slug, isCurrent). Wired in sessions-view.tsx.
+
+## Verified
+- Live bridge list_sessions: 378→153 sessions, 38→25 workspaces, 0 junk, airtable present as current with 9 sessions.
+- build:ui clean, tsc --noEmit clean, bun test 2/2.
+- NOT visually screenshotted (browser-picker friction). Confirm on phone via hard-refresh.
+
+## Not committed yet. public/ rebuilt.

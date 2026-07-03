@@ -107,7 +107,11 @@ export function markSessionUnread(path: string) {
 }
 
 export function isSessionUnread(session: PiSession): boolean {
-  return loadForcedUnread().has(session.path) || session.mtime > getLastReadAt(session.path) + 500;
+  // Unread = "an agent finished / pushed while you were away" (forced-unread set),
+  // NOT "the file changed". mtime bumps on every background agent write and floods
+  // the list with false unreads. Forced-unread is set on agent-finish-while-away
+  // and manual mark-unread; cleared on read. See markSessionUnread callers.
+  return loadForcedUnread().has(session.path);
 }
 
 export function countUnread(sessions: PiSession[]): number {

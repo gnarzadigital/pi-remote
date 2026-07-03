@@ -1,6 +1,5 @@
 import { Archive, ArchiveRestore } from "lucide-react";
 import { ConnectionDot } from "@/components/connection-dot";
-import { InboxFolderSection } from "@/components/inbox-folder-section";
 import { PiLogo } from "@/components/pi-logo";
 import { ScreenHeader } from "@/components/screen-header";
 import { SessionRenameSheet } from "@/components/session-rename-sheet";
@@ -11,13 +10,11 @@ import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { useReadState } from "@/hooks/use-read-state";
 import { toggleArchive, getArchivedPaths } from "@/lib/archived-sessions";
 import { getPinnedPaths, togglePin } from "@/lib/pinned-sessions";
-import { filterUnread, isSessionUnread } from "@/lib/session-read-state";
+import { isSessionUnread } from "@/lib/session-read-state";
 import {
   expandWorkspace,
-  getCollapsedWorkspaces,
   getExpandedWorkspaces,
-  getInboxCollapsed,
-  toggleInboxCollapsed,
+  isWorkspaceCollapsed,
   toggleWorkspaceCollapsed,
 } from "@/lib/session-list-state";
 import {
@@ -33,9 +30,8 @@ export function SessionsView() {
   const { snapshot, bridge } = usePiBridge();
   useReadState();
   const [listRevision, setListRevision] = useState(0);
-  const [collapsed, setCollapsed] = useState(getCollapsedWorkspaces);
+  const [, setCollapseRevision] = useState(0);
   const [expandedFolders, setExpandedFolders] = useState(getExpandedWorkspaces);
-  const [inboxCollapsed, setInboxCollapsed] = useState(getInboxCollapsed);
   const [hint, setHint] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<PiSession | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -74,11 +70,6 @@ export function SessionsView() {
     return snapshot.sessions.filter((s) => !archivedSet.has(s.path));
   }, [snapshot.sessions, showArchived, listRevision]);
 
-  const unreadPaths = useMemo(() => {
-    const unread = filterUnread(visibleSessions);
-    return new Set(unread.map((s) => s.path));
-  }, [visibleSessions]);
-
   const groups = useMemo(
     () => groupSessionsByWorkspace(visibleSessions),
     [visibleSessions]
@@ -110,12 +101,9 @@ export function SessionsView() {
   };
 
   const handleToggleCollapse = (slug: string) => {
-    toggleWorkspaceCollapsed(slug);
-    setCollapsed(new Set(getCollapsedWorkspaces()));
-  };
-
-  const handleToggleInbox = () => {
-    setInboxCollapsed(toggleInboxCollapsed());
+    const group = groups.find((g) => (g.workspaceSlug ?? g.label) === slug);
+    toggleWorkspaceCollapsed(slug, group?.isCurrentWorkspace ?? false);
+    setCollapseRevision((n) => n + 1);
   };
 
   const handleShowMore = (slug: string) => {
@@ -152,36 +140,22 @@ export function SessionsView() {
       ) : null}
 
       <div className="sessions-scroll session-cursor-list min-h-0 flex-1 overflow-y-auto overscroll-contain bg-canvas py-2">
-        {!showArchived ? (
-          <InboxFolderSection
-            sessions={visibleSessions}
-            collapsed={inboxCollapsed}
-            activeSessionPath={snapshot.activeSessionPath}
-            pinnedPaths={pinnedPaths}
-            onToggleCollapse={handleToggleInbox}
-            onSelect={handleSelect}
-            onTogglePin={handleTogglePin}
-            onArchive={handleArchive}
-            onRename={handleRename}
-          />
-        ) : null}
-
-        {groups.length === 0 && showArchived ? (
-          <p className="session-list-meta px-3 py-8 text-center text-concrete">No archived sessions</p>
-        ) : groups.length === 0 && !showArchived ? (
-          unreadPaths.size === 0 ? (
-            <p className="session-list-meta px-3 py-4 text-center text-concrete">No sessions</p>
-          ) : null
+        {groups.length === 0 ? (
+          <p className="session-list-meta px-3 py-8 text-center text-concrete">
+            {showArchived ? "No archived sessions" : "No sessions"}
+          </p>
         ) : (
           groups.map((group) => (
             <WorkspaceFolderSection
               key={group.workspaceSlug ?? group.label}
               group={group}
-              collapsed={collapsed.has(group.workspaceSlug ?? group.label)}
+              collapsed={isWorkspaceCollapsed(
+                group.workspaceSlug ?? group.label,
+                group.isCurrentWorkspace ?? false
+              )}
               expanded={expandedFolders.has(group.workspaceSlug ?? group.label)}
               activeSessionPath={snapshot.activeSessionPath}
               pinnedPaths={pinnedPaths}
-              excludePaths={showArchived ? undefined : unreadPaths}
               onToggleCollapse={handleToggleCollapse}
               onShowMore={handleShowMore}
               onSelect={handleSelect}
