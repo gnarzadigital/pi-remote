@@ -866,7 +866,9 @@ function handleClientMessage(ws: any, raw: string): void {
 
   if (cmd.type === "send_to_agent" && cmd.surface) {
     try {
-      sendToAgent(String(cmd.surface), String(cmd.message ?? ""));
+      // workspace disambiguates surface numbers that collide across cmux
+      // workspaces (see findRegistryWorkspace) — client sends it when known.
+      sendToAgent(String(cmd.surface), String(cmd.message ?? ""), cmd.workspace ? String(cmd.workspace) : null);
       sendToWs(ws, JSON.stringify({ type: "response", command: "send_to_agent", success: true, id: cmd.id }));
     } catch (e) {
       sendToWs(ws, JSON.stringify({ type: "response", command: "send_to_agent", success: false, id: cmd.id, error: String(e) }));
@@ -876,7 +878,7 @@ function handleClientMessage(ws: any, raw: string): void {
 
   if (cmd.type === "confirm_agent" && cmd.surface) {
     try {
-      confirmAgent(String(cmd.surface));
+      confirmAgent(String(cmd.surface), cmd.workspace ? String(cmd.workspace) : null);
       sendToWs(ws, JSON.stringify({ type: "response", command: "confirm_agent", success: true, id: cmd.id }));
     } catch (e) {
       sendToWs(ws, JSON.stringify({ type: "response", command: "confirm_agent", success: false, id: cmd.id, error: String(e) }));

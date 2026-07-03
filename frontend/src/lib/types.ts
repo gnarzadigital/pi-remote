@@ -98,6 +98,9 @@ export interface AgentTreeNode {
   cwd?: string;
   contextMode?: AgentContextMode;
   surface: string | null;
+  /** cmux workspace ref — REQUIRED alongside surface for any pane-targeted action
+   * (steer/confirm). Surface numbers are only unique within a workspace. */
+  workspace?: string | null;
   status: AgentRunStatus;
   depth: number;
   spawnedAt?: number;

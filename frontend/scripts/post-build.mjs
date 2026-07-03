@@ -1,4 +1,4 @@
-import { unlinkSync, existsSync, readdirSync, readFileSync } from "fs";
+import { unlinkSync, existsSync, readdirSync, readFileSync, rmSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -30,6 +30,22 @@ for (const ref of [...keep]) {
       keep.add(nested);
     }
   }
+}
+
+// Ground truth for chunks only reachable via a runtime import() (e.g.
+// code-block.tsx's lazy import from markdown.tsx) — these are never statically
+// referenced in index.html or any CSS, so the scan above always misses them and
+// would delete them right after this exact build produced them. Requires
+// `build.manifest: true` in vite.config.ts.
+const manifestPath = join(assetsDir, "..", ".vite", "manifest.json");
+if (existsSync(manifestPath)) {
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  for (const entry of Object.values(manifest)) {
+    if (entry.file) keep.add(entry.file.replace(/^assets\//, ""));
+    for (const css of entry.css ?? []) keep.add(css.replace(/^assets\//, ""));
+    for (const asset of entry.assets ?? []) keep.add(asset.replace(/^assets\//, ""));
+  }
+  rmSync(join(assetsDir, "..", ".vite"), { recursive: true, force: true });
 }
 
 if (existsSync(assetsDir)) {

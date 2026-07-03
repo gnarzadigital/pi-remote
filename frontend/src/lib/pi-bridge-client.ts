@@ -798,12 +798,15 @@ export class PiBridgeClient {
     this.sendWithId({ type: "spawn_agent", ...req });
   }
 
-  steerAgent(surface: string, message: string) {
-    this.sendWithId({ type: "send_to_agent", surface, message });
+  // workspace disambiguates surface numbers that collide across cmux workspaces
+  // (a bare surface is only unique within one workspace) — always pass it when
+  // the caller has it (AgentTreeNode.workspace).
+  steerAgent(surface: string, message: string, workspace?: string | null) {
+    this.sendWithId({ type: "send_to_agent", surface, message, workspace: workspace ?? undefined });
   }
 
-  confirmAgent(surface: string) {
-    this.sendWithId({ type: "confirm_agent", surface });
+  confirmAgent(surface: string, workspace?: string | null) {
+    this.sendWithId({ type: "confirm_agent", surface, workspace: workspace ?? undefined });
   }
 
   /** Attach the rich chat view to a spawned pi agent (resolves its session file first). */

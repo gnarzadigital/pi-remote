@@ -13,6 +13,11 @@ export default defineConfig({
   build: {
     outDir: "../public",
     emptyOutDir: false,
+    // Ground truth for post-build.mjs's stale-asset cleanup — without this, chunks
+    // only reachable via a runtime import() (not statically referenced/preloaded in
+    // index.html or CSS, e.g. code-block.tsx's lazy import) look "unreferenced" to a
+    // pure HTML/CSS scan and get deleted right after being built. See post-build.mjs.
+    manifest: true,
     rollupOptions: {
       output: {
         assetFileNames: "assets/[name]-[hash][extname]",

@@ -3,13 +3,20 @@ export interface DiffLine {
   text: string;
 }
 
-export interface ParsedEdit {
-  path?: string;
+export interface EditPair {
   oldText: string;
   newText: string;
 }
 
-/** Parse a pi `edit`/`write` tool's args JSON into old/new text + optional path. */
+export interface ParsedEdit {
+  path?: string;
+  /** One or more old/new pairs. pi's real `edit` tool sends a batch `edits`
+   * array (verified against a live tool call); `write` and legacy/flat shapes
+   * normalize to a single-element array here so callers only handle one shape. */
+  edits: EditPair[];
+}
+
+/** Parse a pi `edit`/`write` tool's args JSON into old/new pairs + optional path. */
 export function parseEditArgs(args?: string): ParsedEdit | null {
   if (!args) return null;
   let obj: Record<string, unknown>;
@@ -18,14 +25,29 @@ export function parseEditArgs(args?: string): ParsedEdit | null {
   } catch {
     return null;
   }
-  const str = (k: string) => (typeof obj[k] === "string" ? (obj[k] as string) : undefined);
+  const str = (o: Record<string, unknown>, k: string) =>
+    typeof o[k] === "string" ? (o[k] as string) : undefined;
   const path =
-    str("path") ?? str("file") ?? str("filePath") ?? str("file_path") ?? str("filename");
-  const oldText = str("oldText") ?? str("old_string") ?? str("old_str") ?? "";
+    str(obj, "path") ?? str(obj, "file") ?? str(obj, "filePath") ?? str(obj, "file_path") ?? str(obj, "filename");
+
+  if (Array.isArray(obj.edits)) {
+    const edits: EditPair[] = [];
+    for (const e of obj.edits) {
+      if (!e || typeof e !== "object") continue;
+      const rec = e as Record<string, unknown>;
+      const oldText = str(rec, "oldText") ?? str(rec, "old_string") ?? str(rec, "old_str") ?? "";
+      const newText = str(rec, "newText") ?? str(rec, "new_string") ?? str(rec, "new_str") ?? "";
+      if (oldText || newText) edits.push({ oldText, newText });
+    }
+    if (edits.length === 0) return null;
+    return { path, edits };
+  }
+
+  const oldText = str(obj, "oldText") ?? str(obj, "old_string") ?? str(obj, "old_str") ?? "";
   const newText =
-    str("newText") ?? str("new_string") ?? str("new_str") ?? str("content") ?? str("text") ?? "";
+    str(obj, "newText") ?? str(obj, "new_string") ?? str(obj, "new_str") ?? str(obj, "content") ?? str(obj, "text") ?? "";
   if (oldText === "" && newText === "") return null;
-  return { path, oldText, newText };
+  return { path, edits: [{ oldText, newText }] };
 }
 
 const MAX_DIFF_LINES = 2000; // ponytail: O(m*n) LCS cap; above this we show a coarse diff

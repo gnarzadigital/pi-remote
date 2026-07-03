@@ -53,7 +53,7 @@ export function AgentsPanel() {
   const doSteer = (agent: AgentTreeNode) => {
     if (!agent.surface || !steerText.trim()) return;
     hapticTap();
-    bridge.steerAgent(agent.surface, steerText.trim());
+    bridge.steerAgent(agent.surface, steerText.trim(), agent.workspace);
     setSteerText("");
     setSteerFor(null);
   };
@@ -129,7 +129,7 @@ export function AgentsPanel() {
                       className="shrink-0 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
                       onClick={() => {
                         hapticTap();
-                        bridge.confirmAgent(agent.surface!);
+                        bridge.confirmAgent(agent.surface!, agent.workspace);
                       }}
                     >
                       <Check className="size-4" />

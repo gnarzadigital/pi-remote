@@ -134,6 +134,48 @@ Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).
 - [x] Agents picker was pi-remote-spawned-only; now surfaces the FULL cmux registry across
   every runtime (verified live: 9 real claude/codex sessions appear as roots).
 
+## /validate deep functional check (2026-07-03) — 3 real bugs found + fixed
+Ran the `/validate` skill properly (claude-in-chrome, no chrome-devtools MCP available in
+this env): render/console/network on every surface, interaction sweep, and live e2e spawns
+to exercise 2.2/3.2/3.8-full end to end rather than trusting unit tests alone. Full report:
+`.validate/reports/report-2026-07-03-multi-agent-deep-check.md`.
+
+- [x] **BUG (build pipeline): code-block chunk deleted every build.** `post-build.mjs`'s
+  stale-asset cleanup scanned only index.html + CSS for "keep" refs, missing any chunk only
+  reachable via runtime `import()` (markdown.tsx's lazy code-block load). Result: 20 real
+  console exceptions ("Failed to fetch dynamically imported module") on every session with
+  markdown content, every single build, silently, since this cleanup script was introduced.
+  Fix: `vite.config.ts` `build.manifest: true` + post-build.mjs reads `.vite/manifest.json`
+  as ground truth for every chunk a build actually emits. Verified: 0 exceptions on the exact
+  navigation that threw 20 before; confirmed a genuinely-new build still discards genuinely
+  stale hashes (correct behavior preserved).
+- [x] **BUG (diff-parse.ts schema): real pi edit-tool shape never matched.** My original
+  `parseEditArgs` assumed flat `{oldText, newText}`. A real live edit tool call captured
+  during e2e testing showed pi's actual shape: `{"path":...,"edits":[{oldText,newText}, ...]}`
+  — a batch array. The diff viewer silently fell back to the generic tool card on every real
+  edit call. Fixed `parseEditArgs`/`ParsedEdit` to handle the batch shape (flat shape kept as
+  a normalize-to-single-element fallback for `write`/legacy); `diff.tsx` renders one labeled
+  hunk ("EDIT 1 OF 2" etc.) per edit. Verified live: real session shows scratch.txt +3/-1 with
+  two correctly-labeled hunks, plus a second new-file.txt card — full visual confirmation.
+- [x] **BUG (agents.ts): cmux surface numbers collide across workspaces.** Confirmed live:
+  the identical bare "surface:58" existed simultaneously in two different cmux workspaces.
+  Every agents.ts function treated surface as globally unique — status refresh, the
+  known/foreign dedup set, and critically `sendToAgent`/`confirmAgent` (steer/confirm) never
+  passed `--workspace`, so a steer/confirm action could silently target the wrong agent.
+  Fixed: capture `workspace` at spawn time (`findRegistryWorkspace`, matches by surface+cwd
+  against the live registry immediately post-spawn); `listAgents()` keys status-refresh and
+  dedup by the registry's own `workspace/surface` composite key; `sendToAgent`/`confirmAgent`
+  accept and pass `--workspace`; threaded end-to-end through bridge.ts and the frontend
+  (`AgentTreeNode.workspace`, `steerAgent`/`confirmAgent` client methods, agents-panel.tsx).
+  Verified live: confirm via the bridge stuck on the FIRST attempt post-fix (previously needed
+  a manual retry with an explicit `--workspace` flag to take effect).
+- Also cleaned up: 3 leftover test session files + 6 leftover test cmux agents created during
+  this and earlier e2e verification (confirmed the RIGHT ones after correctly distinguishing
+  them from pre-existing entries that predate this session).
+
+Gate green throughout (43/43 tests, tsc, build). Bridge restarted multiple times; primary
+chat path confirmed unregressed at every step.
+
 ---
 
 ## Sequencing

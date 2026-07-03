@@ -7,12 +7,25 @@
 // spawn fails loudly rather than faking success.
 
 import { execFileSync } from "child_process";
-import { readFileSync, writeFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, statSync, realpathSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
 export type ContextMode = "full" | "task" | "scoped";
 export type AgentStatus = "active" | "awaiting-confirm" | "done" | "closed";
+
+/**
+ * Resolve a cwd to the real path pi will actually create its session dir under
+ * (macOS symlinks like /tmp -> /private/tmp, otherwise cwd is returned as-is).
+ * Falls back to the literal cwd if it doesn't exist / can't be resolved.
+ */
+export function canonicalizeCwd(cwd: string, resolver: (p: string) => string = realpathSync): string {
+  try {
+    return resolver(cwd);
+  } catch {
+    return cwd;
+  }
+}
 
 export interface SpawnedAgent {
   id: string;
@@ -20,7 +33,8 @@ export interface SpawnedAgent {
   label: string;
   cwd: string;
   contextMode: ContextMode;
-  surface: string | null; // cmux surface ref, e.g. "surface:88"
+  surface: string | null; // cmux surface ref, e.g. "surface:88" — UNIQUE ONLY WITHIN a workspace
+  workspace: string | null; // cmux workspace ref, e.g. "default" or "workspace:22"
   status: AgentStatus;
   spawnedAt: number;
 }
@@ -76,6 +90,30 @@ export function parseSpawnSurface(stdout: string): string | null {
   return m ? m[0] : null;
 }
 
+/**
+ * cmux surface refs are only unique WITHIN a workspace (confirmed live: the same
+ * "surface:58" existed simultaneously in "default" and "workspace:26"). Every
+ * cmux-agent call that targets a specific pane (send/confirm/status-refresh) must
+ * be workspace-qualified or it can silently target the wrong agent. Find the
+ * workspace for a just-spawned surface by matching surface_ref + cwd (both known
+ * to us at spawn time) against the live registry — the most reliable disambiguator
+ * right after spawn, before any collision could involve OUR agent specifically.
+ */
+export function findRegistryWorkspace(
+  registry: Record<string, { surface_ref?: string; cwd?: string; registered_at?: number }>,
+  surface: string,
+  cwd: string
+): string | null {
+  let best: { workspace: string; registered_at: number } | null = null;
+  for (const [key, entry] of Object.entries(registry)) {
+    if (entry.surface_ref !== surface || entry.cwd !== cwd) continue;
+    const workspace = key.slice(0, key.length - entry.surface_ref.length - 1); // "ws/surface:N" -> "ws"
+    const registeredAt = entry.registered_at ?? 0;
+    if (!best || registeredAt > best.registered_at) best = { workspace, registered_at: registeredAt };
+  }
+  return best?.workspace ?? null;
+}
+
 export interface SpawnRequest {
   cwd: string;
   task: string;
@@ -91,20 +129,37 @@ export function spawnAgent(req: SpawnRequest): SpawnedAgent {
     parentSummary: req.parentSummary,
   });
   const runtime = req.runtime ?? "pi";
+  // Canonicalize BEFORE storing, so resolveAgentSessionPath's slug matches the
+  // directory pi actually creates. Storing the literal path would make session
+  // resolution silently fail forever for any cwd that traverses a symlink (e.g.
+  // every /tmp scratchpad path, since macOS symlinks /tmp -> /private/tmp).
+  const cwd = canonicalizeCwd(req.cwd);
   const stdout = execFileSync(
     CMUX_AGENT,
-    ["spawn", "--agent", runtime, "--prompt", prompt, "--cwd", req.cwd],
+    ["spawn", "--agent", runtime, "--prompt", prompt, "--cwd", cwd],
     { encoding: "utf8", timeout: 20000 }
   );
   const surface = parseSpawnSurface(stdout);
   const id = surface ?? `agent-${req.now}`;
+
+  let workspace: string | null = null;
+  if (surface) {
+    try {
+      const raw = execFileSync(CMUX_AGENT, ["list", "--all"], { encoding: "utf8", timeout: 5000 });
+      workspace = findRegistryWorkspace(JSON.parse(raw), surface, cwd);
+    } catch {
+      // best-effort — status refresh / send / confirm fall back to unqualified
+    }
+  }
+
   const agent: SpawnedAgent = {
     id,
     parentId: req.parentId ?? null,
     label: req.task.slice(0, 48),
-    cwd: req.cwd,
+    cwd,
     contextMode: req.contextMode,
     surface,
+    workspace,
     status: "active",
     spawnedAt: req.now,
   };
@@ -120,6 +175,7 @@ interface RegistryEntry {
   status?: string;
   registered_at?: number;
   surface_ref?: string;
+  workspace?: string;
 }
 
 function cwdToSlug(cwd: string): string {
@@ -181,34 +237,47 @@ export function listAgents(): SpawnedAgent[] {
     // cmux unavailable — return stored view only
   }
 
-  const bySurface = new Map<string, RegistryEntry>();
-  for (const entry of Object.values(registry)) {
-    if (entry.surface_ref) bySurface.set(entry.surface_ref, entry);
+  // Registry keys ARE "workspace/surface" already — use them directly as the
+  // composite identity. A bare surface number collides across workspaces (see
+  // findRegistryWorkspace), so never key anything by surface alone.
+  const knownKeys = new Set<string>();
+  for (const a of Object.values(store)) {
+    if (!a.surface) continue;
+    knownKeys.add(a.workspace ? `${a.workspace}/${a.surface}` : a.surface);
   }
 
   // Refresh status for agents we spawned ourselves.
   for (const a of Object.values(store)) {
-    const live = a.surface ? bySurface.get(a.surface) : undefined;
-    if (live) a.status = mapStatus(live.status);
+    if (!a.surface) continue;
+    if (a.workspace) {
+      const live = registry[`${a.workspace}/${a.surface}`];
+      if (live) a.status = mapStatus(live.status);
+    } else {
+      // Legacy entry from before workspace tracking — best-effort bare-surface
+      // scan (may pick the wrong workspace's entry if a collision exists).
+      const live = Object.values(registry).find((e) => e.surface_ref === a.surface);
+      if (live) a.status = mapStatus(live.status);
+    }
   }
   save(store);
 
   // Surface every OTHER live/awaiting cmux agent we didn't spawn, across all
   // runtimes. Skip already-closed history so the picker isn't a graveyard.
-  const known = new Set(Object.values(store).map((a) => a.surface).filter(Boolean));
   const foreign: SpawnedAgent[] = [];
-  for (const entry of Object.values(registry)) {
+  for (const [key, entry] of Object.entries(registry)) {
     const surface = entry.surface_ref;
-    if (!surface || known.has(surface)) continue;
+    if (!surface || knownKeys.has(key)) continue;
     const status = mapStatus(entry.status);
     if (status === "closed") continue;
+    const workspace = entry.workspace ?? key.slice(0, key.length - surface.length - 1);
     foreign.push({
-      id: surface,
+      id: key,
       parentId: null,
       label: `${entry.runtime ?? "agent"} · ${shortCwd(entry.cwd)}`,
       cwd: entry.cwd ?? "",
       contextMode: "task",
       surface,
+      workspace,
       status,
       spawnedAt: entry.registered_at ? Math.round(entry.registered_at * 1000) : 0,
     });
@@ -224,15 +293,20 @@ function mapStatus(s?: string): AgentStatus {
   return "active";
 }
 
-export function sendToAgent(surface: string, msg: string): void {
-  execFileSync(CMUX_AGENT, ["send", "--to", surface, "--msg", msg], {
-    encoding: "utf8",
-    timeout: 8000,
-  });
+/** workspace should always be passed when known — a bare surface can collide
+ * with an identically-numbered surface in another workspace (see
+ * findRegistryWorkspace). Falls back to cmux-agent's own "default" guess only
+ * when the caller genuinely doesn't have it (legacy/foreign entries). */
+export function sendToAgent(surface: string, msg: string, workspace?: string | null): void {
+  const args = ["send", "--to", surface, "--msg", msg];
+  if (workspace) args.push("--workspace", workspace);
+  execFileSync(CMUX_AGENT, args, { encoding: "utf8", timeout: 8000 });
 }
 
-export function confirmAgent(surface: string): void {
-  execFileSync(CMUX_AGENT, ["confirm", "--pane", surface], { encoding: "utf8", timeout: 8000 });
+export function confirmAgent(surface: string, workspace?: string | null): void {
+  const args = ["confirm", "--pane", surface];
+  if (workspace) args.push("--workspace", workspace);
+  execFileSync(CMUX_AGENT, args, { encoding: "utf8", timeout: 8000 });
   const agents = load();
   if (agents[surface]) {
     agents[surface].status = "closed";
