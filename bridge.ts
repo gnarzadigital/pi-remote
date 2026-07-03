@@ -27,6 +27,7 @@ import { execSync } from "child_process";
 import { isJunkWorkspace } from "./workspace-filter";
 import { spawnAgent, listAgents, sendToAgent, confirmAgent, type ContextMode } from "./agents";
 import { buildAgentTree, flattenTree } from "./lineage";
+import { resolveRoute } from "./broker-route";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -200,22 +201,25 @@ console.log(`[bridge] Web Push ready (subscriptions=${pushPrefs.subscriptions.le
 
 console.log(`[bridge] Spawning pi --mode rpc, cwd=${CWD}`);
 
+// Shared spawn env so attachable RPC agents (see below) launch identically to the
+// primary pi — the NODE_PATH fix lets pi resolve @earendil-works/pi-tui etc.
+const PI_SPAWN_ENV = {
+  ...process.env,
+  NODE_PATH: [
+    process.env.NODE_PATH,
+    "/opt/homebrew/lib/node_modules",
+    "/Users/nicholasgarza/.nvm/versions/node/v22.21.1/lib/node_modules",
+  ]
+    .filter(Boolean)
+    .join(":"),
+};
+
 const pi = Bun.spawn(["pi", "--mode", "rpc"], {
   cwd: CWD,
   stdin: "pipe",
   stdout: "pipe",
   stderr: "pipe",
-  env: {
-    ...process.env,
-    // Ensure pi can resolve @earendil-works/pi-tui and other global modules
-    NODE_PATH: [
-      process.env.NODE_PATH,
-      "/opt/homebrew/lib/node_modules",
-      "/Users/nicholasgarza/.nvm/versions/node/v22.21.1/lib/node_modules",
-    ]
-      .filter(Boolean)
-      .join(":"),
-  },
+  env: PI_SPAWN_ENV,
 });
 
 pi.exited.then((code) => {
@@ -284,6 +288,85 @@ function sendToPi(cmd: object): void {
   const line = JSON.stringify(cmd) + "\n";
   pi.stdin.write(line);
   // No flush needed — Bun flushes automatically for pipe streams on each write
+}
+
+// ---------------------------------------------------------------------------
+// Attachable RPC agents (Phase 3.2, ADDITIVE)
+// Each is a separate `pi --mode rpc --session <path>` child, one per spawned
+// agent the mobile client wants a rich chat for. Events are tagged with agentId
+// and sent ONLY to the attaching client (no broadcast) so agent streams never
+// cross-talk with the primary chat or with each other.
+// ---------------------------------------------------------------------------
+
+interface RpcAgent {
+  proc: ReturnType<typeof Bun.spawn>;
+  ws: any;
+  sessionPath: string;
+}
+const rpcAgents = new Map<string, RpcAgent>(); // agentId -> agent
+
+function liveAgentIds(): Set<string> {
+  return new Set(rpcAgents.keys());
+}
+
+function attachRpcAgent(agentId: string, sessionPath: string, ws: any): void {
+  const existing = rpcAgents.get(agentId);
+  if (existing) {
+    existing.ws = ws; // re-point to the (re)attaching client
+    return;
+  }
+  const proc = Bun.spawn(["pi", "--mode", "rpc", "--session", sessionPath], {
+    cwd: CWD,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: PI_SPAWN_ENV,
+  });
+  rpcAgents.set(agentId, { proc, ws, sessionPath });
+
+  attachJsonlReader(proc.stdout as ReadableStream<Uint8Array>, (line) => {
+    let evt: unknown;
+    try {
+      evt = JSON.parse(line);
+    } catch {
+      return;
+    }
+    const target = rpcAgents.get(agentId);
+    if (target) sendToWs(target.ws, JSON.stringify({ type: "agent_event", agentId, event: evt }));
+  });
+
+  proc.exited.then(() => {
+    rpcAgents.delete(agentId);
+  });
+
+  // Bootstrap the attached agent's state for the client.
+  sendToRpcAgent(agentId, { type: "get_state", id: `${agentId}:state` });
+  sendToRpcAgent(agentId, { type: "get_messages", id: `${agentId}:messages` });
+}
+
+function sendToRpcAgent(agentId: string, cmd: object): boolean {
+  const agent = rpcAgents.get(agentId);
+  if (!agent) return false;
+  agent.proc.stdin.write(JSON.stringify(cmd) + "\n");
+  return true;
+}
+
+function detachRpcAgent(agentId: string): void {
+  const agent = rpcAgents.get(agentId);
+  if (!agent) return;
+  try {
+    agent.proc.kill();
+  } catch {
+    // already gone
+  }
+  rpcAgents.delete(agentId);
+}
+
+/** Tear down any RPC agents attached to a disconnecting client. */
+function detachAgentsForClient(ws: any): void {
+  for (const [agentId, agent] of rpcAgents) {
+    if (agent.ws === ws) detachRpcAgent(agentId);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -801,6 +884,30 @@ function handleClientMessage(ws: any, raw: string): void {
     return;
   }
 
+  // --- Attachable RPC agents (3.2): N pi --mode rpc processes, session-routed ---
+  if (cmd.type === "attach_agent" && cmd.agentId && cmd.sessionPath) {
+    attachRpcAgent(String(cmd.agentId), String(cmd.sessionPath), ws);
+    sendToWs(ws, JSON.stringify({ type: "response", command: "attach_agent", success: true, id: cmd.id, data: { agentId: String(cmd.agentId) } }));
+    return;
+  }
+
+  if (cmd.type === "agent_command" && cmd.agentId) {
+    const route = resolveRoute({ agentId: String(cmd.agentId) }, new Map(), liveAgentIds());
+    if (!route.ok) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "agent_command", success: false, id: cmd.id, error: route.reason }));
+      return;
+    }
+    sendToRpcAgent(route.agentId, (cmd.payload as object) ?? {});
+    sendToWs(ws, JSON.stringify({ type: "response", command: "agent_command", success: true, id: cmd.id }));
+    return;
+  }
+
+  if (cmd.type === "detach_agent" && cmd.agentId) {
+    detachRpcAgent(String(cmd.agentId));
+    sendToWs(ws, JSON.stringify({ type: "response", command: "detach_agent", success: true, id: cmd.id }));
+    return;
+  }
+
   if (cmd.type === "get_git_branch") {
     let branch = "";
     try {
@@ -985,6 +1092,8 @@ const server = Bun.serve({
       clients.delete(ws);
       const clientId = (ws as any).data?.clientId as string | undefined;
       markClientDisconnected(clientId);
+      // Tear down any RPC agents this client had attached (3.2)
+      detachAgentsForClient(ws);
       // Remove any pending routes for this ws to avoid leaks
       for (const [id, target] of pendingResponseRoutes) {
         if (target === ws) pendingResponseRoutes.delete(id);
