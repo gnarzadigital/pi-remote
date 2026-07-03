@@ -35,11 +35,14 @@ export interface SpawnedAgent {
   contextMode: ContextMode;
   surface: string | null; // cmux surface ref, e.g. "surface:88" — UNIQUE ONLY WITHIN a workspace
   workspace: string | null; // cmux workspace ref, e.g. "default" or "workspace:22"
+  /** Human workspace name from cmux (e.g. "🦷 opportunity-architecture"), display-only. */
+  workspaceLabel?: string;
   status: AgentStatus;
   spawnedAt: number;
 }
 
 const CMUX_AGENT = join(homedir(), ".agents", "scripts", "cmux-agent");
+const CMUX_BIN = join(homedir(), "bin", "cmux"); // launchd's PATH doesn't include ~/bin — same reason CMUX_AGENT is hardcoded
 const STORE = join(homedir(), ".pi-remote-agents.json");
 
 /**
@@ -142,13 +145,26 @@ export function spawnAgent(req: SpawnRequest): SpawnedAgent {
   const surface = parseSpawnSurface(stdout);
   const id = surface ?? `agent-${req.now}`;
 
+  // Resolve the canonical "workspace:N" ref from cmux's own tree FIRST — the
+  // registry (cmux-agent list --all) sometimes reports the ambiguous alias
+  // "default" for the same workspace, which silently fails to match anything
+  // keyed by cmux's tree ref (e.g. the title overlay in listAgents). Fall back
+  // to the registry only if the pane hasn't shown up in the tree yet.
   let workspace: string | null = null;
   if (surface) {
     try {
-      const raw = execFileSync(CMUX_AGENT, ["list", "--all"], { encoding: "utf8", timeout: 5000 });
-      workspace = findRegistryWorkspace(JSON.parse(raw), surface, cwd);
+      const treeRaw = execFileSync(CMUX_BIN, ["--json", "tree", "--all"], { encoding: "utf8", timeout: 5000 });
+      workspace = findTreeWorkspace(JSON.parse(treeRaw), surface);
     } catch {
-      // best-effort — status refresh / send / confirm fall back to unqualified
+      // fall through to registry-based resolution below
+    }
+    if (!workspace) {
+      try {
+        const raw = execFileSync(CMUX_AGENT, ["list", "--all"], { encoding: "utf8", timeout: 5000 });
+        workspace = findRegistryWorkspace(JSON.parse(raw), surface, cwd);
+      } catch {
+        // best-effort — status refresh / send / confirm fall back to unqualified
+      }
     }
   }
 
@@ -219,6 +235,88 @@ function shortCwd(cwd?: string): string {
   return cwd.split("/").filter(Boolean).slice(-2).join("/") || cwd;
 }
 
+export interface CmuxTitles {
+  /** `${workspaceRef}/${surfaceRef}` -> cmux's own live surface title. */
+  bySurfaceKey: Map<string, string>;
+  /** workspaceRef -> cmux's human workspace name (e.g. "🦷 opportunity-architecture"). */
+  byWorkspaceRef: Map<string, string>;
+}
+
+/**
+ * Find which workspace a surface currently lives in, directly from cmux's own
+ * tree — NOT from cmux-agent's registry, which sometimes reports the workspace
+ * as the alias "default" for a workspace cmux itself only ever calls
+ * "workspace:N" (confirmed live: cmux-agent's registry said "default" for a pane
+ * cmux's own tree calls "workspace:1" — a real, silent format mismatch that
+ * breaks any lookup keyed by workspace ref, e.g. the title overlay below).
+ * Safe to call right after spawn, when a duplicate surface number appearing in
+ * another workspace in that same instant is not a realistic race.
+ */
+export function findTreeWorkspace(tree: unknown, surface: string): string | null {
+  const windows = (tree as { windows?: unknown })?.windows;
+  for (const win of Array.isArray(windows) ? windows : []) {
+    const workspaces = (win as { workspaces?: unknown })?.workspaces;
+    for (const ws of Array.isArray(workspaces) ? workspaces : []) {
+      const workspaceRef = (ws as { ref?: unknown })?.ref;
+      if (typeof workspaceRef !== "string") continue;
+      const panes = (ws as { panes?: unknown })?.panes;
+      for (const pane of Array.isArray(panes) ? panes : []) {
+        const surfaces = (pane as { surfaces?: unknown })?.surfaces;
+        for (const s of Array.isArray(surfaces) ? surfaces : []) {
+          if ((s as { ref?: unknown })?.ref === surface) return workspaceRef;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Naming source of truth: cmux already tracks a title per surface (from the real
+ * terminal pane) and a human name per workspace — the same names Nik sees in cmux
+ * itself. Reading them here means pi-remote's picker shows the SAME name as cmux,
+ * instead of a second, independently-invented label that drifts out of sync.
+ * Pure — takes the already-parsed `cmux --json tree --all` object.
+ */
+export function extractCmuxTitles(tree: unknown): CmuxTitles {
+  const bySurfaceKey = new Map<string, string>();
+  const byWorkspaceRef = new Map<string, string>();
+  const windows = (tree as { windows?: unknown })?.windows;
+  for (const win of Array.isArray(windows) ? windows : []) {
+    const workspaces = (win as { workspaces?: unknown })?.workspaces;
+    for (const ws of Array.isArray(workspaces) ? workspaces : []) {
+      const workspaceRef = (ws as { ref?: unknown })?.ref;
+      if (typeof workspaceRef !== "string") continue;
+      const workspaceTitle = (ws as { title?: unknown })?.title;
+      if (typeof workspaceTitle === "string") byWorkspaceRef.set(workspaceRef, workspaceTitle);
+
+      const panes = (ws as { panes?: unknown })?.panes;
+      for (const pane of Array.isArray(panes) ? panes : []) {
+        const surfaces = (pane as { surfaces?: unknown })?.surfaces;
+        for (const surface of Array.isArray(surfaces) ? surfaces : []) {
+          const surfaceRef = (surface as { ref?: unknown })?.ref;
+          const surfaceTitle = (surface as { title?: unknown })?.title;
+          if (typeof surfaceRef !== "string" || typeof surfaceTitle !== "string") continue;
+          bySurfaceKey.set(`${workspaceRef}/${surfaceRef}`, surfaceTitle);
+        }
+      }
+    }
+  }
+  return { bySurfaceKey, byWorkspaceRef };
+}
+
+/** I/O wrapper — degrades to empty maps (all callers fall back to their existing
+ * label) if cmux is unavailable or the call fails. Read-only: never writes a title
+ * back to cmux, cmux's tracked title is already the best source, nothing to sync. */
+function fetchCmuxTitles(): CmuxTitles {
+  try {
+    const raw = execFileSync(CMUX_BIN, ["--json", "tree", "--all"], { encoding: "utf8", timeout: 5000 });
+    return extractCmuxTitles(JSON.parse(raw));
+  } catch {
+    return { bySurfaceKey: new Map(), byWorkspaceRef: new Map() };
+  }
+}
+
 /**
  * Merge our lineage store (agents WE spawned, with parent lineage + context mode)
  * with the FULL live cmux registry (`cmux-agent list --all`), which spans every
@@ -283,7 +381,25 @@ export function listAgents(): SpawnedAgent[] {
     });
   }
 
-  return [...Object.values(store), ...foreign].sort((x, y) => y.spawnedAt - x.spawnedAt);
+  const merged = [...Object.values(store), ...foreign].sort((x, y) => y.spawnedAt - x.spawnedAt);
+  return applyCmuxTitles(merged, fetchCmuxTitles());
+}
+
+/**
+ * Overlay cmux's own live titles for display. Never mutates the input or the
+ * persisted store — this is display-only, computed fresh on every call, so a
+ * cmux hiccup or a temporarily-generic title never permanently clobbers anything
+ * saved to disk. Falls back to the existing label when cmux has no title for
+ * that surface yet (just spawned) or the tree call failed (empty maps).
+ */
+export function applyCmuxTitles(agents: SpawnedAgent[], titles: CmuxTitles): SpawnedAgent[] {
+  return agents.map((a) => {
+    if (!a.surface || !a.workspace) return a;
+    const liveTitle = titles.bySurfaceKey.get(`${a.workspace}/${a.surface}`);
+    const workspaceLabel = titles.byWorkspaceRef.get(a.workspace);
+    if (!liveTitle && !workspaceLabel) return a;
+    return { ...a, label: liveTitle ?? a.label, workspaceLabel };
+  });
 }
 
 function mapStatus(s?: string): AgentStatus {

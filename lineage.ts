@@ -14,6 +14,8 @@ export interface AgentInfo {
   status: AgentStatus;
   contextMode?: ContextMode;
   surface?: string; // cmux surface ref, if spawned into a pane
+  workspace?: string | null; // cmux workspace ref — surface is only unique within it
+  workspaceLabel?: string; // cmux's human workspace name, display-only
 }
 
 export interface AgentNode extends AgentInfo {

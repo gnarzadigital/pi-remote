@@ -101,6 +101,8 @@ export interface AgentTreeNode {
   /** cmux workspace ref — REQUIRED alongside surface for any pane-targeted action
    * (steer/confirm). Surface numbers are only unique within a workspace. */
   workspace?: string | null;
+  /** Human workspace name from cmux (e.g. "🦷 opportunity-architecture"), display-only. */
+  workspaceLabel?: string;
   status: AgentRunStatus;
   depth: number;
   spawnedAt?: number;

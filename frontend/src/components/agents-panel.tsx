@@ -99,13 +99,16 @@ export function AgentsPanel() {
                   <StatusDot status={agent.status} />
                   <button
                     type="button"
-                    className="min-w-0 flex-1 truncate text-left text-[13px] text-graphite hover:underline"
+                    className="flex min-w-0 flex-1 flex-col items-start text-left"
                     onClick={() => {
                       hapticTap();
                       bridge.attachToAgent(agent.id, agent.label);
                     }}
                   >
-                    {agent.label}
+                    <span className="w-full truncate text-[13px] text-graphite">{agent.label}</span>
+                    {agent.workspaceLabel && (
+                      <span className="w-full truncate text-[11px] text-concrete">{agent.workspaceLabel}</span>
+                    )}
                   </button>
                   {agent.contextMode && (
                     <span className="shrink-0 rounded-full border border-hairline px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-concrete">

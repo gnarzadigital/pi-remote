@@ -176,6 +176,46 @@ to exercise 2.2/3.2/3.8-full end to end rather than trusting unit tests alone. F
 Gate green throughout (43/43 tests, tsc, build). Bridge restarted multiple times; primary
 chat path confirmed unregressed at every step.
 
+## Agent naming — single source of truth (2026-07-03)
+Nik flagged that cmux's own tab titles and pi-remote's Agents panel showed different names
+for the same agent. Root cause: pi-remote invented its own naming (frozen task-text slice at
+spawn) instead of reading the name cmux already tracks and displays. Fix, applying the
+explicit engineering rules given (solve at the right layer, simplest viable form, reject
+complexity without value, reuse existing patterns, don't guess load-bearing facts, one
+best-fit path):
+
+- [x] **cmux's own live title becomes the display name, read-only.** `agents.ts` now also
+  calls `cmux --json tree --all` (structured, first-class cmux output — not scraping text)
+  inside the existing `listAgents()` poll, alongside the already-existing `cmux-agent list
+  --all` call. `extractCmuxTitles` (pure) builds `workspace/surface -> title` and
+  `workspace -> human name` maps; `applyCmuxTitles` (pure) overlays them onto the display
+  label, falling back to the original label when cmux has nothing yet. Never writes back to
+  cmux — read-only was the correct call (rejected bidirectional sync: no concrete value,
+  adds a write-path failure mode for zero gain). Rejected capturing pi's `setTitle` RPC event
+  instead: only covers the one currently-attached agent (0 or 1 at a time), not the common
+  case of agents just sitting in the list.
+- [x] **BUG found mid-implementation, fixed at the actual layer:** `cmux-agent`'s registry
+  sometimes reports a workspace as the alias `"default"` for a workspace cmux's own tree
+  JSON only ever calls `"workspace:N"` (confirmed live — same pane, two different ID
+  schemes). This silently broke every title lookup keyed by workspace ref. Fixed by adding
+  `findTreeWorkspace` (pure) and using it at spawn time to resolve the CANONICAL
+  `workspace:N` ref directly from cmux's own tree, before ever falling back to the
+  registry's `findRegistryWorkspace`. This is the same root layer as the earlier
+  cross-workspace-collision fix, tightened further: `.workspace` is now always in the one
+  format every consumer (title lookup, send, confirm) actually needs.
+  Assumption flagged: cmux's tracked title is a snapshot per poll, not confirmed continuously
+  live-updating mid-task — still strictly fixes the reported mismatch either way.
+- Workspace's human name (e.g. "🦷 opportunity-architecture") now shows as a subtitle under
+  the agent name in the picker, reusing the same call — same PR, no extra cost.
+- No icon-for-runtime change bundled (separate visual concern, not the naming bug — flagged
+  as a distinct, optional future item, not built).
+
+Verified live: fresh real spawn shows `workspace: workspace:1` (canonical, not "default"),
+`label: π - pi-remote` (cmux's own title, not the frozen task text), `workspaceLabel: 🦷
+opportunity-architecture` — confirmed via WS smoke and a live picker screenshot across
+multiple real agents/workspaces (opportunity-architecture, gmux, gws-auth, boomcloud), zero
+console errors. 8 new unit tests (51/51 total pass), tsc clean, build clean.
+
 ---
 
 ## Sequencing
