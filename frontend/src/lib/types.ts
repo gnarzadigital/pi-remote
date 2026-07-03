@@ -89,6 +89,8 @@ export interface BridgeSnapshot {
   statusError: string | null;
   view: MobileView;
   theme: Theme;
+  /** Prompts typed while the agent is streaming; auto-sent on turn end (FIFO). */
+  queuedMessages: string[];
   sessions: PiSession[];
   activeSessionName: string | null;
   activeSessionPath: string | null;

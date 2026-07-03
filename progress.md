@@ -18,4 +18,8 @@
 - WS smoke pattern: /tmp/ws-check.ts (list_sessions over ws://127.0.0.1:7700)
 
 ## Card log (append one line per completed card)
-- (none yet — Phase 0 not started)
+- 0.1/0.2 theme foundations — commit 6126cf6 (gate green)
+- 1.1-1.5 Calm Console design — commit 459d00d (gate green; visually verified in Console theme:
+  serif assistant prose confirmed, 3-option theme picker, warm palette, org tree intact)
+- Visual QA on Browser 1 (deviceId 082b1780) @ 390x844. Sessions org fix also confirmed live:
+  airtable/assignment expanded at top with 9 sessions, other workspaces collapsed, no Inbox/junk.

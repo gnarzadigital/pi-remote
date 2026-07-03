@@ -49,9 +49,11 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
 - [ ] **2.2 Inline diff viewer.** Render agent edit tool-results as add/remove diff blocks.
   New `lib/diff-parse.ts` + `components/ui/diff.tsx`; map in `tool-part-mapper.ts`.
   Verify: bun test on diff-parse (unified-diff → lines); screenshot of a real edit; build clean.
-- [ ] **2.3 Message queuing.** Queue sends while `streaming`; flush on `agent_end`. Edit
-  `input-area.tsx` + `pi-bridge-client.ts`.
-  Verify: bun test on queue drain logic; manual: type mid-stream, confirm flush order.
+- [x] **2.3 Message queuing.** `shouldQueue()` (message-queue.ts + test) gates: plain prompt
+  typed mid-stream with no images → queued; steer/follow-up/images send now. Client holds a
+  FIFO `messageQueue`, flushes one on `agent_end`; `queuedMessages` in snapshot; cancel-able
+  chips above composer. Also excluded `*.test.ts` from tsconfig.app so co-located tests don't
+  break tsc/build. Gate green (6/6). Live queued-chip visual pending on-device stream.
 - [ ] **2.4 Context-window meter.** Render used/cached/free from `get_session_stats` in the
   chat header/overflow. New `components/context-meter.tsx`.
   Verify: bun test on token math; screenshot with real stats.

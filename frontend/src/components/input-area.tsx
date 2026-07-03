@@ -1,4 +1,4 @@
-import { ArrowUp, Paperclip } from "lucide-react";
+import { ArrowUp, Paperclip, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -132,6 +132,32 @@ export function InputArea() {
   return (
     <footer className="input-footer z-20 w-full max-w-full shrink-0 overflow-x-clip border-t border-hairline bg-canvas px-3 pt-2">
       <div className="relative w-full max-w-full overflow-x-clip">
+        {snapshot.queuedMessages.length > 0 && (
+          <div className="mb-1.5 flex flex-col gap-1">
+            {snapshot.queuedMessages.map((m, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded-[10px] border border-hairline bg-mist px-2.5 py-1.5"
+              >
+                <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-concrete">
+                  Queued
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[12px] text-graphite">{m}</span>
+                <button
+                  type="button"
+                  aria-label="Cancel queued message"
+                  className="shrink-0 text-concrete hover:text-graphite"
+                  onClick={() => {
+                    hapticTap();
+                    bridge.cancelQueued(i);
+                  }}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="absolute bottom-full left-0 z-20 mb-1.5 w-full max-w-full overflow-hidden">
           <PromptSuggestionsRow input={input} onSelect={setInput} />
         </div>

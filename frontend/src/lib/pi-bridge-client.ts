@@ -27,6 +27,7 @@ import type {
   TurnBlock,
 } from "./types";
 import { applyTheme } from "./utils";
+import { shouldQueue } from "./message-queue";
 
 const MODE_CYCLE: SendMode[] = ["prompt", "steer", "follow_up"];
 const THINKING_CYCLE: ThinkingLevel[] = ["none", "low", "high"];
@@ -49,6 +50,7 @@ function initialSnapshot(): BridgeSnapshot {
     statusError: null,
     view: "sessions",
     theme,
+    queuedMessages: [],
     sessions: [],
     activeSessionName: null,
     activeSessionPath: null,
@@ -76,6 +78,7 @@ export class PiBridgeClient {
   private listeners = new Set<() => void>();
   private statsInterval: ReturnType<typeof setInterval> | null = null;
   private streaming: StreamingState | null = null;
+  private messageQueue: string[] = [];
   private pendingImages: ImageAttachment[] = [];
   private connectionWatchdog: ReturnType<typeof setTimeout> | null = null;
   private pendingRenames = new Map<string, { sessionPath: string; name: string }>();
@@ -252,6 +255,7 @@ export class PiBridgeClient {
         this.queuePatch({ streaming: false });
         this.finaliseStreamingTurn();
         this.stopStatsPolling();
+        this.flushQueuedMessage();
         this.send({ type: "get_session_stats", id: this.nextId() });
         this.fetchSessions();
         if (this.snapshot.activeSessionPath) {
@@ -793,12 +797,34 @@ export class PiBridgeClient {
     this.sendWithId({ type: "compact" });
   }
 
+  /** Send the next queued prompt after a turn ends (bypasses the queue guard). */
+  private flushQueuedMessage() {
+    if (this.messageQueue.length === 0) return;
+    const next = this.messageQueue.shift()!;
+    this.queuePatch({ queuedMessages: [...this.messageQueue] });
+    this.appendUser(next);
+    this.send({ type: "prompt", message: next, streamingBehavior: "steer" });
+  }
+
+  /** Remove a queued prompt before it sends. */
+  cancelQueued(index: number) {
+    if (index < 0 || index >= this.messageQueue.length) return;
+    this.messageQueue.splice(index, 1);
+    this.queuePatch({ queuedMessages: [...this.messageQueue] });
+  }
+
   sendMessage(text: string) {
     if (!text.trim() || !this.snapshot.connected) return;
     this.hideCmdPicker();
 
     if (text === "/new" || text.startsWith("/new ")) {
       this.newSession();
+      return;
+    }
+
+    if (shouldQueue(this.snapshot.streaming, this.snapshot.mode, this.pendingImages.length > 0)) {
+      this.messageQueue.push(text);
+      this.queuePatch({ queuedMessages: [...this.messageQueue] });
       return;
     }
 
