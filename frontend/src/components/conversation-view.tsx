@@ -9,13 +9,15 @@ import { ScrollButton } from "@/components/ui/scroll-button";
 import { Steps, StepsContent, StepsItem, StepsTrigger } from "@/components/ui/steps";
 import { SystemMessage } from "@/components/ui/system-message";
 import { Tool } from "@/components/ui/tool";
+import { DiffView } from "@/components/ui/diff";
+import { parseEditArgs } from "@/lib/diff-parse";
 import { ChatScrollController } from "@/components/chat-scroll-controller";
 import { ThinkingChain } from "@/components/thinking-chain";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { groupTurnBlocks } from "@/lib/block-groups";
 import { mapToolBlock } from "@/lib/tool-part-mapper";
-import type { ChatLine } from "@/lib/types";
+import type { ChatLine, TurnBlock } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Wrench } from "lucide-react";
 
@@ -27,6 +29,11 @@ const messageContentClass =
 // User bubble = crisp sans (functional voice), explicit so it never inherits serif.
 const userContentClass =
   "max-w-[92%] rounded-[14px] border border-hairline bg-mist px-3 py-2.5 text-[14px] font-sans text-graphite";
+
+/** edit/write tool with parseable args → render as an inline diff. */
+function isDiffTool(block: Extract<TurnBlock, { kind: "tool" }>): boolean {
+  return (block.name === "edit" || block.name === "write") && parseEditArgs(block.args) !== null;
+}
 
 function lineAnchorProps(lineId: string) {
   return {
@@ -75,10 +82,14 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
           if (group.kind === "tools") {
             const running = group.blocks.some((b) => b.status === "running");
             if (group.blocks.length === 1) {
+              const b = group.blocks[0];
+              if (isDiffTool(b)) {
+                return <DiffView key={`tool-${gi}`} name={b.name} args={b.args} />;
+              }
               return (
                 <Tool
                   key={`tool-${gi}`}
-                  toolPart={mapToolBlock(group.blocks[0])}
+                  toolPart={mapToolBlock(b)}
                   className="mt-0 border-hairline bg-mist"
                 />
               );
@@ -94,7 +105,11 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
                 <StepsContent>
                   {group.blocks.map((block) => (
                     <StepsItem key={block.id} className="py-1">
-                      <Tool toolPart={mapToolBlock(block)} className="mt-0 border-hairline bg-chalk" />
+                      {isDiffTool(block) ? (
+                        <DiffView name={block.name} args={block.args} />
+                      ) : (
+                        <Tool toolPart={mapToolBlock(block)} className="mt-0 border-hairline bg-chalk" />
+                      )}
                     </StepsItem>
                   ))}
                 </StepsContent>

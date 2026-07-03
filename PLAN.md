@@ -47,9 +47,11 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
   40-hit cap), returns hits with a snippet. sessions-view has a debounced search bar; results
   render as a flat list with the query highlighted. Verify: WS smoke — "airtable" 27 hits (name),
   "opportunity lifecycle" hits with real content snippets. Gate green.
-- [ ] **2.2 Inline diff viewer.** Render agent edit tool-results as add/remove diff blocks.
-  New `lib/diff-parse.ts` + `components/ui/diff.tsx`; map in `tool-part-mapper.ts`.
-  Verify: bun test on diff-parse (unified-diff → lines); screenshot of a real edit; build clean.
+- [x] **2.2 Inline diff viewer.** `lib/diff-parse.ts` (parseEditArgs for pi edit/write oldText/
+  newText + LCS lineDiff + diffStat, O(m*n) capped at 2000 lines) + `components/ui/diff.tsx`
+  (collapsed +/- summary, expands to colored add/del lines). conversation-view routes edit/write
+  blocks to DiffView, falls back to generic Tool if args unparseable. diff-parse.test.ts (5 tests).
+  Verify: gate green (16/16). Live diff render pending on-device.
 - [x] **2.3 Message queuing.** `shouldQueue()` (message-queue.ts + test) gates: plain prompt
   typed mid-stream with no images → queued; steer/follow-up/images send now. Client holds a
   FIFO `messageQueue`, flushes one on `agent_end`; `queuedMessages` in snapshot; cancel-able
