@@ -97,11 +97,23 @@ Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).
 - [x] **3.9 Done-protocol from mobile.** Picker shows active/awaiting-confirm/done via 5s status
   poll; a Check button on awaiting-confirm runs `confirm_agent` → `cmux-agent confirm`.
 
-## Remaining (deepest, highest-risk — best via ralph-loop in fresh context)
-- [ ] **3.2 Bridge N-process RPC.** Refactor bridge to run N `pi --mode rpc` children with
-  per-agent session routing (foundation done in broker-route.ts). Risk: touches the LIVE bridge.
-- [ ] **3.8-full RPC chat attach.** Tap an agent → rich structured chat (streaming/tools/diffs)
-  on its own pi RPC session, not just cmux steer. Depends on 3.2.
+## Remaining — RUN VIA ralph-loop (Nik's call 2026-07-03). Only these 2 cards left.
+RISK LEVEL 1: both touch the LIVE bridge (launchd, serving the phone over Tailscale).
+BEFORE editing bridge.ts: `pi-remote-online status` (confirm 200) + copy bridge.ts to a
+backup. After each card: restart bridge, WS-smoke, confirm the PRIMARY chat still works
+(bootstrap → send → agent_end) — do NOT regress the single-pi path.
+
+- [ ] **3.2 Bridge N-process RPC (ADDITIVE).** Keep the primary single `pi` and its routing
+  untouched. Add `Map<agentId, {child, stdin}>` for attachable RPC agents: a bridge command
+  `attach_agent {sessionPath}` spawns `pi --mode rpc --session <path>`, per-process stdout
+  reader tags events with agentId; route inbound commands by agentId via broker-route.ts
+  `resolveRoute` (already tested). Detach/cleanup on client disconnect.
+  Verify: WS smoke — attach 2 agents, each client gets only its agent's events (no cross-talk,
+  F3/F4 refuse-to-guess holds); primary chat path unaffected. Gate green.
+- [ ] **3.8-full RPC chat attach (UI).** Tap a picker node → open the existing chat UI keyed by
+  agentId, streaming that agent's pi RPC session (tools, diffs, thinking). Reuse conversation-view
+  keyed by agentId; steer/follow-up route to that agent.
+  Verify: screenshot — switch between two agents, each keeps its own live stream; gate green.
 
 ---
 
