@@ -809,11 +809,18 @@ export class PiBridgeClient {
     this.sendWithId({ type: "confirm_agent", surface, workspace: workspace ?? undefined });
   }
 
-  /** Attach the rich chat view to a spawned pi agent (resolves its session file first). */
-  attachToAgent(agentId: string, label: string) {
-    this.pendingAttachAgentId = agentId;
-    this.queuePatch({ attachedAgentLabel: label });
-    this.sendWithId({ type: "resolve_agent_session", agentId });
+  /** Attach the rich chat view to a runtime="pi" agent (resolves its session file
+   * first, using the cwd/spawnedAt already on the node — works for any pi agent,
+   * not just ones this phone spawned; only "pi" supports this, see AgentTreeNode.runtime). */
+  attachToAgent(agent: AgentTreeNode) {
+    this.pendingAttachAgentId = agent.id;
+    this.queuePatch({ attachedAgentLabel: agent.label });
+    this.sendWithId({
+      type: "resolve_agent_session",
+      agentId: agent.id,
+      cwd: agent.cwd,
+      spawnedAt: agent.spawnedAt,
+    });
   }
 
   detachFromAgent() {

@@ -4,6 +4,7 @@ import { CollapsibleSectionHeader } from "@/components/collapsible-section-heade
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
+import { canAttachChat } from "@/lib/agent-runtime";
 import type { AgentContextMode, AgentRunStatus, AgentTreeNode } from "@/lib/types";
 import { cn, hapticTap } from "@/lib/utils";
 
@@ -84,6 +85,10 @@ export function AgentsPanel() {
         </button>
       </div>
 
+      {snapshot.statusError && (
+        <p className="px-2 pb-1 text-[11px] text-rose-600 dark:text-rose-400">{snapshot.statusError}</p>
+      )}
+
       {!collapsed && (
         <div className="pb-1 pl-1">
           {agents.length === 0 ? (
@@ -102,7 +107,13 @@ export function AgentsPanel() {
                     className="flex min-w-0 flex-1 flex-col items-start text-left"
                     onClick={() => {
                       hapticTap();
-                      bridge.attachToAgent(agent.id, agent.label);
+                      if (canAttachChat(agent.runtime)) {
+                        bridge.attachToAgent(agent);
+                      } else {
+                        // claude/codex/etc can't attach a rich pi-RPC chat — the
+                        // one thing that DOES work for any runtime is steer.
+                        setSteerFor(steerFor === agent.id ? null : agent.id);
+                      }
                     }}
                   >
                     <span className="w-full truncate text-[13px] text-graphite">{agent.label}</span>

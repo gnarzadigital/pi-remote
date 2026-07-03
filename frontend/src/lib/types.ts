@@ -103,6 +103,9 @@ export interface AgentTreeNode {
   workspace?: string | null;
   /** Human workspace name from cmux (e.g. "🦷 opportunity-architecture"), display-only. */
   workspaceLabel?: string;
+  /** "pi", "claude", "codex", etc. Only "pi" supports the rich RPC chat attach
+   * (3.8-full) — other runtimes use a different session protocol entirely. */
+  runtime?: string;
   status: AgentRunStatus;
   depth: number;
   spawnedAt?: number;

@@ -887,8 +887,11 @@ function handleClientMessage(ws: any, raw: string): void {
   }
 
   // --- Attachable RPC agents (3.2/3.8): N pi --mode rpc processes, session-routed ---
-  if (cmd.type === "resolve_agent_session" && cmd.agentId) {
-    const sessionPath = resolveAgentSessionPath(String(cmd.agentId));
+  if (cmd.type === "resolve_agent_session" && cmd.agentId && cmd.cwd) {
+    // cwd/spawnedAt come from the client, not a server-side store lookup — this
+    // works for ANY pi agent (foreign/ambient ones too), not just ones pi-remote
+    // itself spawned. See resolveAgentSessionPath's doc comment for why.
+    const sessionPath = resolveAgentSessionPath(String(cmd.cwd), Number(cmd.spawnedAt) || 0);
     sendToWs(ws, JSON.stringify({ type: "response", command: "resolve_agent_session", success: true, id: cmd.id, data: { sessionPath } }));
     return;
   }

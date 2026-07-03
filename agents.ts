@@ -37,6 +37,9 @@ export interface SpawnedAgent {
   workspace: string | null; // cmux workspace ref, e.g. "default" or "workspace:22"
   /** Human workspace name from cmux (e.g. "🦷 opportunity-architecture"), display-only. */
   workspaceLabel?: string;
+  /** e.g. "pi", "claude", "codex". Only "pi" agents support the rich RPC chat
+   * attach (3.8-full) — other runtimes use a different session protocol entirely. */
+  runtime: string;
   status: AgentStatus;
   spawnedAt: number;
 }
@@ -176,6 +179,7 @@ export function spawnAgent(req: SpawnRequest): SpawnedAgent {
     contextMode: req.contextMode,
     surface,
     workspace,
+    runtime,
     status: "active",
     spawnedAt: req.now,
   };
@@ -199,16 +203,20 @@ function cwdToSlug(cwd: string): string {
 }
 
 /**
- * For an agent we spawned with runtime "pi", find the session file pi created
- * for it: the newest .jsonl under ~/.pi/agent/sessions/<slug(cwd)>/ modified at
- * or after the agent's spawn time. Returns null if pi hasn't written one yet
- * (spawn is async — the caller should retry) or the agent isn't ours/isn't pi.
+ * Find the pi session file for a runtime-"pi" agent: the newest .jsonl under
+ * ~/.pi/agent/sessions/<slug(cwd)>/ modified at or after roughly when it
+ * started. Takes cwd/spawnedAt directly (not an agentId/store lookup) so it
+ * works for ANY pi agent — one pi-remote itself spawned, or an ambient one
+ * already running via cmux/`/cmux-agents` — since the caller already has both
+ * values on every agent it can see (bridge-tracked or foreign). A prior
+ * store-lookup-only version silently failed for every foreign agent (the
+ * majority of what's usually in the picker), which is exactly the bug this
+ * fixes: tapping a foreign agent did nothing, with no visible error at all.
+ * Returns null if pi hasn't written a session yet (spawn is async — the
+ * caller should retry) or there's genuinely nothing under that cwd.
  */
-export function resolveAgentSessionPath(agentId: string): string | null {
-  const store = load();
-  const agent = store[agentId];
-  if (!agent) return null;
-  const dir = join(homedir(), ".pi", "agent", "sessions", cwdToSlug(agent.cwd));
+export function resolveAgentSessionPath(cwd: string, spawnedAt: number): string | null {
+  const dir = join(homedir(), ".pi", "agent", "sessions", cwdToSlug(cwd));
   let files: string[];
   try {
     files = readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
@@ -224,7 +232,7 @@ export function resolveAgentSessionPath(agentId: string): string | null {
     } catch {
       continue;
     }
-    if (mtime < agent.spawnedAt - 5000) continue; // must be from around/after spawn
+    if (mtime < spawnedAt - 5000) continue; // must be from around/after start
     if (!best || mtime > best.mtime) best = { path: p, mtime };
   }
   return best?.path ?? null;
@@ -376,6 +384,7 @@ export function listAgents(): SpawnedAgent[] {
       contextMode: "task",
       surface,
       workspace,
+      runtime: entry.runtime ?? "agent",
       status,
       spawnedAt: entry.registered_at ? Math.round(entry.registered_at * 1000) : 0,
     });

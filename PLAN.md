@@ -216,6 +216,38 @@ opportunity-architecture` — confirmed via WS smoke and a live picker screensho
 multiple real agents/workspaces (opportunity-architecture, gmux, gws-auth, boomcloud), zero
 console errors. 8 new unit tests (51/51 total pass), tsc clean, build clean.
 
+## "Can't click into my sessions under Agents" (2026-07-03)
+Reported by Nik, reproduced exactly: tapping any agent NOT spawned by pi-remote itself
+(i.e. most of what's in the list — pre-existing claude/codex/ambient-pi agents from cmux)
+did nothing at all, with zero visible feedback. Two real, distinct bugs, both fixed:
+
+- [x] **`resolveAgentSessionPath` only worked for pi-remote's own spawns.** It looked up
+  `store[agentId]`, but foreign agents (the majority) are never persisted there — they're
+  synthesized fresh from the cmux registry on every poll. Fixed by decoupling the function
+  from the store entirely: it now takes `cwd`/`spawnedAt` directly, both already present on
+  every `AgentTreeNode` the client already has. Works identically for a self-spawned or a
+  fully ambient pi agent. Verified live: attached to "π - pi-remote", an agent pi-remote never
+  spawned — header shows LIVE, composer works, no errors.
+- [x] **`statusError` was set on failure but never rendered anywhere.** So even the
+  "not ready yet" fallback message was 100% silent — a tap on a claude/codex agent (which
+  fundamentally can't attach a pi-RPC chat, different protocol entirely) just looked like
+  nothing happened. Added: a `runtime` field (`SpawnedAgent`/`AgentInfo`/`AgentTreeNode`,
+  set at spawn and for foreign entries) + `canAttachChat(runtime)` (pure, tested) routes
+  the tap correctly — pi agents attach the rich chat, everything else opens the steer input
+  instead (the one action that works for any runtime via `cmux send`). Also made
+  `statusError` visible in the Agents panel so any future failure isn't silent again.
+- Also found and fixed in passing: the backend (`agents.ts`/`bridge.ts`/`lineage.ts`) has
+  no tsconfig and had never been type-checked all session (only bun's transpile-and-run,
+  which doesn't type-check) — a real type mismatch (`AgentInfo.surface` didn't accept `null`,
+  which `SpawnedAgent.surface` actually is) had been silently present. Fixed; spot-checked
+  the backend with `frontend/node_modules/.bin/tsc` directly (no new tsconfig introduced —
+  noted as a gap, not solved, out of scope for this bug).
+
+Verified live: tapped the exact "claude · clients/clerri" row that previously did nothing —
+now opens the steer input correctly. Tapped "π - pi-remote" (ambient, not self-spawned) —
+now attaches and opens the live chat correctly. 54/54 tests pass (5 new), frontend + backend
+tsc clean, build clean, zero console errors on both paths.
+
 ---
 
 ## Sequencing

@@ -144,6 +144,7 @@ function mkAgent(overrides: Partial<SpawnedAgent> = {}): SpawnedAgent {
     contextMode: "task",
     surface: "surface:58",
     workspace: "workspace:1",
+    runtime: "pi",
     status: "active",
     spawnedAt: 0,
     ...overrides,

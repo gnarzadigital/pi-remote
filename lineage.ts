@@ -13,9 +13,10 @@ export interface AgentInfo {
   cwd?: string;
   status: AgentStatus;
   contextMode?: ContextMode;
-  surface?: string; // cmux surface ref, if spawned into a pane
+  surface?: string | null; // cmux surface ref, if spawned into a pane
   workspace?: string | null; // cmux workspace ref — surface is only unique within it
   workspaceLabel?: string; // cmux's human workspace name, display-only
+  runtime?: string; // "pi", "claude", "codex", etc — only "pi" supports rich chat attach
 }
 
 export interface AgentNode extends AgentInfo {
