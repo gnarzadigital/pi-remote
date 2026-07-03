@@ -100,7 +100,13 @@ function InputToolbarChip({
   );
 }
 
-export function InputArea() {
+type InputAreaProps = {
+  /** "dock" (default) = pinned to the bottom, hairline border above.
+   *  "centered" = for the empty/new-session hero, no dock chrome. */
+  variant?: "dock" | "centered";
+};
+
+export function InputArea({ variant = "dock" }: InputAreaProps) {
   const { snapshot, bridge } = usePiBridge();
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
@@ -158,7 +164,12 @@ export function InputArea() {
   };
 
   return (
-    <footer className="input-footer z-20 w-full max-w-full shrink-0 overflow-x-clip border-t border-hairline bg-canvas px-3 pt-2">
+    <footer
+      className={cn(
+        "input-footer w-full max-w-full shrink-0 overflow-x-clip px-3 pt-2",
+        variant === "dock" && "z-20 border-t border-hairline bg-canvas"
+      )}
+    >
       <div className="relative w-full max-w-full overflow-x-clip">
         {snapshot.queuedMessages.length > 0 && (
           <div className="mb-1.5 flex flex-col gap-1">

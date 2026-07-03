@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ChatOverflowMenu } from "@/components/chat-overflow-menu";
 import { ConversationView } from "@/components/conversation-view";
 import { InputArea } from "@/components/input-area";
+import { PiLogo } from "@/components/pi-logo";
 import { ScreenHeader } from "@/components/screen-header";
 import { SessionRenameSheet } from "@/components/session-rename-sheet";
 import { StreamingStatusBar } from "@/components/streaming-status-bar";
@@ -12,13 +13,33 @@ import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { hapticTap } from "@/lib/utils";
 
+/** Centered hero for a brand-new (unsaved) session — no messages, no session path yet. */
+function NewSessionHero() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-6 pb-6">
+      <PiLogo size={40} />
+      <div className="text-center">
+        <p className="text-[16px] font-medium text-graphite">What can I help with?</p>
+        <p className="mt-1 text-[13px] text-concrete">Ask anything, run commands, or explore files.</p>
+      </div>
+      <div className="w-full max-w-[440px]">
+        <InputArea variant="centered" />
+      </div>
+    </div>
+  );
+}
+
 export function ChatView() {
   const { snapshot, bridge } = usePiBridge();
   const [renameOpen, setRenameOpen] = useState(false);
   const bottomDockRef = useRef<HTMLDivElement>(null);
-  useChatBottomInset(bottomDockRef);
   const sessionTitle = snapshot.activeSessionName ?? "New session";
   const canRename = Boolean(snapshot.activeSessionPath);
+  // A real session always has a path once loaded; no path + no lines = a fresh,
+  // never-prompted session. Center the composer instead of pinning it below a
+  // blank transcript (the "black gap" — dock chrome with nothing above it).
+  const isNewSession = !snapshot.activeSessionPath && snapshot.lines.length === 0;
+  useChatBottomInset(bottomDockRef, !isNewSession);
 
   return (
     <div className="chat-view-root flex h-full min-h-0 w-full min-w-0 flex-1 flex-col bg-canvas">
@@ -56,23 +77,24 @@ export function ChatView() {
         </button>
         <ChatOverflowMenu onRename={() => setRenameOpen(true)} />
         <SettingsPanel />
-        <Button
-          variant="outline"
-          size="icon-sm"
-          disabled={!snapshot.streaming}
-          aria-label="Stop"
-          onClick={() => bridge.abort()}
-        >
-          <Square className="size-3.5 fill-current" />
-        </Button>
+        {snapshot.streaming && (
+          <Button variant="outline" size="icon-sm" aria-label="Stop" onClick={() => bridge.abort()}>
+            <Square className="size-3.5 fill-current" />
+          </Button>
+        )}
       </ScreenHeader>
 
-      <ConversationView />
-
-      <div ref={bottomDockRef} className="chat-bottom-dock">
-        <StreamingStatusBar />
-        <InputArea />
-      </div>
+      {isNewSession ? (
+        <NewSessionHero />
+      ) : (
+        <>
+          <ConversationView />
+          <div ref={bottomDockRef} className="chat-bottom-dock">
+            <StreamingStatusBar />
+            <InputArea />
+          </div>
+        </>
+      )}
 
       {canRename && snapshot.activeSessionPath ? (
         <SessionRenameSheet

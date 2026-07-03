@@ -97,23 +97,33 @@ Build A-mechanics first (3.1–3.5), then cmux + context (3.6–3.9).
 - [x] **3.9 Done-protocol from mobile.** Picker shows active/awaiting-confirm/done via 5s status
   poll; a Check button on awaiting-confirm runs `confirm_agent` → `cmux-agent confirm`.
 
-## Remaining — RUN VIA ralph-loop (Nik's call 2026-07-03). Only these 2 cards left.
-RISK LEVEL 1: both touch the LIVE bridge (launchd, serving the phone over Tailscale).
-BEFORE editing bridge.ts: `pi-remote-online status` (confirm 200) + copy bridge.ts to a
-backup. After each card: restart bridge, WS-smoke, confirm the PRIMARY chat still works
-(bootstrap → send → agent_end) — do NOT regress the single-pi path.
+## Remaining — RISK LEVEL 1 (touches the LIVE bridge). 3.2 now shipped additively;
+only the UI-attach half remains.
+- [x] **3.2 Bridge N-process RPC (ADDITIVE).** Primary single `pi` + its routing untouched.
+  Added `Map<agentId,{proc,ws,sessionPath}>` for attachable RPC agents: `attach_agent
+  {agentId, sessionPath}` spawns `pi --mode rpc --session <path>` with the shared
+  PI_SPAWN_ENV; per-process stdout reader tags events `{type:"agent_event", agentId, event}`
+  sent ONLY to the attaching client (no broadcast); `agent_command`/`detach_agent` handlers;
+  torn down on WS close via detachAgentsForClient. Routes via broker-route.resolveRoute.
+  Verify: WS smoke — attached a real session, received 2 tagged agent_event frames + clean
+  detach; primary path (list_sessions, pi alive) confirmed unregressed. Gate green.
+- [ ] **3.8-full RPC chat attach (UI).** Tap a picker node → send `attach_agent`, open the
+  existing chat UI keyed by agentId, render its tagged `agent_event` stream (reuse
+  conversation-view's turn-block rendering, keyed by agentId instead of the primary snapshot).
+  Steer/follow-up route via `agent_command`. Needs: per-agent chat state in the client (a
+  Map<agentId, streaming-turn-state> parallel to the primary one), and picker nav to open it.
+  Verify: screenshot — switch between two attached agents, each keeps its own live stream;
+  gate green.
 
-- [ ] **3.2 Bridge N-process RPC (ADDITIVE).** Keep the primary single `pi` and its routing
-  untouched. Add `Map<agentId, {child, stdin}>` for attachable RPC agents: a bridge command
-  `attach_agent {sessionPath}` spawns `pi --mode rpc --session <path>`, per-process stdout
-  reader tags events with agentId; route inbound commands by agentId via broker-route.ts
-  `resolveRoute` (already tested). Detach/cleanup on client disconnect.
-  Verify: WS smoke — attach 2 agents, each client gets only its agent's events (no cross-talk,
-  F3/F4 refuse-to-guess holds); primary chat path unaffected. Gate green.
-- [ ] **3.8-full RPC chat attach (UI).** Tap a picker node → open the existing chat UI keyed by
-  agentId, streaming that agent's pi RPC session (tools, diffs, thinking). Reuse conversation-view
-  keyed by agentId; steer/follow-up route to that agent.
-  Verify: screenshot — switch between two agents, each keeps its own live stream; gate green.
+## Fixes from live device feedback (2026-07-03, same session)
+- [x] Empty-state hero: brand-new sessions no longer show a blank body + bottom-pinned input
+  (the reported "black gap"). Centered π mark + greeting + composer when !activeSessionPath.
+- [x] Fixed a latent bug the hero exposed: useChatBottomInset only attached once (stable ref
+  dep) — added an `active` toggle so it re-attaches when the dock mounts later.
+- [x] Header decluttered: Stop button only renders while streaming (was an always-visible
+  disabled ghost icon).
+- [x] Agents picker was pi-remote-spawned-only; now surfaces the FULL cmux registry across
+  every runtime (verified live: 9 real claude/codex sessions appear as roots).
 
 ---
 

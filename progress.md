@@ -25,6 +25,29 @@ Phase 3: 3.1 broker-route, 3.3 spawn (cmux), 3.4 lineage, 3.5 nested picker, 3.6
 REMAINING (highest-risk): 3.2 bridge N-process RPC refactor (touches LIVE bridge), 3.8-full
 RPC chat-attach. Foundation (broker-route.ts) tested and ready. Recommend fresh-context loop.
 
+## 2026-07-03 — Phase 3.2 (additive) + UX fixes from live device feedback
+- 3.2 shipped additively: bridge attaches N `pi --mode rpc --session <path>` agents
+  alongside the untouched primary pi; events tagged agent_event, routed via
+  broker-route.resolveRoute; torn down on client disconnect. WS smoke: attached
+  agent streamed tagged events + detach; primary path (list_sessions, pi alive)
+  unregressed.
+- Bug found on-device: brand-new sessions rendered a blank body with the input
+  dock pinned at the very bottom (the "black gap"). Fixed: NewSessionHero
+  (centered π mark + greeting + composer, hermes-style) renders when
+  !activeSessionPath && lines.length===0; real sessions keep the bottom-anchored
+  dock. Also fixed a latent bug this exposed: useChatBottomInset's effect had a
+  stable ref dependency so it would never re-attach if the dock mounted after
+  first render — added an `active` param tied to isNewSession.
+- Header decluttered: Stop button now only renders while streaming (was a
+  visible disabled ghost icon at all times) — closer to hermes' restrained chrome.
+- Agents picker bug found: it only showed agents pi-remote itself spawned.
+  Fixed agents.ts listAgents() to surface the FULL cmux registry (`list --all`)
+  across every runtime (claude/codex/pi/zai/hermes), not just self-spawned ones —
+  ambient agents show as roots. Verified live: 9 real running/awaiting cmux
+  sessions (claude + codex across real projects) now appear, confirmed via
+  screenshot with status dots + TASK badges.
+- All screenshot + gate verified live on Browser 1.
+
 ## Card log (append one line per completed card)
 - 0.1/0.2 theme foundations — commit 6126cf6 (gate green)
 - 1.1-1.5 Calm Console design — commit 459d00d (gate green; visually verified in Console theme:

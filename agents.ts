@@ -114,23 +114,71 @@ export function spawnAgent(req: SpawnRequest): SpawnedAgent {
   return agent;
 }
 
-/** Merge our lineage store with live cmux registry status. */
+interface RegistryEntry {
+  runtime?: string;
+  cwd?: string;
+  status?: string;
+  registered_at?: number;
+  surface_ref?: string;
+}
+
+function shortCwd(cwd?: string): string {
+  if (!cwd) return "";
+  return cwd.split("/").filter(Boolean).slice(-2).join("/") || cwd;
+}
+
+/**
+ * Merge our lineage store (agents WE spawned, with parent lineage + context mode)
+ * with the FULL live cmux registry (`cmux-agent list --all`), which spans every
+ * runtime (claude, codex, pi, zai, hermes...) and every workspace — not just what
+ * this phone spawned. Ambient agents we didn't spawn are surfaced as roots
+ * (no parent, no context mode) so the picker reflects everything actually
+ * running, matching what `/cmux-agents` shows on the desktop.
+ */
 export function listAgents(): SpawnedAgent[] {
-  const agents = load();
-  let registry: Record<string, { status?: string }> = {};
+  const store = load();
+  let registry: Record<string, RegistryEntry> = {};
   try {
     const raw = execFileSync(CMUX_AGENT, ["list", "--all"], { encoding: "utf8", timeout: 5000 });
-    registry = JSON.parse(raw) as Record<string, { status?: string }>;
+    registry = JSON.parse(raw) as Record<string, RegistryEntry>;
   } catch {
-    // cmux unavailable — return stored view
+    // cmux unavailable — return stored view only
   }
-  for (const a of Object.values(agents)) {
-    if (a.surface && registry[a.surface]) {
-      a.status = mapStatus(registry[a.surface].status);
-    }
+
+  const bySurface = new Map<string, RegistryEntry>();
+  for (const entry of Object.values(registry)) {
+    if (entry.surface_ref) bySurface.set(entry.surface_ref, entry);
   }
-  save(agents);
-  return Object.values(agents).sort((x, y) => y.spawnedAt - x.spawnedAt);
+
+  // Refresh status for agents we spawned ourselves.
+  for (const a of Object.values(store)) {
+    const live = a.surface ? bySurface.get(a.surface) : undefined;
+    if (live) a.status = mapStatus(live.status);
+  }
+  save(store);
+
+  // Surface every OTHER live/awaiting cmux agent we didn't spawn, across all
+  // runtimes. Skip already-closed history so the picker isn't a graveyard.
+  const known = new Set(Object.values(store).map((a) => a.surface).filter(Boolean));
+  const foreign: SpawnedAgent[] = [];
+  for (const entry of Object.values(registry)) {
+    const surface = entry.surface_ref;
+    if (!surface || known.has(surface)) continue;
+    const status = mapStatus(entry.status);
+    if (status === "closed") continue;
+    foreign.push({
+      id: surface,
+      parentId: null,
+      label: `${entry.runtime ?? "agent"} · ${shortCwd(entry.cwd)}`,
+      cwd: entry.cwd ?? "",
+      contextMode: "task",
+      surface,
+      status,
+      spawnedAt: entry.registered_at ? Math.round(entry.registered_at * 1000) : 0,
+    });
+  }
+
+  return [...Object.values(store), ...foreign].sort((x, y) => y.spawnedAt - x.spawnedAt);
 }
 
 function mapStatus(s?: string): AgentStatus {
