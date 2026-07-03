@@ -9,10 +9,13 @@ Escalate Phase 3 bridge cards to `/until-done` (TDD contract). One card = one it
 
 **Validation gate (run after every card, must be green):**
 ```
-cd ~/repos/pi-remote && bun test && \
+cd ~/repos/pi-remote && \
+  bun test $(find . -name '*.test.ts' -not -path '*/node_modules/*') && \
   (cd frontend && npx tsc --noEmit -p tsconfig.app.json) && \
   pnpm run build:ui
 ```
+(Scope `bun test` to `*.test.ts` — Playwright e2e uses `*.spec.ts` under qa/ and runs
+separately via `pnpm playwright`; plain `bun test` wrongly globs both + dep tests.)
 UI-touching cards additionally require a browser screenshot check (ui-verification rule).
 Bridge cards additionally require a WS smoke pass (extend /tmp/ws-check.ts).
 
@@ -21,12 +24,12 @@ Status: [ ] todo · [~] wip · [x] done · [!] blocked. Cards are ordered; respe
 ---
 
 ## Phase 0 — Foundations
-- [ ] **0.1 Serif + theme tokens.** Add `--font-serif` (Georgia stack) and a named-theme scaffold
-  (beyond light/dark) to `frontend/src/index.css` + theme type in `lib/types.ts`.
-  Verify: `tsc` clean; `build:ui` clean; grep shows `--font-serif` in built css.
-- [ ] **0.2 Console theme tokens.** Add "console" theme values (parchment #EAE0D5 on #0A0908,
-  surface #22333B, borderSubtle #3B4A50) as a `[data-theme="console"]` block in index.css.
-  Verify: build clean; toggling `data-theme=console` in devtools shows warm palette.
+- [x] **0.1 Serif + theme tokens.** `--font-serif` (Georgia stack) added; `Theme` type
+  ("light"|"dark"|"console") in lib/types.ts; `applyTheme()` helper in lib/utils.ts applies
+  `.dark`+`.theme-console`; App.tsx + client use it.
+- [x] **0.2 Console theme tokens.** `.theme-console` block (parchment #EAE0D5 on #0A0908,
+  surface #22333B, hairline #3B4A50) added after `.dark`; console session-row overrides.
+  Verify: bun 2/2, tsc clean, build clean.
 
 ## Phase 1 — Calm Console design (hermes parity)  [dep: 0.1, 0.2]
 - [ ] **1.1 Split typography.** Assistant prose → `--font-serif`; user bubbles + UI → sans;

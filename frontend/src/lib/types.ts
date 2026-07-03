@@ -80,13 +80,15 @@ export interface ExtensionDialogState {
   showConfirm?: boolean;
 }
 
+export type Theme = "light" | "dark" | "console";
+
 export interface BridgeSnapshot {
   connected: boolean;
   connectionPhase: ConnectionPhase;
   streaming: boolean;
   statusError: string | null;
   view: MobileView;
-  theme: "light" | "dark";
+  theme: Theme;
   sessions: PiSession[];
   activeSessionName: string | null;
   activeSessionPath: string | null;

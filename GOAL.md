@@ -33,7 +33,8 @@ agents and subagents — with full-or-scoped context handoff — nested in the s
 - Tap any node to attach to that agent's live chat; send steer/follow-up; confirm/close from mobile.
 
 ## Testing bar (every task)
-- Pure logic (routing, lineage, grouping, context-mode selection, diff parsing) → `bun test` assert.
+- Pure logic (routing, lineage, grouping, context-mode selection, diff parsing) → `bun test` assert
+  (unit tests are `*.test.ts`; scope with `find . -name '*.test.ts' -not -path '*/node_modules/*'`).
 - Types → `tsc --noEmit -p frontend/tsconfig.app.json` clean.
 - Build → `pnpm build:ui` clean.
 - Bridge behavior → WS smoke script against the live bridge (extend `/tmp/ws-check.ts` pattern).

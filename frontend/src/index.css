@@ -29,6 +29,9 @@
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Editorial serif for assistant prose (Calm Console). Georgia is the available
+     substitute for Anthropic Serif; keeps the bot voice calmer and more readable. */
+  --font-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
 
   --radius-nav: 10px;
   --radius-cards: 14px;
@@ -57,6 +60,37 @@
   --color-input: var(--color-hairline);
   --color-muted: var(--color-mist);
   --color-popover-foreground: var(--color-graphite);
+}
+
+/* Calm Console — warm parchment on near-black. Applied together with .dark (see
+   applyTheme in lib/utils.ts); defined after .dark so it wins on equal specificity.
+   Palette from hermes-webui DESIGN.md. */
+.theme-console {
+  --color-canvas: #0a0908;
+  --color-card: #22333b;
+  --color-carbon: #22333b;
+  --color-chalk: #22333b;
+  --color-graphite: #eae0d5;
+  --color-hairline: #3b4a50;
+  --color-mist: #11100e;
+  --color-concrete: #c6ac8f;
+  --color-ash: #c6ac8f;
+  --color-smoke: #a9927c;
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-graphite);
+  --color-secondary: var(--color-mist);
+  --color-primary: var(--color-graphite);
+  --color-primary-foreground: #0a0908;
+  --color-muted-foreground: var(--color-concrete);
+  --color-border: var(--color-hairline);
+  --color-input: var(--color-hairline);
+  --color-muted: var(--color-mist);
+  --color-popover-foreground: var(--color-graphite);
+}
+
+.theme-console .session-cursor-list {
+  --session-row-active: #2b3d45;
+  --session-row-hover: rgba(234, 224, 213, 0.05);
 }
 
 @keyframes shimmer {

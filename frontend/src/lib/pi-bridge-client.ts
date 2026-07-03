@@ -22,9 +22,11 @@ import type {
   PiSession,
   SendMode,
   SessionStats,
+  Theme,
   ThinkingLevel,
   TurnBlock,
 } from "./types";
+import { applyTheme } from "./utils";
 
 const MODE_CYCLE: SendMode[] = ["prompt", "steer", "follow_up"];
 const THINKING_CYCLE: ThinkingLevel[] = ["none", "low", "high"];
@@ -37,8 +39,8 @@ type StreamingState = {
 };
 
 function initialSnapshot(): BridgeSnapshot {
-  const theme =
-    (localStorage.getItem("pi-remote-theme") as "light" | "dark" | null) ??
+  const theme: Theme =
+    (localStorage.getItem("pi-remote-theme") as Theme | null) ??
     (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   return {
     connected: false,
@@ -745,14 +747,17 @@ export class PiBridgeClient {
     this.appendSystem("↻ Starting new session…");
   }
 
-  setTheme(theme: "light" | "dark") {
+  setTheme(theme: Theme) {
     localStorage.setItem("pi-remote-theme", theme);
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    applyTheme(theme);
     this.queuePatch({ theme });
   }
 
   toggleTheme() {
-    this.setTheme(this.snapshot.theme === "light" ? "dark" : "light");
+    // Quick toggle cycles light -> dark -> console -> light.
+    const order: Theme[] = ["light", "dark", "console"];
+    const next = order[(order.indexOf(this.snapshot.theme) + 1) % order.length];
+    this.setTheme(next);
   }
 
   setMode(mode: SendMode) {
