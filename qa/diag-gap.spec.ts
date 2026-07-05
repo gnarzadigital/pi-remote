@@ -2,8 +2,10 @@ import { test } from "@playwright/test";
 
 const BASE = process.env.PI_REMOTE_URL ?? "http://127.0.0.1:7700";
 
+// test.use() must be at describe/module scope, never inside a test body.
+test.use({ viewport: { width: 390, height: 844 }, colorScheme: "dark" });
+
 test("diagnose internal bottom void", async ({ page }) => {
-  test.use({ viewport: { width: 390, height: 844 }, colorScheme: "dark" });
   await page.goto(BASE, { waitUntil: "networkidle" });
   const r = await page.evaluate(() => {
     const shell = document.querySelector(".app-shell")!.getBoundingClientRect();

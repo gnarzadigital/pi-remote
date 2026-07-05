@@ -17,6 +17,7 @@ import type {
   AgentTreeNode,
   BridgeSnapshot,
   ChatLine,
+  DirListing,
   ExtensionDialogState,
   ImageAttachment,
   PiCommand,
@@ -58,6 +59,8 @@ function initialSnapshot(): BridgeSnapshot {
     gitBranch: null,
     searchResults: null,
     agents: [],
+    peek: null,
+    dirListing: null,
     attachedAgentId: null,
     attachedAgentLabel: null,
     attachedAgentLines: [],
@@ -389,6 +392,16 @@ export class PiBridgeClient {
       case "list_agents":
         this.queuePatch({ agents: (msg.data?.agents as AgentTreeNode[]) ?? [] });
         break;
+      case "capture_agent_pane":
+        if (this.snapshot.peek) {
+          this.queuePatch({
+            peek: { ...this.snapshot.peek, text: (msg.data?.text as string | null) ?? null, loading: false },
+          });
+        }
+        break;
+      case "list_dirs":
+        this.queuePatch({ dirListing: (msg.data as unknown as DirListing) ?? null });
+        break;
       case "spawn_agent":
       case "send_to_agent":
       case "confirm_agent":
@@ -443,6 +456,10 @@ export class PiBridgeClient {
           this.appendSystem("✓ New session started");
           this.clearConversation();
           this.send({ type: "get_session_stats", id: this.nextId() });
+          // The workspace may have changed (new session in a chosen folder →
+          // pi respawned in a new cwd). Refresh cwd-derived views.
+          this.fetchSessions();
+          this.fetchGitBranch();
         }
         break;
       case "rename_session":
@@ -794,6 +811,23 @@ export class PiBridgeClient {
     this.sendWithId({ type: "list_agents" });
   }
 
+  /** Request a terminal-runtime agent's live pane text (with scrollback) for the
+   * full terminal view. surface + workspace are both required (surface is only
+   * unique within one workspace). Pass refresh=true for silent polling so the
+   * view doesn't flash a "Reading…" state on every auto-refresh tick. */
+  capturePane(agent: AgentTreeNode, refresh = false) {
+    if (!agent.surface || !agent.workspace) {
+      this.queuePatch({ peek: { agentId: agent.id, text: null, loading: false } });
+      return;
+    }
+    if (!refresh) this.queuePatch({ peek: { agentId: agent.id, text: null, loading: true } });
+    this.sendWithId({ type: "capture_agent_pane", surface: agent.surface, workspace: agent.workspace, lines: 200 });
+  }
+
+  closePeek() {
+    if (this.snapshot.peek) this.queuePatch({ peek: null });
+  }
+
   spawnAgent(req: { cwd?: string; task: string; contextMode: AgentContextMode; parentId?: string | null }) {
     this.sendWithId({ type: "spawn_agent", ...req });
   }
@@ -833,6 +867,18 @@ export class PiBridgeClient {
       attachedAgentLines: [],
       attachedAgentStreaming: false,
       view: "sessions",
+    });
+  }
+
+  /** Switch the attached agent's model via /model — routed to THAT agent's pi
+   * process (agent_command), the same set_model shape the primary session uses. */
+  setAttachedAgentModel(model: PiModel) {
+    const agentId = this.snapshot.attachedAgentId;
+    if (!agentId) return;
+    this.sendWithId({
+      type: "agent_command",
+      agentId,
+      payload: { type: "set_model", provider: model.provider, modelId: model.id },
     });
   }
 
@@ -902,6 +948,24 @@ export class PiBridgeClient {
     this.appendSystem("↻ Starting new session…");
   }
 
+  /** Browse folders for the workspace picker (default: home when path omitted). */
+  listDirs(path?: string) {
+    this.sendWithId(path ? { type: "list_dirs", path } : { type: "list_dirs" });
+  }
+
+  /** Start a new session in a chosen folder. The bridge respawns pi there (its
+   * cwd is fixed per-process) then creates the session, so the whole app switches
+   * to that workspace. */
+  newSessionInDir(cwd: string) {
+    this.queuePatch({
+      activeSessionName: "New session",
+      activeSessionPath: null,
+      view: "chat",
+    });
+    this.sendWithId({ type: "new_session", cwd });
+    this.appendSystem(`↻ Starting new session in ${cwd}…`);
+  }
+
   setTheme(theme: Theme) {
     localStorage.setItem("pi-remote-theme", theme);
     applyTheme(theme);
@@ -962,6 +1026,17 @@ export class PiBridgeClient {
     if (index < 0 || index >= this.messageQueue.length) return;
     this.messageQueue.splice(index, 1);
     this.queuePatch({ queuedMessages: [...this.messageQueue] });
+  }
+
+  /** Interrupt the running agent NOW with a steer message, bypassing the queue.
+   * Used by the composer's "Interrupt" action, which only appears while streaming
+   * — the deliberate "cut in and redirect" path, vs the default queue-on-send. */
+  sendInterrupt(text: string) {
+    const val = text.trim();
+    if (!val || !this.snapshot.connected) return;
+    this.hideCmdPicker();
+    this.appendSystem(`[steer] ${val}`);
+    this.send({ type: "steer", message: val });
   }
 
   sendMessage(text: string) {

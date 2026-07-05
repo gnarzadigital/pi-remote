@@ -37,8 +37,11 @@ export function useVisualViewport() {
       const visibleH = Math.round(vv.height);
       const top = Math.round(vv.offsetTop);
       const inset = layoutH - visibleH - top;
-      const keyboardByViewport = inset > 50 || top > 0;
-      const keyboardOpen = keyboardByViewport || (isTextInputFocused() && isInputObscured());
+      const inputFocused = isTextInputFocused();
+      // Safari's bottom toolbar can shrink visualViewport without opening the keyboard.
+      // Only lift the dock when an input is actually focused.
+      const keyboardByViewport = inputFocused && (inset > 50 || top > 0);
+      const keyboardOpen = keyboardByViewport || (inputFocused && isInputObscured());
 
       if (keyboardOpen) {
         const bottomInset = Math.max(0, layoutH - visibleH - top);

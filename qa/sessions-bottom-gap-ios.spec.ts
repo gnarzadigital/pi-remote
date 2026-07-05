@@ -47,8 +47,13 @@ test.describe("sessions bottom gap — iOS viewport sim", () => {
       inner: window.innerHeight,
       vv: window.visualViewport?.height,
       bottomBg: (() => {
-        const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight - 2);
-        return el ? getComputedStyle(el).backgroundColor : "none";
+        // Effective rendered color behind any transparent row at the bottom pixel.
+        const stack = document.elementsFromPoint(window.innerWidth / 2, window.innerHeight - 2);
+        for (const el of stack) {
+          const c = getComputedStyle(el).backgroundColor;
+          if (c && c !== "rgba(0, 0, 0, 0)" && c !== "transparent") return c;
+        }
+        return "none";
       })(),
     }));
     console.log("ios-sim", { gap, ...metrics });

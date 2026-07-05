@@ -9,6 +9,17 @@ LOG_FILE="$STATE_DIR/bridge.log"
 META_FILE="$STATE_DIR/bridge.meta"
 PORT="${PORT:-7700}"
 
+# The system /usr/local/bin/tailscale crashes with a BundleIdentifiers fatal
+# error; prefer the working app binary, fall back to PATH/system only if missing.
+TAILSCALE="${TAILSCALE:-}"
+if [[ -z "$TAILSCALE" ]]; then
+  if [[ -x /Applications/Tailscale.app/Contents/MacOS/Tailscale ]]; then
+    TAILSCALE="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+  else
+    TAILSCALE="$(command -v tailscale || echo /usr/local/bin/tailscale)"
+  fi
+fi
+
 usage() {
   cat <<EOF
 pi-remote — mobile web UI for pi --mode rpc (Tailscale)
@@ -63,7 +74,7 @@ is_running() {
 
 cmd_status() {
   read_meta
-  local url="http://$(tailscale ip -4 2>/dev/null || hostname):$PORT"
+  local url="http://$("$TAILSCALE" ip -4 2>/dev/null || hostname):$PORT"
   if is_running; then
     local pid="${BRIDGE_PID:-$(cat "$PID_FILE" 2>/dev/null || bridge_pids | head -1)}"
     echo "pi-remote: running (pid $pid, port $PORT)"

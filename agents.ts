@@ -321,6 +321,27 @@ export function extractCmuxTitles(tree: unknown): CmuxTitles {
   return { bySurfaceKey, byWorkspaceRef };
 }
 
+/** Capture the last N lines of a cmux pane's terminal text, for the peek sheet.
+ * surface refs are only unique WITHIN a workspace, so both are required. Returns
+ * null if cmux is unavailable or the pane can't be read (some agent-session
+ * surfaces reject capture — cmux prints an error to stderr and exits 0, leaving
+ * stdout empty, which we treat as null). No-mock: real cmux capture-pane only.
+ * On-demand (peek-open), NOT polled, so a single blocking call is fine here. */
+export function captureAgentPane(surface: string, workspace: string, lines = 40): string | null {
+  if (!surface || !workspace) return null;
+  try {
+    const out = execFileSync(
+      CMUX_BIN,
+      ["capture-pane", "--workspace", workspace, "--surface", surface, "--lines", String(lines)],
+      { encoding: "utf8", timeout: 4000, maxBuffer: 2 * 1024 * 1024 }
+    );
+    const text = out.replace(/[ \t]+$/gm, "").trimEnd();
+    return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
 /** I/O — the single `cmux --json tree --all` fetch shared by title-extraction AND
  * ambient-agent discovery (one call per listAgents() poll, not two). */
 function fetchTree(): unknown {
@@ -588,7 +609,35 @@ export function listAgents(): SpawnedAgent[] {
   const { surfaces, ttyRuntimes, titles } = getAmbientDiscoveryData();
   const ambient = buildAmbientAgents(surfaces, ttyRuntimes, knownKeys, titles, resolveCwdForPid);
 
-  const merged = [...Object.values(store), ...foreign, ...ambient].sort((x, y) => y.spawnedAt - x.spawnedAt);
+  // Liveness gate: cmux-agent's registry keeps stale entries whose panes are long
+  // gone (old test spawns under the "default" workspace alias, surface refs that
+  // no longer exist in the tree). Those showed up as un-openable ghost agents
+  // ("Could not read this pane" on tap). Keep only agents whose surface is present
+  // in the LIVE cmux tree — ambient is tree-derived so always passes; foreign/store
+  // entries pointing at dead panes are dropped. Match on the workspace/surface key,
+  // with a bare-surface fallback for the "default" vs "workspace:N" alias skew.
+  const liveKeys = new Set(surfaces.map((s) => `${s.workspaceRef}/${s.surfaceRef}`));
+  const liveRefs = new Set(surfaces.map((s) => s.surfaceRef));
+  const alive = [...Object.values(store), ...foreign, ...ambient].filter(
+    (a) => a.surface != null && (liveKeys.has(`${a.workspace}/${a.surface}`) || liveRefs.has(a.surface))
+  );
+
+  // Dedup by surface: the same live pane can arrive twice — once from the registry
+  // under the "default" workspace alias and once from ambient under the real
+  // "workspace:N". In the live tree a surface ref is globally unique, so dedup by
+  // it, preferring the entry whose workspace matches the tree (canonical) so
+  // capture/steer target the right pane.
+  // ponytail: bare-ref dedup assumes cmux's live tree never reuses a surface
+  // number across workspaces simultaneously (held true live); the keyed
+  // preference below still disambiguates if that ever changes.
+  const canonical = (a: SpawnedAgent) => liveKeys.has(`${a.workspace}/${a.surface}`);
+  const bySurface = new Map<string, SpawnedAgent>();
+  for (const a of alive) {
+    const cur = bySurface.get(a.surface!);
+    if (!cur || (canonical(a) && !canonical(cur))) bySurface.set(a.surface!, a);
+  }
+
+  const merged = [...bySurface.values()].sort((x, y) => y.spawnedAt - x.spawnedAt);
   return applyCmuxTitles(merged, titles);
 }
 

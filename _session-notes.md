@@ -98,3 +98,37 @@
 - NOT visually screenshotted (browser-picker friction). Confirm on phone via hard-refresh.
 
 ## Not committed yet. public/ rebuilt.
+
+---
+
+# Session Notes — 2026-07-03 (cmux peer handshake)
+
+**Peer:** surface:54 (cmux-spawned).
+**Changed:** nothing. No repo work performed this session — readiness/mailbox check only.
+**Next:** awaiting orchestrator task assignment. No paths moved.
+
+# Session Notes — 2026-07-03 (cmux peer handshake, surface:56)
+
+**Peer:** surface:56 (cmux-spawned).
+**Changed:** nothing. Readiness/connectivity check only (replied "pong" to orchestrator ping).
+**Next:** awaiting task. No paths moved.
+
+---
+
+## Session 2026-07-03 — worker pane `surface:64` (workspace `default`)
+
+**Task received:** `workspace-fix-verify`
+**Outcome:** No work performed. Orchestrator sent `/exit` + DONE PROTOCOL before any state change. Task intent was never clarified or acted on.
+
+**What I did (read-only):**
+- `memory_search` x2 ("workspace-fix-verify workflow", "pi-remote workspace fix broken") — no actionable hits
+- Read `git status`, recent `git log`, and the existing `_session-notes.md`
+
+**What changed:** Nothing. No files written, no commits, no deletions, no moves.
+
+**Repo state at exit (all pre-existing, NOT from me):**
+- Branch `main`, **33 commits ahead of `origin/main`** (unpushed)
+- Dirty tree: modified `bridge.ts`, `agents.ts`, `agents.test.ts`, `frontend/scripts/post-build.mjs`, `frontend/src/components/agents-panel.tsx`, `frontend/src/components/ui/diff.tsx`, `frontend/src/hooks/use-visual-viewport.ts`, `frontend/src/lib/diff-parse.test.ts`, `frontend/src/lib/diff-parse.ts`, `frontend/src/lib/pi-bridge-client.ts`, `frontend/src/lib/types.ts`, `frontend/vite.config.ts`, `public/index.html`, `scripts/pi-remote.sh`; deleted `public/assets/index-DBz6MXHa.js`
+- Untracked: `bridge.ts.bak-20260703-125325`, `public/assets/code-block-DjOakUBt.js`, `public/assets/index-DGKVBtjO.js`, `scripts/pi-remote-online.sh`, `scripts/pi-remote-online.sh.bak-20260703-111139`, `scripts/pi-remote.sh.bak-20260703-111139`
+
+**Next session (if task is still live):** "workspace-fix-verify" was never defined. Clarify with orchestrator which "workspace" — cmux workspace, the pi-remote repo working tree, or MacBook↔Mac Mini path parity — and what "fix" + "verify" should produce.

@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <!-- No interactive-widget=resizes-content: on iOS it shrinks the LAYOUT viewport
+         with the keyboard and often fails to restore, leaving the fixed composer
+         floating above the real bottom (hermes-webui omits it and is rock solid).
+         Keyboard avoidance is handled by use-visual-viewport lifting the dock. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="pi" />
@@ -28,10 +32,10 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <title>pi</title>
-    <script type="module" crossorigin src="/assets/index-DI2Aa1aM.js"></script>
+    <script type="module" crossorigin src="/assets/index-_sVi0mcU.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-QTnfLwEv.js">
     <link rel="modulepreload" crossorigin href="/assets/shiki-DjlOcc6v.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BnBizP_G.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-PQXkkHXc.css">
   </head>
   <body>
     <div id="root"></div>

@@ -8,3 +8,18 @@
 export function canAttachChat(runtime?: string): boolean {
   return (runtime ?? "pi").toLowerCase() === "pi";
 }
+
+/** Short display label for the runtime badge on an inbox row. */
+export function runtimeLabel(runtime?: string): string {
+  const r = (runtime ?? "pi").toLowerCase();
+  const map: Record<string, string> = {
+    pi: "pi",
+    claude: "claude",
+    codex: "codex",
+    hermes: "hermes",
+    "cursor-agent": "cursor",
+    antigravity: "agy",
+    agent: "agent",
+  };
+  return map[r] ?? r;
+}

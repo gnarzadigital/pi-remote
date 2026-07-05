@@ -295,6 +295,68 @@ pass (11 new), frontend + backend tsc clean, build clean, cache verified reducin
 
 ---
 
+## Sessions redesign: unified next-action inbox + workspace picker + iOS composer fix (2026-07-04/05)
+Nik asked to rethink the sessions screen after direct confusion complaints ("how do I message
+a conversation I can't see", "what does Task mean", "what's the paper plane"). Deep research
+across Claude Agent View, Codex, Cursor, Devin/Jules/Copilot/Factory converged on one answer:
+a single list grouped by next-action, not a stacked accordion. Locked with Nik: unified inbox
+(Needs you / Working / Ready for review / Recent chats), no blind steer — tap opens the FULL
+conversation (Nik explicitly rejected a "peek" preview sheet).
+
+- [x] **Unified next-action inbox** replacing the Agents-accordion-over-session-groups layout.
+  `frontend/src/lib/inbox.ts` (pure grouping/filtering logic, tested), `agent-inbox.tsx`,
+  `agent-inbox-row.tsx` (runtime badge, status glyph, unread dot). Removed the paper-plane
+  steer, the Task/Scoped/Full row chip, and the standalone Agents accordion header.
+- [x] **Open full conversation, not a preview.** pi-runtime agents open the existing rich RPC
+  chat; terminal-runtime agents (codex/claude/hermes/cursor via cmux) open a new full-screen
+  `agent-terminal-view.tsx` using `cmux capture-pane` (with scrollback) + a reply box that
+  steers the pane. Auto-refreshes every 3s but only auto-scrolls if the user is already at the
+  bottom (real bug found: it used to yank you back down while reading).
+- [x] **Ghost-agent bug found and fixed.** "Could not read this pane" on tap was stale
+  `cmux-agent` registry entries (dead panes from old test spawns under the "default" workspace
+  alias). Fixed by filtering `listAgents()` to only surfaces present in the LIVE cmux tree, and
+  deduping when the same live pane arrives from both the registry and the ambient-discovery
+  path.
+- [x] **Workspace/directory picker for new sessions.** `workspace-picker.tsx` + backend
+  `list_dirs` command (bridge.ts) — browses the real filesystem from Home, with shortcuts.
+  Confirmed pi's RPC protocol has NO chdir/cwd command (checked the actual package's rpc-mode
+  command list) — cwd is fixed per-process, so a folder pick respawns `pi --mode rpc` in the
+  new cwd (`respawnPi()`), re-bootstraps, then creates the session there. Verified live via a
+  real WS round-trip: `git_branch` after respawn returned the NEW workspace's branch. Scoped to
+  new-session-only per Nik's choice (no mid-session directory change, which would kill a live
+  chat).
+- [x] **Per-agent model picker.** Existing `ModelPickerAction` made reusable (`onPick`/
+  `activeModel` override) and added to the agent-chat composer, routing `/model` to that
+  specific agent via `agent_command` — not just the primary session.
+- [x] **iOS composer black-bar bug — root cause, not cosmetic.** Five compounding causes, all
+  fixed (full detail in Claude memory `pi-remote-ios-bottom-bar-root-cause-fix`, kept there
+  since it's a "never regress this" rule, not just a changelog entry):
+  1. Double bottom padding (dock + nested footer both padding — was ~42px).
+  2. `interactive-widget=resizes-content` in the viewport meta broke iOS layout-viewport
+     restore after keyboard close — removed (hermes-webui, the working reference, omits it).
+  3. `agent-chat-view.tsx`'s composer was in normal document flow, not a fixed dock like the
+     primary chat — converted to the same `chat-bottom-dock` pattern.
+  4. **Real "won't even start" bug:** `index.html` had no `Cache-Control`, so a phone could
+     cache an old HTML pointing at a JS hash `post-build.mjs` had since pruned → 404 on the
+     main bundle → blank/frozen PWA. Fixed: `index.html`/`sw.js`/`manifest.json` → `no-cache`;
+     `/assets/*` → `immutable`. `sw.js` CACHE_NAME bumped through the fix cycle (now v12).
+  5. Verification itself was the root problem — early "fixed" claims came from Chrome desktop
+     `visualViewport` overrides, which doesn't reproduce real Mobile Safari/PWA behavior.
+     Installed Playwright's real WebKit engine (`playwright install webkit`) and added
+     `qa/webkit-composer-bottom.spec.ts` (iPhone device descriptor, real rendering engine) as
+     the new minimum bar for any future iOS layout claim. Nik confirmed fixed live on his
+     actual iPhone.
+- Also fixed in passing: serif font removed app-wide (assistant prose was accidentally
+  Georgia-serif; now Inter sans everywhere, `--font-serif` aliased to the sans stack so nothing
+  can drift back), Prompt/Steer mode chip replaced with queue-by-default + explicit Interrupt
+  action while streaming.
+
+Verified: 71 unit tests + 7 Playwright specs (including the new real-WebKit one) green. Core
+chat send→stream→receive verified live over a real WS round-trip. Everything on branch
+`redesign/sessions-inbox`, checkpoint-committed 2026-07-05.
+
+---
+
 ## Sequencing
 Phase 1 and 2 are independent and low-risk — run them first for visible progress. Phase 3 is
 the multi-session arc; 3.1 and 3.4 are pure functions (fast TDD wins) that de-risk the bridge

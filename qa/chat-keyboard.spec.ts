@@ -19,13 +19,10 @@ test.describe("chat keyboard avoidance", () => {
   test("input footer stays within visible viewport when keyboard opens", async ({ page }) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
 
-    const sessionBtn = page.getByRole("button").filter({ hasText: /HANDOFF|Session|pi update|Untitled/i }).first();
-    if (await sessionBtn.count()) {
-      await sessionBtn.click();
-    } else {
-      await page.getByRole("button", { name: "New" }).click();
-    }
-    await page.waitForTimeout(400);
+    const firstSession = page.locator("button.session-list-name").first();
+    await firstSession.waitFor({ state: "visible", timeout: 5000 });
+    await firstSession.click();
+    await page.waitForTimeout(800);
 
     const input = page.locator("#msg-input");
     await input.focus();
@@ -74,10 +71,10 @@ test.describe("chat keyboard avoidance", () => {
   test("does not shrink viewport when input focused but keyboard dismissed", async ({ page }) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
 
-    const sessionBtn = page.getByRole("button").filter({ hasText: /HANDOFF|Session|pi update|Untitled/i }).first();
-    if (await sessionBtn.count()) await sessionBtn.click();
-    else await page.getByRole("button", { name: "New" }).click();
-    await page.waitForTimeout(300);
+    const firstSession = page.locator("button.session-list-name").first();
+    await firstSession.waitFor({ state: "visible", timeout: 5000 });
+    await firstSession.click();
+    await page.waitForTimeout(800);
 
     await page.locator("#msg-input").focus();
     await page.waitForTimeout(200);

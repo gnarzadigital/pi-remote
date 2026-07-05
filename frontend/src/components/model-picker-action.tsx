@@ -52,8 +52,18 @@ function ModelRow({
   );
 }
 
-export function ModelPickerAction() {
+/** onPick overrides where the chosen model is applied (default: primary session
+ * via set_model). activeModel overrides which model shows as current — pass null
+ * in an agent context where the primary session's model isn't the agent's. */
+export function ModelPickerAction({
+  onPick,
+  activeModel,
+}: {
+  onPick?: (model: PiModel) => void;
+  activeModel?: PiModel | null;
+} = {}) {
   const { snapshot, bridge } = usePiBridge();
+  const active = activeModel !== undefined ? activeModel : snapshot.activeModel;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [providerFilter, setProviderFilter] = useState<string>(() => {
@@ -102,7 +112,7 @@ export function ModelPickerAction() {
 
   const recentKeys = useMemo(() => new Set(filteredRecent.map(modelKey)), [filteredRecent]);
 
-  const label = snapshot.activeModel ? formatModelLabel(snapshot.activeModel) : "Model";
+  const label = active ? formatModelLabel(active) : "Model";
 
   const selectProvider = (provider: string) => {
     setProviderFilter(provider);
@@ -114,7 +124,8 @@ export function ModelPickerAction() {
   };
 
   const pickModel = (model: PiModel) => {
-    bridge.setModel(model);
+    if (onPick) onPick(model);
+    else bridge.setModel(model);
     setOpen(false);
   };
 
@@ -190,7 +201,7 @@ export function ModelPickerAction() {
                         <ModelRow
                           key={`recent-${modelKey(model)}`}
                           model={model}
-                          active={isSameModel(snapshot.activeModel, model)}
+                          active={isSameModel(active, model)}
                           onSelect={pickModel}
                         />
                       ))}
@@ -212,7 +223,7 @@ export function ModelPickerAction() {
                             <ModelRow
                               key={modelKey(model)}
                               model={model}
-                              active={isSameModel(snapshot.activeModel, model)}
+                              active={isSameModel(active, model)}
                               onSelect={pickModel}
                             />
                           ))}
@@ -228,7 +239,7 @@ export function ModelPickerAction() {
                         <ModelRow
                           key={modelKey(model)}
                           model={model}
-                          active={isSameModel(snapshot.activeModel, model)}
+                          active={isSameModel(active, model)}
                           onSelect={pickModel}
                         />
                       ))}

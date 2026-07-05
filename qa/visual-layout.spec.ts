@@ -61,18 +61,18 @@ test.describe("pi-remote layout", () => {
   test("chat view footer flush with viewport", async ({ page }) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
 
-    const sessionBtn = page.getByRole("button").filter({ hasText: /HANDOFF|Session|pi update|Untitled/i }).first();
-    if (await sessionBtn.count()) {
-      await sessionBtn.click();
-      await page.waitForTimeout(500);
-    } else {
-      await page.getByRole("button", { name: "New" }).click();
-      await page.waitForTimeout(500);
-    }
+    // Open an existing session — a docked composer (.chat-bottom-dock) requires a
+    // session WITH messages; a brand-new session shows the centered hero instead.
+    const firstSession = page.locator("button.session-list-name").first();
+    await firstSession.waitFor({ state: "visible", timeout: 5000 });
+    await firstSession.click();
+    await page.waitForTimeout(800);
 
     await page.screenshot({ path: join(EVIDENCE, "chat-mobile.png"), fullPage: false });
 
-    const footer = page.locator(".chat-bottom-dock, .input-footer").last();
+    // The dock is the surface that fills to the viewport bottom (canvas, no void).
+    // The composer inside it is intentionally inset above the home indicator.
+    const footer = page.locator(".chat-bottom-dock").first();
     await expect(footer).toBeVisible();
 
     const metrics = await page.evaluate(() => {
@@ -107,6 +107,10 @@ test.describe("pi-remote layout", () => {
 
     const viewportMeta = await page.locator('meta[name="viewport"]').getAttribute("content");
     expect(viewportMeta).toContain("user-scalable=no");
-    expect(viewportMeta).toContain("interactive-widget=resizes-content");
+    // interactive-widget=resizes-content must stay ABSENT: on iOS it shrinks the
+    // layout viewport with the keyboard and often fails to restore, stranding the
+    // fixed composer above the real bottom (hermes-webui omits it too).
+    expect(viewportMeta).not.toContain("interactive-widget");
+    expect(viewportMeta).toContain("viewport-fit=cover");
   });
 });

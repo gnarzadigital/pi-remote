@@ -25,7 +25,7 @@ import { StringDecoder } from "string_decoder";
 import { createInterface } from "readline";
 import { execSync } from "child_process";
 import { isJunkWorkspace } from "./workspace-filter";
-import { spawnAgent, listAgents, sendToAgent, confirmAgent, resolveAgentSessionPath, type ContextMode } from "./agents";
+import { spawnAgent, listAgents, sendToAgent, confirmAgent, resolveAgentSessionPath, captureAgentPane, type ContextMode } from "./agents";
 import { buildAgentTree, flattenTree } from "./lineage";
 import { resolveRoute } from "./broker-route";
 
@@ -34,7 +34,9 @@ import { resolveRoute } from "./broker-route";
 // ---------------------------------------------------------------------------
 
 const PORT = Number(process.env.PORT ?? 7700);
-const CWD = process.env.AGENT_CWD ?? process.cwd();
+// Mutable: a "new session in folder X" respawns pi with a new cwd (pi's cwd is
+// fixed per-process; its RPC protocol has no chdir). See respawnPi().
+let CWD = process.env.AGENT_CWD ?? process.cwd();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -214,19 +216,19 @@ const PI_SPAWN_ENV = {
     .join(":"),
 };
 
-const pi = Bun.spawn(["pi", "--mode", "rpc"], {
-  cwd: CWD,
-  stdin: "pipe",
-  stdout: "pipe",
-  stderr: "pipe",
-  env: PI_SPAWN_ENV,
-});
+function spawnPiProcess(cwd: string) {
+  return Bun.spawn(["pi", "--mode", "rpc"], {
+    cwd,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: PI_SPAWN_ENV,
+  });
+}
 
-pi.exited.then((code) => {
-  console.log(`[bridge] pi process exited with code ${code}`);
-  // Don't kill the bridge — keep serving static files and accept new WS connections.
-  // pi will be re-spawned on demand if needed.
-});
+// Mutable: replaced by respawnPi() when the user starts a new session in a
+// different folder. sendToPi() and the readers always target the current `pi`.
+let pi = spawnPiProcess(CWD);
 
 // ---------------------------------------------------------------------------
 // WebSocket client registry
@@ -430,7 +432,7 @@ function sendToWs(ws: any, msg: string): void {
 }
 
 // Forward pi stderr lines to clients as UI-visible bridge_error events
-attachJsonlReader(pi.stderr as ReadableStream<Uint8Array>, (line) => {
+function handlePiStderr(line: string) {
   // pi spews tons of non-error noise to stderr (npm output, skill loading,
   // deprecation warnings, install messages). Only surface REAL errors to the chat.
   const isError = /^Error:|\bFATAL\b|\buncaughtException\b|\bunhandledRejection\b/i.test(line);
@@ -442,9 +444,9 @@ attachJsonlReader(pi.stderr as ReadableStream<Uint8Array>, (line) => {
     message: line,
   });
   broadcast(msg);
-});
+}
 
-attachJsonlReader(pi.stdout as ReadableStream<Uint8Array>, (line) => {
+function handlePiStdout(line: string) {
   let parsed: any;
   try {
     parsed = JSON.parse(line);
@@ -520,7 +522,55 @@ attachJsonlReader(pi.stdout as ReadableStream<Uint8Array>, (line) => {
 
   // Default: broadcast to all clients
   broadcast(line);
-});
+}
+
+/** Attach stdout/stderr readers + exit logger to the current `pi`. Called once at
+ * startup and again after each respawn (the old process's streams close on kill,
+ * ending their reader loops; we start fresh ones on the new streams). */
+function wirePiReaders(): void {
+  pi.exited.then((code) => {
+    console.log(`[bridge] pi process exited with code ${code}`);
+  });
+  attachJsonlReader(pi.stderr as ReadableStream<Uint8Array>, handlePiStderr);
+  attachJsonlReader(pi.stdout as ReadableStream<Uint8Array>, handlePiStdout);
+}
+
+wirePiReaders();
+
+/** Respawn pi in a new working directory (its cwd is fixed per-process). Kills
+ * the current process, swaps in a fresh one, re-wires the readers, and updates
+ * everything derived from CWD (file autocomplete cache; sessions/git are read
+ * live from CWD on demand). The caller re-bootstraps clients afterward. */
+async function respawnPi(newCwd: string): Promise<void> {
+  console.log(`[bridge] respawning pi: ${CWD} -> ${newCwd}`);
+  try {
+    pi.kill();
+    await pi.exited;
+  } catch {
+    // already dead
+  }
+  CWD = newCwd;
+  fileListCache = [];
+  fileListCacheTime = 0;
+  loadedSessionFile = null;
+  pi = spawnPiProcess(CWD);
+  wirePiReaders();
+}
+
+/** After a respawn the new pi is a blank process — re-run the same bootstrap the
+ * bridge sends on a fresh WS connection so every client's model/commands/state
+ * reflect the new workspace. */
+function bootstrapPiAfterRespawn(): void {
+  sendToPi({ type: "get_state", id: nextBridgeId() });
+  sendToPi({ type: "get_available_models", id: nextBridgeId() });
+  sendToPi({ type: "get_commands", id: nextBridgeId() });
+  if (prefs.lastModel) {
+    sendToPi({ type: "set_model", id: nextBridgeId(), ...prefs.lastModel });
+  }
+  if (prefs.lastThinkingLevel && prefs.lastThinkingLevel !== "none") {
+    sendToPi({ type: "set_thinking_level", id: nextBridgeId(), level: prefs.lastThinkingLevel });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // WebSocket message handler (client → pi)
@@ -767,6 +817,36 @@ function getFileList(forceRefresh = false): string[] {
   return files;
 }
 
+/** List sub-directories of `rawPath` (default: home) for the workspace folder
+ * browser. Directories only (incl. symlinked dirs), hidden/junk skipped. Nik's
+ * own machine over Tailscale, so no path sandbox beyond returning dirs only. */
+function listDirectories(rawPath?: string): {
+  path: string;
+  parent: string | null;
+  home: string;
+  entries: { name: string; path: string }[];
+} {
+  const dir = rawPath && rawPath.trim() ? rawPath : homedir();
+  const entries: { name: string; path: string }[] = [];
+  try {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name.startsWith(".") || IGNORED_DIRS.has(e.name)) continue;
+      let isDir = e.isDirectory();
+      if (!isDir && e.isSymbolicLink()) {
+        try { isDir = statSync(join(dir, e.name)).isDirectory(); } catch { isDir = false; }
+      }
+      if (!isDir) continue;
+      entries.push({ name: e.name, path: join(dir, e.name) });
+      if (entries.length >= 500) break;
+    }
+  } catch {
+    // unreadable dir — return an empty listing but keep path/parent so the UI
+    // can still navigate back up.
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  return { path: dir, parent: dir === "/" ? null : dirname(dir), home: homedir(), entries };
+}
+
 function getSessionInfo() {
   const folder = CWD.split("/").pop() || CWD;
   let branch = "?";
@@ -830,6 +910,35 @@ function handleClientMessage(ws: any, raw: string): void {
     return;
   }
 
+  // list_dirs: folder browser for choosing a workspace when starting a new session
+  if (cmd.type === "list_dirs") {
+    const data = listDirectories(cmd.path ? String(cmd.path) : undefined);
+    sendToWs(ws, JSON.stringify({ type: "response", command: "list_dirs", success: true, id: cmd.id, data: { ...data, cwd: CWD } }));
+    return;
+  }
+
+  // new_session with a target cwd: respawn pi in that folder first (pi's cwd is
+  // fixed per-process), re-bootstrap, then create the session there. Same-cwd
+  // new sessions fall through to the generic path below untouched.
+  if (cmd.type === "new_session" && cmd.cwd && String(cmd.cwd) !== CWD) {
+    const targetCwd = String(cmd.cwd);
+    let ok = false;
+    try { ok = statSync(targetCwd).isDirectory(); } catch { ok = false; }
+    if (!ok) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "new_session", success: false, id: cmd.id, error: "Not a directory" }));
+      return;
+    }
+    respawnPi(targetCwd)
+      .then(() => {
+        bootstrapPiAfterRespawn();
+        sendToPi({ type: "new_session", id: cmd.id });
+      })
+      .catch((e) => {
+        sendToWs(ws, JSON.stringify({ type: "response", command: "new_session", success: false, id: cmd.id, error: String(e) }));
+      });
+    return;
+  }
+
   if (cmd.type === "search_sessions") {
     const results = searchSessionFiles(String(cmd.query ?? ""));
     sendToWs(ws, JSON.stringify({ type: "response", command: "search_sessions", success: true, id: cmd.id, data: { results } }));
@@ -883,6 +992,16 @@ function handleClientMessage(ws: any, raw: string): void {
     } catch (e) {
       sendToWs(ws, JSON.stringify({ type: "response", command: "confirm_agent", success: false, id: cmd.id, error: String(e) }));
     }
+    return;
+  }
+
+  // capture_agent_pane: on-demand terminal read for the full terminal view of a
+  // non-pi agent. surface is only unique within a workspace, so both required.
+  // Real cmux only. `lines` bounds the scrollback pulled (default 200).
+  if (cmd.type === "capture_agent_pane" && cmd.surface && cmd.workspace) {
+    const lines = Math.min(Math.max(Number(cmd.lines) || 200, 1), 500);
+    const text = captureAgentPane(String(cmd.surface), String(cmd.workspace), lines);
+    sendToWs(ws, JSON.stringify({ type: "response", command: "capture_agent_pane", success: true, id: cmd.id, data: { text } }));
     return;
   }
 
@@ -1027,8 +1146,18 @@ function serveFile(path: string): Response {
       svg: "image/svg+xml",
       ico: "image/x-icon",
     };
+    // index.html / sw.js / manifest MUST always revalidate so a new build lands
+    // on the phone (index.html points at new hashed asset names). Hashed /assets/
+    // are content-addressed, so cache them forever. Without this, browsers
+    // heuristically cache index.html and keep serving the old build. */
+    const base = path.split("/").pop() ?? "";
+    const cacheControl = path.includes("/assets/")
+      ? "public, max-age=31536000, immutable"
+      : base === "index.html" || base === "sw.js" || base === "manifest.json"
+        ? "no-cache"
+        : "no-cache";
     return new Response(content, {
-      headers: { "Content-Type": mime[ext] ?? "application/octet-stream" },
+      headers: { "Content-Type": mime[ext] ?? "application/octet-stream", "Cache-Control": cacheControl },
     });
   } catch {
     return new Response("Not found", { status: 404 });

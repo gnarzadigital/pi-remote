@@ -29,9 +29,9 @@
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  /* Editorial serif for assistant prose (Calm Console). Georgia is the available
-     substitute for Anthropic Serif; keeps the bot voice calmer and more readable. */
-  --font-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* One UI font everywhere. `serif` intentionally aliases the sans stack so no
+     surface can drift back to an editorial serif — Nik wants fonts consistent. */
+  --font-serif: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   --radius-nav: 10px;
   --radius-cards: 14px;
@@ -244,6 +244,13 @@ html.keyboard-open .input-footer {
 .chat-bottom-dock {
   flex-shrink: 0;
   background: var(--color-canvas);
+  /* The dock owns the single bottom inset. Zero the nested .input-footer's own
+     bottom padding so they don't STACK (was 8px + safe-area ≈ 42px, a fat bar). */
+  padding-bottom: 16px;
+}
+
+.chat-bottom-dock .input-footer {
+  padding-bottom: 0;
 }
 
 @media (max-width: 767px) {
@@ -253,7 +260,9 @@ html.keyboard-open .input-footer {
     right: 0;
     bottom: var(--keyboard-inset-bottom, 0px);
     z-index: 40;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* A tiny 16px lift so the composer's rounded bottom + buttons clear the
+       screen edge / home indicator, without the fat safe-area black bar. */
+    padding-bottom: 16px;
   }
 
   html.keyboard-open .chat-bottom-dock {

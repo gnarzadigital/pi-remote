@@ -109,6 +109,38 @@ export interface AgentTreeNode {
   status: AgentRunStatus;
   depth: number;
   spawnedAt?: number;
+  /** One-line "what it's doing" summary for the row (Phase 2: pane-tail capture). */
+  activitySummary?: string;
+  /** Finished / needs-input and not yet peeked — drives the unread dot. */
+  unread?: boolean;
+  /** Agent is asking a real question (routes to "Needs you"). */
+  needsInput?: boolean;
+  /** Agent stalled or errored, distinct from needsInput (routes to "Needs you"). */
+  needsAttention?: boolean;
+  /** "+42 -18" diff summary chip; presence promotes a done agent to "Ready for review". */
+  diffStat?: { added: number; removed: number };
+}
+
+/** Live peek sheet state: the on-demand terminal tail for one agent row. */
+export interface AgentPeek {
+  agentId: string;
+  text: string | null;
+  loading: boolean;
+}
+
+export interface DirEntry {
+  name: string;
+  path: string;
+}
+
+/** A directory listing for the workspace folder browser. */
+export interface DirListing {
+  path: string;
+  parent: string | null;
+  home: string;
+  /** The bridge's current workspace cwd, so the picker can mark it. */
+  cwd: string;
+  entries: DirEntry[];
 }
 
 export type Theme = "light" | "dark" | "console";
@@ -128,6 +160,10 @@ export interface BridgeSnapshot {
   searchResults: SessionHit[] | null;
   /** Spawned parallel/subagents (depth-tagged tree) for the nested picker. */
   agents: AgentTreeNode[];
+  /** Terminal tail for the currently open agent peek sheet, null when closed. */
+  peek: AgentPeek | null;
+  /** Current folder-browser listing, null until the workspace picker loads one. */
+  dirListing: DirListing | null;
   /** The agent currently attached for the rich chat view ("agent-chat"), if any. */
   attachedAgentId: string | null;
   attachedAgentLabel: string | null;

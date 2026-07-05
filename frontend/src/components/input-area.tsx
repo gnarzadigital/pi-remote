@@ -14,7 +14,6 @@ import type { PiCommand } from "@/lib/types";
 import { createRecognition, isVoiceSupported, transcriptFromEvent, type Recognition } from "@/lib/speech";
 import { cn, hapticTap } from "@/lib/utils";
 
-const MODE_LABELS = { prompt: "Prompt", steer: "Steer", follow_up: "Follow-up" };
 const THINKING_LABELS = { none: "Off", low: "Low", high: "High" };
 
 function filterCommands(commands: PiCommand[], filter: string) {
@@ -214,7 +213,7 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
           }}
           maxHeight={140}
           disabled={!snapshot.connected}
-          className="rounded-[14px] border-hairline bg-chalk p-1.5 shadow-none"
+          className="rounded-[22px] border-hairline bg-canvas p-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
         >
           <PromptInputTextarea
             id="msg-input"
@@ -286,34 +285,45 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
             )}
 
             {!snapshot.cmdPickerOpen && (
-              <>
-                <InputToolbarChip
-                  tooltip="Send mode (Prompt → Steer → Follow-up)"
-                  active={snapshot.mode !== "prompt"}
-                  onClick={() => bridge.cycleMode()}
-                >
-                  {MODE_LABELS[snapshot.mode]}
-                </InputToolbarChip>
-                <InputToolbarChip
-                  tooltip="Thinking level (Off → Low → High)"
-                  active={snapshot.thinkingLevel !== "none"}
-                  onClick={() => bridge.cycleThinking()}
-                >
-                  {THINKING_LABELS[snapshot.thinkingLevel]}
-                </InputToolbarChip>
-              </>
+              <InputToolbarChip
+                tooltip="Thinking level (Off → Low → High)"
+                active={snapshot.thinkingLevel !== "none"}
+                onClick={() => bridge.cycleThinking()}
+              >
+                {THINKING_LABELS[snapshot.thinkingLevel]}
+              </InputToolbarChip>
             )}
 
             <div className="ml-auto flex items-center gap-1">
               {!snapshot.cmdPickerOpen && snapshot.allModels.length > 0 && (
                 <ModelPickerAction />
               )}
-              <PromptInputAction tooltip="Send">
+              {/* While the agent is working, a plain send QUEUES (shown as a Queued
+                  chip); "Interrupt" is the explicit cut-in-and-steer path. */}
+              {snapshot.streaming && input.trim() && (
+                <PromptInputAction tooltip="Interrupt the agent and steer it now">
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    className="h-7 rounded-full px-2.5 text-[12px]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      hapticTap();
+                      bridge.sendInterrupt(input);
+                      setInput("");
+                    }}
+                  >
+                    Interrupt
+                  </Button>
+                </PromptInputAction>
+              )}
+              <PromptInputAction tooltip={snapshot.streaming ? "Queue for after this turn" : "Send"}>
                 <Button
                   size="icon-sm"
                   className="rounded-full"
                   disabled={!snapshot.connected || !input.trim()}
-                  aria-label="Send"
+                  aria-label={snapshot.streaming ? "Queue" : "Send"}
                   onClick={(e) => {
                     e.stopPropagation();
                     sendCurrent();

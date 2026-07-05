@@ -73,9 +73,14 @@ test.describe("sessions bottom gap", () => {
 
     // Bottom of viewport must be canvas (#0a0a0a), not pure black (#000) or a gap
     const bottomPixel = await page.evaluate(() => {
-      const y = window.innerHeight - 2;
-      const el = document.elementFromPoint(window.innerWidth / 2, y);
-      const bg = el ? getComputedStyle(el).backgroundColor : "none";
+      // Effective rendered color: the topmost element may be a transparent
+      // session row — walk the stack for the first opaque background behind it.
+      const stack = document.elementsFromPoint(window.innerWidth / 2, window.innerHeight - 2);
+      let bg = "none";
+      for (const el of stack) {
+        const c = getComputedStyle(el).backgroundColor;
+        if (c && c !== "rgba(0, 0, 0, 0)" && c !== "transparent") { bg = c; break; }
+      }
       const shell = document.querySelector(".app-shell")?.getBoundingClientRect();
       return { bg, shellBottom: shell?.bottom ?? 0, innerHeight: window.innerHeight };
     });
