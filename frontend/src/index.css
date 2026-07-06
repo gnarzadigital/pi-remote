@@ -263,12 +263,18 @@ html.keyboard-open .input-footer {
      immune to the recalc bug. Keyboard avoidance: html.keyboard-open shrinks
      body to --app-visible-height, shrinking the column and lifting the dock
      above the keyboard, no fixed positioning needed. */
+  /* No env(safe-area-inset-bottom) here — reference-diffed against Hermes
+     WebUI's composer (~/.hermes/hermes-agent/web/src/App.tsx), which has ZERO
+     safe-area-bottom padding on its chat route (the one env() usage in that
+     whole codebase is explicitly `!isChatRoute`-scoped to non-chat pages).
+     Matching that exactly kills the visible reserved-space bar below the
+     composer; the dock's own 8px is enough breathing room. */
   .chat-bottom-dock {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding-bottom: 8px;
   }
 
   html.keyboard-open .chat-bottom-dock {
-    padding-bottom: 8px; /* keyboard covers the home-indicator safe area */
+    padding-bottom: 8px;
   }
 }
 
