@@ -1,5 +1,6 @@
 import { ArrowUp, Check, ChevronLeft, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ScreenHeader } from "@/components/screen-header";
 import { Button } from "@/components/ui/button";
 import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
@@ -81,7 +82,11 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
     onClose();
   };
 
-  return (
+  // Portal to <body>: a fullscreen fixed overlay must NOT live inside
+  // .sessions-scroll (an overflow-y-auto container). On real iOS a position:fixed
+  // descendant of a scroll container anchors to the scrolled content, not the
+  // viewport, which floated the composer above the home indicator (the black gap).
+  return createPortal(
     <div className="chat-view-root fixed inset-0 z-50 flex flex-col bg-canvas">
       <ScreenHeader innerClassName="gap-2">
         <button
@@ -157,6 +162,7 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
           </div>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -37,6 +37,20 @@ test("terminal-agent overlay composer sits flush at the bottom (WebKit iPhone)",
 
   await page.screenshot({ path: join(EVIDENCE, "webkit-terminal-composer.png"), fullPage: false });
 
+  // Root-cause proof: the overlay must be portaled to <body>, NOT nested inside
+  // .sessions-scroll (an overflow container) — that nesting is what floated the
+  // composer above the home indicator on real iOS.
+  const placement = await page.evaluate(() => {
+    const root = document.querySelector(".chat-view-root.fixed");
+    return {
+      parentIsBody: root?.parentElement === document.body,
+      insideSessionsScroll: !!root?.closest(".sessions-scroll"),
+    };
+  });
+  console.log("terminal overlay placement", placement);
+  expect(placement.parentIsBody).toBe(true);
+  expect(placement.insideSessionsScroll).toBe(false);
+
   const metrics = await page.evaluate(() => {
     const dock = document.querySelector(".chat-bottom-dock");
     const box = dock?.querySelector('div[class*="rounded-"]');
