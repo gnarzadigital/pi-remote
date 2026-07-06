@@ -142,7 +142,7 @@ export function SessionsView() {
             }}
             className="text-[10px] tabular-nums text-concrete opacity-50"
           >
-            v18
+            v19
           </button>
         </div>
         <div className="flex items-center gap-1">

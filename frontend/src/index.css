@@ -254,23 +254,21 @@ html.keyboard-open .input-footer {
 }
 
 @media (max-width: 767px) {
+  /* NOT position:fixed. iOS standalone PWAs (Add to Home Screen) mis-position
+     position:fixed elements after a viewport recalc — the composer floats ~200px
+     above the real bottom and never recovers (Apple dev forum: "position:fixed
+     breaks after a while"; this is the standalone-only gap that Safari and
+     Playwright/desktop WebKit never reproduce). Instead the dock is the LAST
+     flex child of the 100dvh chat column, so layout pins it to the bottom —
+     immune to the recalc bug. Keyboard avoidance: html.keyboard-open shrinks
+     body to --app-visible-height, shrinking the column and lifting the dock
+     above the keyboard, no fixed positioning needed. */
   .chat-bottom-dock {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: var(--keyboard-inset-bottom, 0px);
-    z-index: 40;
-    /* A tiny 16px lift so the composer's rounded bottom + buttons clear the
-       screen edge / home indicator, without the fat safe-area black bar. */
-    padding-bottom: 16px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
   }
 
   html.keyboard-open .chat-bottom-dock {
-    padding-bottom: 8px;
-  }
-
-  .chat-view-root .chat-scroll-zone {
-    padding-bottom: calc(var(--chat-bottom-height, 7.5rem) + 12px);
+    padding-bottom: 8px; /* keyboard covers the home-indicator safe area */
   }
 }
 

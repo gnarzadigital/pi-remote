@@ -32,7 +32,9 @@ test("terminal-agent overlay composer sits flush at the bottom (WebKit iPhone)",
 
   // Confirm the terminal overlay mounted: "Agents" back button + a mono <pre>.
   await expect(page.getByText("Agents", { exact: true })).toBeVisible();
-  const dock = page.locator(".chat-bottom-dock");
+  // Scope to the portaled terminal overlay — a background chat view may also
+  // have its own .chat-bottom-dock in the DOM.
+  const dock = page.locator(".chat-view-root.fixed .chat-bottom-dock");
   await expect(dock).toBeVisible();
 
   await page.screenshot({ path: join(EVIDENCE, "webkit-terminal-composer.png"), fullPage: false });
@@ -52,10 +54,11 @@ test("terminal-agent overlay composer sits flush at the bottom (WebKit iPhone)",
   expect(placement.insideSessionsScroll).toBe(false);
 
   const metrics = await page.evaluate(() => {
-    const dock = document.querySelector(".chat-bottom-dock");
+    const overlay = document.querySelector(".chat-view-root.fixed");
+    const dock = overlay?.querySelector(".chat-bottom-dock");
     const box = dock?.querySelector('div[class*="rounded-"]');
     const input = dock?.querySelector("input");
-    const pre = document.querySelector("pre.chat-scroll-zone");
+    const pre = overlay?.querySelector("pre.chat-scroll-zone");
     const dr = dock?.getBoundingClientRect();
     const br = box?.getBoundingClientRect();
     return {
@@ -77,5 +80,6 @@ test("terminal-agent overlay composer sits flush at the bottom (WebKit iPhone)",
   expect(metrics.composerBoxBottomGap).toBeLessThan(28); // NOT a fat black bar
   expect(metrics.inputFontPx).toBeGreaterThanOrEqual(16); // 16px kills iOS focus-zoom
   expect(metrics.preExists).toBe(true); // scroll zone class present
-  expect(metrics.prePaddingBottomPx ?? 0).toBeGreaterThan(20); // reserves room under fixed dock
+  // Dock is now an in-flow flex child (not a fixed overlay), so the <pre> no
+  // longer needs reserved bottom padding — the composer sits below it in flow.
 });
