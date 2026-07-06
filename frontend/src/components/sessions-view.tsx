@@ -132,7 +132,7 @@ export function SessionsView() {
           <ConnectionDot phase={snapshot.connectionPhase} className="self-center" />
           <span className="sr-only">pi</span>
           {/* Build marker: instantly tells us on-device whether the new build loaded. */}
-          <span className="text-[10px] tabular-nums text-concrete opacity-50">v14</span>
+          <span className="text-[10px] tabular-nums text-concrete opacity-50">v15</span>
         </div>
         <div className="flex items-center gap-1">
           <SettingsPanel />

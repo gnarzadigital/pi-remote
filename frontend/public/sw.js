@@ -1,4 +1,4 @@
-const CACHE_NAME = "pi-remote-v14";
+const CACHE_NAME = "pi-remote-v15";
 const PRECACHE_ASSETS = [
   "/",
   "/index.html",
