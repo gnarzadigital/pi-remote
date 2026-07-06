@@ -1215,6 +1215,18 @@ const server = Bun.serve({
       });
     }
 
+    // Device diagnostics: the frontend POSTs its real layout geometry (standalone
+    // mode, viewport heights, dock position) so composer/safe-area bugs can be
+    // diagnosed from the ACTUAL device without screenshot round-trips. Appends
+    // JSONL to /tmp/pi-remote-diag.jsonl; read the tail to see the phone's truth.
+    if (url.pathname === "/api/diag" && req.method === "POST") {
+      return req.json().then((body: any) => {
+        const line = JSON.stringify({ at: new Date().toISOString(), ...body });
+        appendFileSync("/tmp/pi-remote-diag.jsonl", line + "\n");
+        return Response.json({ ok: true });
+      }).catch(() => new Response("Invalid JSON", { status: 400 }));
+    }
+
     const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
     const safePath = join(PUBLIC_DIR, pathname.replace(/\.\./g, ""));
     return serveFile(safePath);
