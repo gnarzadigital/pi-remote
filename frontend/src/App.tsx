@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { AgentChatView } from "@/components/agent-chat-view";
 import { ChatView } from "@/components/chat-view";
+import { DiagOverlay } from "@/components/diag-overlay";
 import { ExtensionDialog } from "@/components/extension-dialog";
 import { SessionsView } from "@/components/sessions-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -68,6 +69,7 @@ export default function App() {
         <div className="app-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
           <AppShell />
           <ExtensionDialog />
+          <DiagOverlay />
         </div>
       </ErrorBoundary>
     </TooltipProvider>

@@ -131,8 +131,19 @@ export function SessionsView() {
           <PiLogo size={28} />
           <ConnectionDot phase={snapshot.connectionPhase} className="self-center" />
           <span className="sr-only">pi</span>
-          {/* Build marker: instantly tells us on-device whether the new build loaded. */}
-          <span className="text-[10px] tabular-nums text-concrete opacity-50">v15</span>
+          {/* Build marker: shows which build loaded on-device. Tap to toggle the
+              standalone geometry diagnostic overlay (DiagOverlay). */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = localStorage.getItem("pi-diag") === "1" ? "0" : "1";
+              localStorage.setItem("pi-diag", next);
+              window.dispatchEvent(new Event("pi-diag-toggle"));
+            }}
+            className="text-[10px] tabular-nums text-concrete opacity-50"
+          >
+            v16
+          </button>
         </div>
         <div className="flex items-center gap-1">
           <SettingsPanel />
