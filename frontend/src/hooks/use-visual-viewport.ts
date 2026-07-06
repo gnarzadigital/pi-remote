@@ -43,16 +43,24 @@ export function useVisualViewport() {
       const keyboardByViewport = inputFocused && (inset > 50 || top > 0);
       const keyboardOpen = keyboardByViewport || (inputFocused && isInputObscured());
 
+      // --app-height drives the whole layout height. On iOS STANDALONE PWAs,
+      // 100dvh/100vh is measured wrong (renders shorter than the screen), which
+      // left the bottom composer floating above the real bottom no matter how it
+      // was positioned. window.innerHeight IS correct in standalone, so anchor
+      // the height to it. When the keyboard opens, shrink to the visible height
+      // so the composer rides above the keyboard.
       if (keyboardOpen) {
         const bottomInset = Math.max(0, layoutH - visibleH - top);
         document.documentElement.style.setProperty("--vv-offset-top", `${top}px`);
         document.documentElement.style.setProperty("--vv-offset-bottom", "0px");
         document.documentElement.style.setProperty("--app-visible-height", `${visibleH}px`);
+        document.documentElement.style.setProperty("--app-height", `${visibleH}px`);
         document.documentElement.style.setProperty("--keyboard-inset-bottom", `${bottomInset}px`);
       } else {
         document.documentElement.style.setProperty("--vv-offset-top", "0px");
         document.documentElement.style.setProperty("--vv-offset-bottom", "0px");
         document.documentElement.style.removeProperty("--app-visible-height");
+        document.documentElement.style.setProperty("--app-height", `${layoutH}px`);
         document.documentElement.style.setProperty("--keyboard-inset-bottom", "0px");
         if (top > 0) window.scrollTo(0, 0);
       }

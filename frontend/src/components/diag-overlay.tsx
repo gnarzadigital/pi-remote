@@ -26,7 +26,7 @@ export function DiagOverlay() {
       setText(
         [
           `standalone=${standalone} dispMode=${matchMedia("(display-mode: standalone)").matches}`,
-          `innerH=${window.innerHeight} vvH=${Math.round(vv?.height ?? 0)} vvTop=${Math.round(vv?.offsetTop ?? 0)}`,
+          `innerH=${window.innerHeight} vvH=${Math.round(vv?.height ?? 0)} appH=${root.style.getPropertyValue("--app-height") || "unset"} bodyH=${Math.round(document.body.getBoundingClientRect().height)}`,
           `dockBot=${r ? Math.round(r.bottom) : "-"} gapBelow=${r ? Math.round(window.innerHeight - r.bottom) : "-"}`,
           `dock pos=${cs?.position} bottom=${cs?.bottom} pb=${cs?.paddingBottom}`,
           `kbInset=${root.style.getPropertyValue("--keyboard-inset-bottom") || "unset"} safeBot=${getComputedStyle(root).getPropertyValue("--safe-bottom").trim()} kbOpen=${root.classList.contains("keyboard-open")}`,
