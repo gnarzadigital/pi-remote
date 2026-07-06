@@ -1,7 +1,8 @@
-import { Check, ChevronLeft, RotateCw } from "lucide-react";
+import { ArrowUp, Check, ChevronLeft, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ScreenHeader } from "@/components/screen-header";
 import { Button } from "@/components/ui/button";
+import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { runtimeLabel } from "@/lib/agent-runtime";
 import type { AgentTreeNode } from "@/lib/types";
@@ -32,6 +33,11 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
   const { snapshot, bridge } = usePiBridge();
   const [reply, setReply] = useState("");
   const bodyRef = useRef<HTMLPreElement>(null);
+  // Same fixed bottom-dock contract as AgentChatView: publish --chat-bottom-height
+  // so the scroll zone reserves room and the composer pins to the true viewport
+  // bottom (standalone-PWA home indicator included), no fat black bar.
+  const bottomDockRef = useRef<HTMLDivElement>(null);
+  useChatBottomInset(bottomDockRef, true);
   // Only auto-scroll on refresh when the user is already at the bottom, so a
   // scroll-up to read isn't yanked back down every 3s. Starts true (open at end).
   const stickToBottom = useRef(true);
@@ -76,7 +82,7 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
+    <div className="chat-view-root fixed inset-0 z-50 flex flex-col bg-canvas">
       <ScreenHeader innerClassName="gap-2">
         <button
           type="button"
@@ -117,7 +123,7 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
       <pre
         ref={bodyRef}
         onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-canvas px-3 py-3 font-mono text-[11px] leading-[1.5] text-graphite"
+        className="chat-scroll-zone min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-canvas px-3 py-3 font-mono text-[11px] leading-[1.5] text-graphite"
       >
         {showFor?.loading
           ? "Reading terminal…"
@@ -126,23 +132,30 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
             : "Could not read this pane (some agent surfaces don't expose their terminal text). You can still send a message below."}
       </pre>
 
-      <div
-        className="chat-bottom-dock flex items-center gap-2 border-t border-hairline px-3 py-2"
-        style={{ paddingBottom: "16px" }}
-      >
-        <input
-          type="text"
-          value={reply}
-          onChange={(e) => setReply(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendReply()}
-          placeholder="Send a message to this agent…"
-          aria-label="Message to agent"
-          enterKeyHint="send"
-          className="min-w-0 flex-1 rounded-[18px] border border-hairline bg-canvas px-3.5 py-2.5 text-[14px] text-graphite outline-none placeholder:text-concrete"
-        />
-        <Button size="sm" onClick={sendReply} disabled={!reply.trim() || !agent.surface}>
-          Send
-        </Button>
+      <div ref={bottomDockRef} className="chat-bottom-dock">
+        <footer className="input-footer w-full max-w-full shrink-0 overflow-x-clip px-3 pt-2">
+          <div className="flex items-center gap-2 rounded-[22px] border border-hairline bg-canvas p-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+            <input
+              type="text"
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendReply()}
+              placeholder="Send a message to this agent…"
+              aria-label="Message to agent"
+              enterKeyHint="send"
+              className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[16px] text-graphite outline-none placeholder:text-concrete md:text-[14px]"
+            />
+            <Button
+              size="icon-sm"
+              className="shrink-0 rounded-full"
+              onClick={sendReply}
+              disabled={!reply.trim() || !agent.surface}
+              aria-label="Send"
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+          </div>
+        </footer>
       </div>
     </div>
   );
