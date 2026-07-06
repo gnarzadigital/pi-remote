@@ -2,14 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- No interactive-widget=resizes-content: on iOS it shrinks the LAYOUT viewport
-         with the keyboard and often fails to restore, leaving the fixed composer
-         floating above the real bottom (hermes-webui omits it and is rock solid).
-         Keyboard avoidance is handled by use-visual-viewport lifting the dock. -->
+    <!-- Reference-diffed against Hermes WebUI (~/.hermes/hermes-agent/web/index.html),
+         which has ZERO app-install metadata — no manifest link, no
+         apple-mobile-web-app-capable. Hermes is never launched in Apple's
+         "installed standalone app" WKWebView container; it's a bookmarked page
+         rendered by plain Mobile Safari. That container is the root cause of
+         every iOS-only bug hit here (position:fixed breaking after a viewport
+         recalc, 100dvh mismeasuring, window.innerHeight != window.screen.height)
+         — all are documented quirks specific to Apple's standalone display mode,
+         not bugs in this app's CSS. Removing apple-mobile-web-app-capable stops
+         "Add to Home Screen" from entering that mode at all, matching Hermes
+         exactly. Trade-off: the icon opens plain Safari (address bar + Safari's
+         own auto-hiding toolbar) instead of a borderless full-screen look — the
+         same trade Hermes already makes, which is why Hermes has never hit any
+         of these bugs. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="pi" />
     <meta name="theme-color" content="#0a0a0a" />
     <script>
       (function () {

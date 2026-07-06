@@ -7,7 +7,7 @@
 // later build had deleted -> blank screen / old UI. Removing the fetch handler
 // means every request goes straight to the network, so the app is ALWAYS the
 // current build. Push notifications still work (handler below).
-const CACHE_NAME = "pi-remote-v22";
+const CACHE_NAME = "pi-remote-v23";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

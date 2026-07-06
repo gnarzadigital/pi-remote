@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const BUILD = "v22";
+const BUILD = "v23";
 
 /** Collect the real device layout geometry (standalone mode, viewport heights,
  * dock position) — the exact numbers needed to diagnose composer/safe-area bugs. */
