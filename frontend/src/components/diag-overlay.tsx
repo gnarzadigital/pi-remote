@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
  * Reads REAL device metrics so a single standalone screenshot pins the composer
  * bug that Playwright-WebKit / Safari-in-sim can't reproduce. Remove after diag. */
 export function DiagOverlay() {
-  const [on, setOn] = useState(() => localStorage.getItem("pi-diag") === "1");
+  const [on, setOn] = useState(() => localStorage.getItem("pi-diag") !== "0"); // TEMP: default ON for standalone diag
   const [text, setText] = useState("");
 
   useEffect(() => {

@@ -1,54 +1,31 @@
-const CACHE_NAME = "pi-remote-v16";
-const PRECACHE_ASSETS = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  "/icon-32.png",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/apple-touch-icon.png",
-];
-const NETWORK_FIRST_PATHS = new Set(["/", "/index.html", "/manifest.json"]);
+// pi-remote service worker — NETWORK-ONLY (no asset caching).
+//
+// This is a LAN/tailnet dev tool that is always online when in use. The prior
+// caching service worker repeatedly served STALE or BROKEN builds to the iOS
+// standalone PWA (Add-to-Home-Screen), because iOS pins a web clip's service
+// worker hard and the cached index.html could reference asset hashes that a
+// later build had deleted -> blank screen / old UI. Removing the fetch handler
+// means every request goes straight to the network, so the app is ALWAYS the
+// current build. Push notifications still work (handler below).
+const CACHE_NAME = "pi-remote-v18";
 
-self.addEventListener("install", (evt) => {
-  evt.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
-  );
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (evt) => {
+  // Purge EVERY cache left by older caching service workers so no stale build
+  // can ever be served again, then take control of open clients immediately.
   evt.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-async function networkFirst(request) {
-  const cache = await caches.open(CACHE_NAME);
-  try {
-    const response = await fetch(request);
-    if (response && response.status === 200 && response.type === "basic") {
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    throw new Error("offline");
-  }
-}
-
-self.addEventListener("fetch", (evt) => {
-  const url = new URL(evt.request.url);
-  if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/")) return;
-  if (NETWORK_FIRST_PATHS.has(url.pathname) || url.pathname.startsWith("/assets/")) {
-    evt.respondWith(networkFirst(evt.request));
-  }
-});
+// Intentionally NO "fetch" listener: unhandled fetches go to the network by
+// default, guaranteeing the latest build every load.
 
 self.addEventListener("push", (evt) => {
   let data = { title: "pi", body: "LLM finished working." };
