@@ -48,7 +48,8 @@ It also sends bridge-side metadata:
 - Thinking level controls (`set_thinking_level`) persisted across restarts
 - Extension UI request/response round-trips
 - Optional terminal input passthrough (`prompt`, `follow_up`, `abort`)
-- PWA install support (manifest + service worker)
+- Home-screen icon via manifest + network-only service worker (opens in Safari, not a
+  standalone WKWebView — intentional, see PLAN.md's "iOS composer bug" section for why)
 - Optional Web Push notifications on `agent_end`
 - Mobile polish: safe areas, haptics, unread/finish indicator, copy buttons on code blocks
 - Image attachment support from the UI

@@ -357,6 +357,48 @@ chat send→stream→receive verified live over a real WS round-trip. Everything
 
 ---
 
+## iOS composer bug — ACTUAL root cause + final fix (2026-07-06)
+
+**Correction to the record above:** the "iOS composer black-bar bug" item logged 2026-07-04/05
+as fixed with "Nik confirmed fixed live on his actual iPhone" was real progress but NOT the
+full fix — it regressed, because none of that session's verification (Chrome, Playwright
+WebKit, even Safari-in-Simulator) can render Apple's real standalone-PWA WKWebView mode. Full
+honest postmortem in Claude memory `debugging-enumerate-research-reference-first`.
+
+**The actual root cause, found by reference-diffing Hermes WebUI's CONTAINER (not just its
+CSS):** Apple's "installed standalone app" WKWebView display mode itself — entered via
+`apple-mobile-web-app-capable` + manifest.json `display: standalone` — has multiple
+documented, CSS-unfixable WebKit bugs: `position:fixed` breaking after a viewport recalc,
+`100dvh` mismeasuring, and (caught via new device telemetry) `window.innerHeight` silently
+diverging from `window.screen.height` by 62px with zero DOM-visible cause. Hermes WebUI's
+`index.html` has ZERO app-install metadata — it never enters that mode at all, which is why
+it never hit any of these bugs.
+
+- [x] **Removed `apple-mobile-web-app-capable` + `apple-mobile-web-app-status-bar-style`**
+  from `frontend/index.html`; changed `frontend/public/manifest.json`'s `display` from
+  `"standalone"` to `"browser"` — matching Hermes exactly. Trade-off accepted: "Add to Home
+  Screen" now opens plain Safari chrome instead of a borderless fullscreen look.
+- [x] **Dropped the `env(safe-area-inset-bottom)` padding on `.chat-bottom-dock`** — another
+  reference-diff finding (Hermes's composer has zero such padding; the one `env()` usage in
+  its whole codebase is explicitly non-chat-route-scoped).
+- [x] **Added `pwa-container.test.ts`** (repo root, `bun test`) — mechanical regression guard:
+  fails immediately if the meta tag or standalone display mode ever comes back.
+- [x] **Added permanent device telemetry** (`diag-overlay.tsx`) — the app POSTs its real
+  layout geometry to `/api/diag` on every load, logged to `/tmp/pi-remote-diag.jsonl`, so any
+  future device-only layout bug is diagnosable without a screenshot round-trip.
+- [x] **`sw.js` rewritten network-only** (v18+) — no `fetch` handler at all, purges old caches
+  on activate. This is a LAN/tailnet tool, always online in use; caching was pure downside and
+  was independently causing "still on the old build" confusion throughout this saga.
+
+**Confirmed fixed on Nik's real iPhone (2026-07-06), this time via device telemetry, not a
+screenshot.** Tagged `ios-standalone-fix-2026-07-06`. Full incident + regression rules in
+Claude memory: `pi-remote-ios-bottom-bar-root-cause-fix`, `pi-remote-must-test-on-real-iphone`,
+`debugging-enumerate-research-reference-first`. Cross-project rule promoted to
+`~/.agents/RULES.md` ("Research + Reference-Diff BEFORE Hypothesizing") and synced to every
+agent runtime.
+
+---
+
 ## Sequencing
 Phase 1 and 2 are independent and low-risk — run them first for visible progress. Phase 3 is
 the multi-session arc; 3.1 and 3.4 are pure functions (fast TDD wins) that de-risk the bridge
