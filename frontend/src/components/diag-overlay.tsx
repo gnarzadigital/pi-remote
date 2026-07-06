@@ -39,11 +39,14 @@ function readMetrics() {
   };
 }
 
-/** TEMP diagnostics. Two parts:
- * 1. Telemetry (ALWAYS on): POSTs real device geometry to /api/diag on load and
- *    every 10s, so the phone's truth is readable server-side from
- *    /tmp/pi-remote-diag.jsonl — no screenshot round-trips.
- * 2. Visual strip: toggled by tapping the header build marker. Remove after diag. */
+/** Permanent layout-regression sentinel, kept after the 2026-07-06 iOS
+ * standalone-container saga. Two parts:
+ * 1. Telemetry (always on): POSTs real device geometry to /api/diag on load and
+ *    every 10s, so any future device-only layout bug is readable server-side
+ *    from /tmp/pi-remote-diag.jsonl on the next report — no screenshot
+ *    round-trips, no guessing from an emulator that can't see the real bug.
+ * 2. Visual strip: off by default, toggled by tapping the header build marker,
+ *    for in-the-moment debugging on the actual device. */
 export function DiagOverlay() {
   const [on, setOn] = useState(() => localStorage.getItem("pi-diag") === "1");
   const [text, setText] = useState("");
