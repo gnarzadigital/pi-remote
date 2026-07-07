@@ -403,3 +403,50 @@ agent runtime.
 Phase 1 and 2 are independent and low-risk — run them first for visible progress. Phase 3 is
 the multi-session arc; 3.1 and 3.4 are pure functions (fast TDD wins) that de-risk the bridge
 refactor before it touches live processes. Commit after every green card.
+
+---
+
+## Phase 4 — assistant-ui port hardening + feature adoption (feat/assistant-ui-port only)
+
+**Scope guard (non-negotiable for every card below):** work only in this worktree
+(`~/repos/pi-remote-port`), branch `feat/assistant-ui-port`. Never edit, build, or restart
+anything in `~/repos/pi-remote` (the live checkout serving the launchd bridge on :7700 — Nik's
+phone talks to that process). Never merge to `main`. Commit + push to `origin
+feat/assistant-ui-port` per card; never force-push.
+
+**Validation gate (must be green before any commit):**
+```
+cd ~/repos/pi-remote-port && \
+  bun test $(find . -name '*.test.ts' -not -path '*/node_modules/*') && \
+  (cd frontend && npx tsc --noEmit -p tsconfig.app.json) && \
+  pnpm run build:ui
+```
+UI-touching cards additionally run the relevant `qa/*.spec.ts` Playwright specs. Real-device
+keyboard checks (checklist section 2) are out of scope for this headless loop — label anything
+that needs them "unverified for keyboard interaction (device-only)" instead of claiming done.
+
+- [ ] **4.0 Bug hunt on the ported chat shell (repeats until dry).** Each pass: run the full
+  gate above, then actively probe the assistant-ui-backed transcript/composer for behavior gaps
+  vs. the pre-port UI — message ordering, scroll/focus on new messages, error/disconnect states,
+  reconnect handling, tool-card/diff rendering through the line-id lookup, terminal-agent view,
+  queue-while-streaming. Fix anything real, commit, and append one line to
+  `.ralph-state/bug-hunt-log.txt`: `FOUND: <one-line bug>` or `DRY`. Only mark this card `[x]`
+  once the log's last two lines both read `DRY`. Until then it stays `[ ]` and gets picked again.
+- [ ] **4.1 Edit-and-resubmit / regenerate last reply.** Wire `ExternalStoreRuntime`'s `onEdit`/
+  `onReload` against the existing bridge send path; add the UI affordance on user + assistant
+  messages (reuse existing icon/button patterns, don't invent a new visual language).
+- [ ] **4.2 Inline tool-approval prompts.** For any pi tool call that should require confirmation
+  before running, render an approve/deny control directly in the transcript via
+  `onAddToolResult`, instead of the agent just acting. Confirm with Nik which tool calls should
+  actually gate (don't guess — if unclear, implement the plumbing behind a flag and leave it off
+  by default, note this in the card instead of guessing wrong).
+- [ ] **4.3 Keyboard shortcuts + accessibility pass.** Arrow-key composer history recall; verify
+  assistant-ui's exposed ARIA roles/focus management are actually wired through our custom
+  renderers, not just present in the primitives we didn't touch.
+- [ ] **4.4 Thread/session switcher evaluation.** Compare assistant-ui's `ThreadList` primitive
+  against the existing `sessions-view.tsx`. Implement only if it's a net simplification over what
+  we have; otherwise mark this card `[x]` with a one-paragraph note on why it was skipped. Do not
+  build a second, competing session switcher.
+
+Each iteration: pick the first unchecked card above, do only that card's work, gate, commit,
+push, log to `.ralph-state/iteration-log.md`, stop. No scope creep across cards.
