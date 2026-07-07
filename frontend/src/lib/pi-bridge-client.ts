@@ -140,6 +140,13 @@ export class PiBridgeClient {
    * would otherwise overwrite fresher pane text. Only the response matching
    * the latest request per agent gets applied. */
   private latestCapturePaneRequest = new Map<string, string>();
+  /** The most recently issued switch_session request id. Tapping session A
+   * then session B before A's slower switch_session response lands used to
+   * let A's stale response win (unconditional "Session loaded" + clearConversation
+   * + get_messages/get_session_stats fetch), yanking the view back to session A's
+   * data right after the user had already moved on to B. Only the latest
+   * switch's response is ever applied. */
+  private latestSwitchSessionRequestId: string | null = null;
 
   snapshot: BridgeSnapshot = initialSnapshot();
 
@@ -413,7 +420,10 @@ export class PiBridgeClient {
       if (msg.command !== "abort") {
         this.queuePatch({ statusError: msg.command ? `${msg.command} failed` : "command failed" });
         setTimeout(() => this.queuePatch({ statusError: null }), 4000);
-        if (msg.command === "switch_session") {
+        if (
+          msg.command === "switch_session" &&
+          isLatestAttachRequest(msg.id ? String(msg.id) : undefined, this.latestSwitchSessionRequestId)
+        ) {
           this.queuePatch({ view: "sessions" });
         }
         if (msg.command === "rename_session") {
@@ -577,6 +587,7 @@ export class PiBridgeClient {
         break;
       }
       case "switch_session":
+        if (!isLatestAttachRequest(msg.id ? String(msg.id) : undefined, this.latestSwitchSessionRequestId)) break;
         if (!msg.data?.cancelled) {
           this.pendingRenames.delete(`switch-${msg.id}`);
           this.appendSystem("✓ Session loaded");
@@ -1102,7 +1113,7 @@ export class PiBridgeClient {
       view: "chat",
     });
     markSessionRead(session.path, session.mtime);
-    this.sendWithId({ type: "switch_session", sessionPath: session.path });
+    this.latestSwitchSessionRequestId = this.sendWithId({ type: "switch_session", sessionPath: session.path });
     if (this.snapshot.connected) {
       this.appendSystem("↻ Switching session…");
     } else {
