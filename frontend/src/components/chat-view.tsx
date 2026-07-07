@@ -1,33 +1,19 @@
 import { ChevronLeft, GitBranch, Square } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AssistantChatShell } from "@/components/assistant-ui/pi-chat-shell";
 import { ChatOverflowMenu } from "@/components/chat-overflow-menu";
 import { ConversationView } from "@/components/conversation-view";
 import { InputArea } from "@/components/input-area";
-import { PiLogo } from "@/components/pi-logo";
+import { NewSessionHero } from "@/components/new-session-hero";
 import { ScreenHeader } from "@/components/screen-header";
 import { SessionRenameSheet } from "@/components/session-rename-sheet";
 import { StreamingStatusBar } from "@/components/streaming-status-bar";
 import { SettingsPanel } from "@/components/settings-panel";
 import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
+import { isSpikeMode } from "@/lib/spike-mode";
 import { hapticTap } from "@/lib/utils";
-
-/** Centered hero for a brand-new (unsaved) session — no messages, no session path yet. */
-function NewSessionHero() {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-6 pb-6">
-      <PiLogo size={40} />
-      <div className="text-center">
-        <p className="text-[16px] font-medium text-graphite">What can I help with?</p>
-        <p className="mt-1 text-[13px] text-concrete">Ask anything, run commands, or explore files.</p>
-      </div>
-      <div className="w-full max-w-[440px]">
-        <InputArea variant="centered" />
-      </div>
-    </div>
-  );
-}
 
 export function ChatView() {
   const { snapshot, bridge } = usePiBridge();
@@ -39,7 +25,9 @@ export function ChatView() {
   // never-prompted session. Center the composer instead of pinning it below a
   // blank transcript (the "black gap" — dock chrome with nothing above it).
   const isNewSession = !snapshot.activeSessionPath && snapshot.lines.length === 0;
-  useChatBottomInset(bottomDockRef, !isNewSession);
+  const spike = isSpikeMode();
+  // In spike mode AssistantChatShell owns the dock + inset itself.
+  useChatBottomInset(bottomDockRef, !spike && !isNewSession);
 
   return (
     <div className="chat-view-root flex h-full min-h-0 w-full min-w-0 flex-1 flex-col bg-canvas">
@@ -84,8 +72,12 @@ export function ChatView() {
         )}
       </ScreenHeader>
 
-      {isNewSession ? (
-        <NewSessionHero />
+      {spike ? (
+        <AssistantChatShell />
+      ) : isNewSession ? (
+        <NewSessionHero>
+          <InputArea variant="centered" />
+        </NewSessionHero>
       ) : (
         <>
           <ConversationView />

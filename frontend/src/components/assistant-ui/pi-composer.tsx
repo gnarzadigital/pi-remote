@@ -1,113 +1,38 @@
 import { ArrowUp, Mic, Paperclip, X } from "lucide-react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState } from "react";
+import { ComposerPrimitive, useAuiState, useComposerRuntime } from "@assistant-ui/react";
 import { Button } from "@/components/ui/button";
-import {
-  PromptInput,
-  PromptInputAction,
-  PromptInputActions,
-  PromptInputTextarea,
-} from "@/components/ui/prompt-input";
+import { PromptInputAction, PromptInputActions } from "@/components/ui/prompt-input";
 import { PromptSuggestionsRow } from "@/components/prompt-suggestions-row";
 import { ModelPickerAction } from "@/components/model-picker-action";
+import {
+  CmdPicker,
+  filterCommands,
+  InputToolbarChip,
+  THINKING_LABELS,
+} from "@/components/input-area";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
-import type { PiCommand } from "@/lib/types";
 import { createRecognition, isVoiceSupported, transcriptFromEvent, type Recognition } from "@/lib/speech";
 import { cn, hapticTap } from "@/lib/utils";
 
-export const THINKING_LABELS = { none: "Off", low: "Low", high: "High" };
-
-export function filterCommands(commands: PiCommand[], filter: string) {
-  const q = filter.toLowerCase();
-  return commands
-    .filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.description ?? "").toLowerCase().includes(q)
-    )
-    .slice(0, 8);
-}
-
-export function CmdPicker({ onSelect }: { onSelect: (value: string) => void }) {
-  const { snapshot, bridge } = usePiBridge();
-  const matches = useMemo(
-    () => filterCommands(snapshot.commands, snapshot.cmdFilter),
-    [snapshot.commands, snapshot.cmdFilter]
-  );
-
-  if (!snapshot.cmdPickerOpen || matches.length === 0) return null;
-
-  return (
-    <div
-      className="absolute bottom-full left-0 z-30 mb-1 w-full max-w-full overflow-x-clip overflow-y-auto overscroll-contain rounded-[10px] border border-hairline bg-chalk shadow-[0_-8px_24px_rgba(0,0,0,0.12)] dark:shadow-[0_-8px_24px_rgba(0,0,0,0.45)]"
-      role="listbox"
-      aria-label="Slash commands"
-    >
-      {matches.map((c, i) => (
-        <button
-          key={c.name}
-          type="button"
-          role="option"
-          aria-selected={i === snapshot.cmdSelectedIdx}
-          className={cn(
-            "block w-full border-b border-hairline px-3 py-2.5 text-left last:border-b-0",
-            i === snapshot.cmdSelectedIdx ? "bg-mist" : "hover:bg-mist"
-          )}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onSelect(bridge.selectCommand(c.name));
-          }}
-        >
-          <div className="truncate text-[13px] font-medium text-graphite">/{c.name}</div>
-          {c.description && (
-            <div className="mt-0.5 truncate text-[12px] text-concrete">{c.description}</div>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-export function InputToolbarChip({
-  active,
-  onClick,
-  children,
-  tooltip,
-}: {
-  active?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  tooltip: string;
-}) {
-  return (
-    <PromptInputAction tooltip={tooltip}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        className={cn(
-          "h-7 rounded-full px-2.5 text-[12px] text-concrete hover:text-graphite",
-          active && "bg-mist text-graphite ring-1 ring-hairline"
-        )}
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick();
-        }}
-      >
-        {children}
-      </Button>
-    </PromptInputAction>
-  );
-}
-
-type InputAreaProps = {
+type PiComposerProps = {
   /** "dock" (default) = pinned to the bottom, hairline border above.
    *  "centered" = for the empty/new-session hero, no dock chrome. */
   variant?: "dock" | "centered";
 };
 
-export function InputArea({ variant = "dock" }: InputAreaProps) {
+/**
+ * assistant-ui port of InputArea: the textarea + send state machine is
+ * assistant-ui's ComposerPrimitive (auto-grow, Enter-to-send, focus-on-run
+ * mechanics, `composer.send()` -> ExternalStoreRuntime `onNew` -> the exact
+ * production `bridge.sendMessage` path, which queues mid-stream). Everything
+ * pi-specific — slash picker, queue chips, voice, thinking chip, model picker,
+ * interrupt — is the same production chrome talking to the bridge directly.
+ */
+export function PiComposer({ variant = "dock" }: PiComposerProps) {
   const { snapshot, bridge } = usePiBridge();
-  const [input, setInput] = useState("");
+  const composer = useComposerRuntime();
+  const text = useAuiState((s) => s.composer.text);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<Recognition | null>(null);
   const baseInputRef = useRef("");
@@ -117,6 +42,8 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
     [snapshot.commands, snapshot.cmdFilter]
   );
 
+  const setText = (value: string) => composer.setText(value);
+
   const toggleVoice = () => {
     if (listening) {
       recognitionRef.current?.stop();
@@ -124,8 +51,9 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
     }
     const rec = createRecognition();
     if (!rec) return;
-    baseInputRef.current = input ? `${input} ` : "";
-    rec.onresult = (e) => setInput(baseInputRef.current + transcriptFromEvent(e).text);
+    const current = composer.getState().text;
+    baseInputRef.current = current ? `${current} ` : "";
+    rec.onresult = (e) => setText(baseInputRef.current + transcriptFromEvent(e).text);
     rec.onend = () => {
       setListening(false);
       recognitionRef.current = null;
@@ -140,10 +68,9 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
     rec.start();
   };
 
-  const handleValueChange = (value: string) => {
-    setInput(value);
+  const handleTextChange = (value: string) => {
     if (value.startsWith("/") && !value.includes(" ")) {
-      // Empty session: PromptSuggestion chips (D). Existing chat: slash dropdown.
+      // Empty session: PromptSuggestion chips. Existing chat: slash dropdown.
       if (snapshot.lines.length > 0) {
         bridge.showCmdPicker(value.slice(1));
       } else {
@@ -154,12 +81,15 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
     }
   };
 
+  const selectHighlightedCommand = () => {
+    const cmd = matches[snapshot.cmdSelectedIdx];
+    if (cmd) setText(bridge.selectCommand(cmd.name));
+  };
+
   const sendCurrent = () => {
-    const val = input.trim();
-    if (!val) return;
+    if (!text.trim()) return;
     hapticTap();
-    bridge.sendMessage(val);
-    setInput("");
+    composer.send();
   };
 
   return (
@@ -197,28 +127,24 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
           </div>
         )}
         <div className="absolute bottom-full left-0 z-20 mb-1.5 w-full max-w-full overflow-hidden">
-          <PromptSuggestionsRow input={input} onSelect={setInput} />
+          <PromptSuggestionsRow input={text} onSelect={setText} />
         </div>
-        {snapshot.lines.length > 0 && <CmdPicker onSelect={setInput} />}
-        <PromptInput
-          value={input}
-          onValueChange={handleValueChange}
-          onSubmit={() => {
-            if (snapshot.cmdPickerOpen && matches.length > 0) {
-              const cmd = matches[snapshot.cmdSelectedIdx];
-              if (cmd) setInput(bridge.selectCommand(cmd.name));
-              return;
-            }
-            sendCurrent();
-          }}
-          maxHeight={140}
-          disabled={!snapshot.connected}
-          className="rounded-[22px] border-hairline bg-canvas p-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+        {snapshot.lines.length > 0 && <CmdPicker onSelect={setText} />}
+        <div
+          className={cn(
+            "cursor-text rounded-[22px] border border-hairline bg-canvas p-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
+            !snapshot.connected && "cursor-not-allowed opacity-60"
+          )}
+          onClick={() => document.getElementById("msg-input")?.focus()}
         >
-          <PromptInputTextarea
+          <ComposerPrimitive.Input
             id="msg-input"
             placeholder={`Message ${snapshot.activeModel?.id ?? "pi"}…`}
-            className="min-h-[44px] px-1 text-[16px] text-graphite placeholder:text-concrete md:text-[14px]"
+            className="max-h-[140px] min-h-[44px] w-full resize-none overflow-y-auto border-none bg-transparent px-1 text-[16px] text-graphite outline-none placeholder:text-concrete md:text-[14px]"
+            rows={1}
+            disabled={!snapshot.connected}
+            cancelOnEscape={false}
+            onChange={(e) => handleTextChange(e.target.value)}
             onFocus={() => {
               window.setTimeout(() => {
                 document.getElementById("msg-input")?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -242,7 +168,10 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
                   return;
                 }
                 if (e.key === "Enter") {
+                  // preventDefault blocks the primitive's own Enter-submit
+                  // (radix composeEventHandlers checks defaultPrevented).
                   e.preventDefault();
+                  selectHighlightedCommand();
                   return;
                 }
                 if (e.key === "Escape") {
@@ -250,6 +179,10 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
                   bridge.hideCmdPicker();
                   return;
                 }
+              }
+              // Whitespace-only never sends (parity with production trim gate).
+              if (e.key === "Enter" && !e.shiftKey && !text.trim()) {
+                e.preventDefault();
               }
             }}
           />
@@ -276,7 +209,7 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
                   onClick={toggleVoice}
                   className={cn(
                     "inline-flex size-8 items-center justify-center rounded-full text-concrete hover:bg-mist hover:text-graphite",
-                    listening && "bg-mist text-graphite ring-1 ring-hairline animate-pulse"
+                    listening && "animate-pulse bg-mist text-graphite ring-1 ring-hairline"
                   )}
                 >
                   <Mic className="size-4" />
@@ -300,7 +233,7 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
               )}
               {/* While the agent is working, a plain send QUEUES (shown as a Queued
                   chip); "Interrupt" is the explicit cut-in-and-steer path. */}
-              {snapshot.streaming && input.trim() && (
+              {snapshot.streaming && text.trim() && (
                 <PromptInputAction tooltip="Interrupt the agent and steer it now">
                   <Button
                     type="button"
@@ -310,8 +243,8 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
                     onClick={(e) => {
                       e.stopPropagation();
                       hapticTap();
-                      bridge.sendInterrupt(input);
-                      setInput("");
+                      bridge.sendInterrupt(text);
+                      composer.setText("");
                     }}
                   >
                     Interrupt
@@ -322,10 +255,14 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
                 <Button
                   size="icon-sm"
                   className="rounded-full"
-                  disabled={!snapshot.connected || !input.trim()}
+                  disabled={!snapshot.connected || !text.trim()}
                   aria-label={snapshot.streaming ? "Queue" : "Send"}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (snapshot.cmdPickerOpen && matches.length > 0) {
+                      selectHighlightedCommand();
+                      return;
+                    }
                     sendCurrent();
                   }}
                 >
@@ -334,7 +271,7 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
               </PromptInputAction>
             </div>
           </PromptInputActions>
-        </PromptInput>
+        </div>
       </div>
     </footer>
   );

@@ -123,7 +123,7 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
   );
 }
 
-function ConversationLine({ line }: { line: ChatLine }) {
+export function ConversationLine({ line }: { line: ChatLine }) {
   if (line.kind === "user") {
     return (
       <Message
