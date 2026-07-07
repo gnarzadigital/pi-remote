@@ -49,7 +49,11 @@ data = {
   'WorkingDirectory': root,
   'EnvironmentVariables': {
     'HOME': home,
-    'PATH': f'/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{home}/.bun/bin:{home}/.local/bin',
+    # /usr/sbin is where lsof lives (agents.ts's resolveCwdForPid shells out to
+    # it) — without it every ambient "pi" agent's cwd silently resolved to ""
+    # (ENOENT swallowed by a bare try/catch), which made every one of them
+    # unopenable from the mobile UI with zero error shown. Root-caused 2026-07-06.
+    'PATH': f'/usr/sbin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{home}/.bun/bin:{home}/.local/bin',
     'AGENT_CWD': cwd,
     'PORT': port,
   },

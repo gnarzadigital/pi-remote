@@ -1006,11 +1006,23 @@ function handleClientMessage(ws: any, raw: string): void {
   }
 
   // --- Attachable RPC agents (3.2/3.8): N pi --mode rpc processes, session-routed ---
-  if (cmd.type === "resolve_agent_session" && cmd.agentId && cmd.cwd) {
+  if (cmd.type === "resolve_agent_session" && cmd.agentId) {
     // cwd/spawnedAt come from the client, not a server-side store lookup — this
     // works for ANY pi agent (foreign/ambient ones too), not just ones pi-remote
     // itself spawned. See resolveAgentSessionPath's doc comment for why.
-    const sessionPath = resolveAgentSessionPath(String(cmd.cwd), Number(cmd.spawnedAt) || 0);
+    // `cmd.cwd` used to gate this whole branch (a truthy check), so an
+    // unresolved cwd ("" — e.g. agents.ts's ambient lsof lookup failing) fell
+    // through to "Unknown command" instead of a clear, handleable error. Fixed
+    // 2026-07-06 (root cause was launchd's PATH missing /usr/sbin, see
+    // scripts/pi-remote-online.sh) — this branch is now unconditional so ANY
+    // future resolution failure surfaces a real error instead of silently
+    // acting like the command doesn't exist.
+    const cwd = typeof cmd.cwd === "string" ? cmd.cwd : "";
+    if (!cwd) {
+      sendToWs(ws, JSON.stringify({ type: "response", command: "resolve_agent_session", success: false, id: cmd.id, error: "Agent's working directory could not be determined" }));
+      return;
+    }
+    const sessionPath = resolveAgentSessionPath(cwd, Number(cmd.spawnedAt) || 0);
     sendToWs(ws, JSON.stringify({ type: "response", command: "resolve_agent_session", success: true, id: cmd.id, data: { sessionPath } }));
     return;
   }

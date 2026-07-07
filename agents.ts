@@ -472,7 +472,12 @@ function resolveCwdForPid(pid: number): string | null {
     const line = raw.trim().split("\n").at(-1);
     const cwd = line?.trim().split(/\s+/).at(-1);
     return cwd && cwd.startsWith("/") ? cwd : null;
-  } catch {
+  } catch (e: any) {
+    // Was silently swallowed before — cost real debugging time tracking down why
+    // every ambient pi agent had an unresolvable cwd (root cause: launchd's PATH
+    // lacks /usr/sbin, where lsof lives, so this threw ENOENT on every call).
+    // Kept as a real, permanent log so this failure mode is never invisible again.
+    console.error(`[agents] resolveCwdForPid(${pid}) failed: ${e?.message ?? e}`);
     return null;
   }
 }
