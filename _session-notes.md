@@ -247,3 +247,44 @@ Note: found this worktree switched to `backup/20260706-pi-remote-port` mid-sessi
 **Not touched:** live `~/repos/pi-remote` checkout, launchd bridge, `main` branch. Bridge continues serving whatever was live before this loop started.
 
 **Next (once it stops or Nik wakes up):** review `feat/assistant-ui-port` commits made overnight, check `.ralph-state/bug-hunt-log.txt` and any `[!]` blocked cards, decide what merges.
+
+**Update 2026-07-07 (surface:31):** `feat/assistant-ui-port` @ afc95dd (pushed). Terminal width bug fixed: captures are hard-wrapped at the source pane's column width; new fit-to-width scales the mono font so the longest line spans the phone screen (lib/terminal-fit.ts, verified live at 100.5% width vs the old ~60%). Settings built out: Text Size section with Chat messages slider (--chat-text-scale, composer pinned at 16px for iOS zoom), Agent terminals slider + fit toggle, Session list slider relocated (lib/ui-prefs.ts, localStorage, applied at boot). Gate 97/97 + all 4 parity specs re-passed. Note: commit 98ebd4c (Phase 4 overnight-loop PLAN cards) appeared on the branch from another session; my work sits on top cleanly.
+
+---
+
+## Session 2026-07-07 (~3AM) — loop upgraded to full autopilot-style scope
+
+**Context:** Nik asked for a deeper audit and the FULL upgrade to assistant-ui, invoked via
+`/autopilot`. Reconciliation note: autopilot's own instructions say to run its 6-step loop live
+in-session (not via cron, since cron loses context) — but a second live process touching
+`pi-remote-port` concurrently with the existing background loop would recreate the exact
+worktree collision just fixed with surface:31. Resolution: stopped the original loop.sh cleanly
+(worktree was clean, iteration 13 in-flight but zero uncommitted changes — safe kill, verified
+by exact PID before killing per the shared-environment rule), then folded autopilot's real
+value-adds (explicit Reason/Act/Reflect/Verify framing, an adversarial self-review pass before
+every gate, an escalation path for decisions the loop can't make) into the SAME background-loop
+mechanism instead of running two processes. One loop, one process, no collision, but now
+carrying autopilot's rigor.
+
+**Scope expanded** (PLAN.md Phase 4, commit `13ef5bf`, pushed): added 4.5 (evaluate
+assistant-ui's markdown/syntax-highlighting renderer against ours) and 4.6 (evaluate its native
+slash-command/input-history vs our hand-built CmdPicker) — the "maybe" bucket from the original
+research, now in scope per "full upgrade." Added a PLAN.md `## Open questions for Nik` escalation
+path for anything the loop can't decide alone (e.g. exactly which tool calls need approval in
+4.2) instead of guessing. Caps raised 40→70 iterations, 8h→11h given the bug hunt alone found 12
+real bugs before scope even expanded.
+
+**Prior loop's results (all pushed to origin/feat/assistant-ui-port before restart):** 12 real
+bugs found and fixed in the ported chat shell — thinking-block streaming flag never cleared on
+disconnect, queued messages stuck after reconnect (2 variants + 1 race), cross-session message
+leak on session switch, attached-agent transcript blanking on reconnect, terminal-view
+cross-agent response bleed, image-attach giving zero visual feedback, and a stale-object bug
+hiding the confirm button on an awaiting-confirm agent. Bug hunt (card 4.0) still hadn't gone dry
+after 12 passes when stopped — restarted loop resumes it at pass 13.
+
+**Currently running:** `~/repos/pi-remote-port/loop.sh`, background bash task `bomcd76yx`, PID
+60938. Same isolation guarantees as before (worktree-only, never touches `~/repos/pi-remote` or
+main, never merges). Log: `~/repos/pi-remote-port/.ralph-state/loop.log`.
+
+**Next (once it stops):** review the full `feat/assistant-ui-port` branch, check `## Open
+questions for Nik` in PLAN.md for anything it punted on, decide what merges.
