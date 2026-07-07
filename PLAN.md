@@ -495,11 +495,10 @@ not just "does it compile."
   were already markdown-free and untouched, per the card's own scope note. Gate green: 120/120
   bun tests, clean `tsc --noEmit`, `pnpm run build:ui` (code-block chunk still splits correctly).
   No qa/*.spec.ts is relevant (none cover markdown rendering); not a composer/keyboard change.
-- [ ] **4.6 Native slash-command / input-history — implement.** Adopt assistant-ui's built-in
-  slash-command and composer-history support, replacing the hand-built `CmdPicker` and arrow-key
-  recall (4.3) unless there's a hard technical blocker (not just "ours already works") — if
-  blocked, log the specific blocker under `## Open questions for Nik` and keep the current
-  system, don't drop the card silently.
+- [!] **4.6 Native slash-command / input-history — partially blocked.** Composer-history half is
+  already done: `unstable_useComposerInputHistory` was adopted in 4.3 (`pi-composer.tsx`). The
+  slash-command half (swap `CmdPicker` for assistant-ui's built-in trigger-popover) is blocked —
+  see `## Open questions for Nik`.
 
 **4.4/4.5/4.6 completion rule:** these are IMPLEMENT cards, not evaluate-and-decide. "Ours is
 already fine" is not a reason to skip — only a genuine hard blocker (a real incompatibility with
@@ -598,3 +597,41 @@ and move on to the next card.
     `ThreadListPrimitive.New` — functionally close to what `sessions-view.tsx` already does today,
     so the payoff over the existing UI would be mostly cosmetic.
   Card 4.4 is marked `[!]` blocked pending this decision, same pattern as 4.2.
+
+- **4.6 (native slash-command adoption) — the primitive family is explicitly unstable and
+  already drifting within this exact installed version.** Traced the real API in
+  `node_modules/@assistant-ui/react@0.14.26` before writing any UI (composer-history half was
+  already adopted in 4.3, this is only about the slash-command half). Findings:
+  1. Every symbol involved — `ComposerPrimitive.Unstable_TriggerPopoverRoot`,
+     `.Unstable_TriggerPopover`, `.Directive`, `.Action`, `.Unstable_TriggerPopoverItems`,
+     `.Unstable_TriggerPopoverCategories`, and the convenience hook
+     `unstable_useSlashCommandAdapter` — is `Unstable_`/`unstable_`-prefixed.
+     `unstable_useSlashCommandAdapter`'s own JSDoc reads: "@deprecated Under active development
+     and may change without notice."
+  2. That same hook's own bundled usage example (`useSlashCommandAdapter.d.ts`) references
+     `<ComposerTriggerPopover char="/" {...slash} />` — a component name that does not exist
+     anywhere in this installed version's exports (confirmed via runtime introspection of
+     `ComposerPrimitive`'s actual keys). The real name is
+     `ComposerPrimitive.Unstable_TriggerPopover`. The API has already drifted out from under its
+     own shipped docs within a single published version — concrete evidence "may change without
+     notice" isn't just a boilerplate disclaimer here.
+  3. Functionally, adopting it isn't a drop-in swap: `ComposerPrimitive.Input` does not wire
+     trigger keyboard handling itself (confirmed by reading `ComposerInput.js` — no reference to
+     the trigger module), so ArrowUp/Down/Enter/Escape navigation has to be manually delegated
+     from our own `onKeyDown` to `resource.handleKeyDown()` via
+     `unstable_useTriggerPopoverScopeContext()`, and trigger detection is cursor-position-based
+     (`detectTrigger.js`), requiring manual `setCursorPosition()` calls on every selection change
+     since our composer doesn't use `ComposerPrimitive.Root`/a wrapped input that tracks this
+     automatically (deliberately, per `pi-composer.tsx`'s own comment: the pi chrome buttons
+     aren't form-aware). That's a from-scratch reimplementation of keyboard nav and ARIA wiring
+     this codebase already built and accessibility-audited in 4.3 (`CmdPicker`'s listbox/option
+     roles), on top of an API region that isn't stable across its own current version.
+  4. Adapter shape does fit conceptually (`categories()`/`categoryItems()`/`search()` can wrap
+     `snapshot.commands`, and `Action.onExecute` with `removeOnExecute: true` could call
+     `composer.setText(bridge.selectCommand(item.id))` to match pi's "insert `/name `, don't
+     execute" behavior) — the blocker isn't a data-shape mismatch, it's shipping a
+     constantly-used, load-bearing input path on a primitive family that documents itself as
+     liable to change without notice and already has internal doc/implementation drift.
+  Given that, this card stays `[!]` blocked rather than adopted. If Nik wants it anyway despite
+  the instability, the adapter wiring in point 4 above is the concrete starting point for a
+  future card.
