@@ -6,6 +6,7 @@ import {
   isLatestAttachRequest,
   isLatestCapturePaneRequest,
   shouldApplyCapturePaneResponse,
+  shouldAutoCancelPendingDialog,
 } from "./message-utils";
 import type { TurnBlock } from "./types";
 
@@ -79,4 +80,13 @@ test("isLatestAttachRequest drops a stale attach tap superseded by a newer one",
   // detachFromAgent() nulls out the tracker so a late response for the agent
   // the user just left can never pass as "latest" and resurrect it.
   expect(isLatestAttachRequest("req-1", null)).toBe(false);
+});
+
+test("shouldAutoCancelPendingDialog only cancels a different, still-unresolved request", () => {
+  // A second extension_ui_request lands before the first was resolved: cancel it.
+  expect(shouldAutoCancelPendingDialog("req-1", "req-2")).toBe(true);
+  // Same request re-delivered (e.g. a redundant resend): nothing to cancel.
+  expect(shouldAutoCancelPendingDialog("req-1", "req-1")).toBe(false);
+  // No dialog currently pending: nothing to cancel.
+  expect(shouldAutoCancelPendingDialog(undefined, "req-1")).toBe(false);
 });

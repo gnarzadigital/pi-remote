@@ -8,6 +8,7 @@ import {
   isLatestAttachRequest,
   isLatestCapturePaneRequest,
   shouldApplyCapturePaneResponse,
+  shouldAutoCancelPendingDialog,
   uid,
 } from "./message-utils";
 import { enrichSessionWorkspace, formatSessionName } from "./session-utils";
@@ -922,6 +923,19 @@ export class PiBridgeClient {
         respond({ id: String(req.id), cancelled: true, value: null });
       }
       return;
+    }
+
+    const pending = this.snapshot.extensionDialog;
+    if (pending && shouldAutoCancelPendingDialog(pending.id, String(req.id))) {
+      // A new request arrived before the prior dialog was resolved. Overwriting
+      // the slot without responding would leave pi's earlier tool call blocked
+      // forever waiting for a response it will never get.
+      const cancelPayload = { id: pending.id, cancelled: true, value: null };
+      if (pending.agentId) {
+        this.send({ type: "agent_command", agentId: pending.agentId, payload: { type: "extension_ui_response", ...cancelPayload } });
+      } else {
+        this.send({ type: "extension_ui_response", ...cancelPayload });
+      }
     }
 
     const dialog: ExtensionDialogState = {

@@ -71,6 +71,21 @@ export function isLatestAttachRequest(
   return requestId !== undefined && requestId === latestRequestId;
 }
 
+/**
+ * extensionDialog is a single slot (BridgeSnapshot). If a second
+ * extension_ui_request (from the primary session or an attached agent) lands
+ * while a prior one is still unresolved, the handler used to just overwrite
+ * the slot — the first request's `id` was never responded to, leaving pi's
+ * tool call blocked waiting forever while the user only ever saw the second
+ * dialog. Auto-cancel any different, still-pending request before replacing it.
+ */
+export function shouldAutoCancelPendingDialog(
+  pendingId: string | undefined,
+  incomingId: string
+): boolean {
+  return pendingId !== undefined && pendingId !== incomingId;
+}
+
 export function extractUserText(content: unknown): string {
   let text = "";
   if (typeof content === "string") text = content;
