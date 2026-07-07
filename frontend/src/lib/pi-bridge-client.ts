@@ -271,6 +271,16 @@ export class PiBridgeClient {
           attachedAgentStreaming: this.agentChatState.streaming,
         });
       }
+      // The bridge kills the attached agent's RPC process on WS close
+      // (detachAgentsForClient), but leaves the primary session's pi process
+      // running. A pending tool-approval dialog tagged with an agentId belongs
+      // to that now-dead process — its extension_ui_request will never be
+      // answered by anything, and reconnect's attach_agent spins up a NEW RPC
+      // process that has no idea what that request id was. Left alone, the
+      // dialog kept floating after reconnect and tapping approve/deny silently
+      // no-opped instead of doing anything. A primary-session dialog (agentId
+      // undefined) is untouched — that process survives the disconnect.
+      if (this.snapshot.extensionDialog?.agentId) this.clearExtensionDialog();
       this.queuePatch({ connected: false, connectionPhase: "connecting", streaming: false });
       this.scheduleConnectionWatchdog();
       setTimeout(() => this.connect(), this.reconnectDelay);
