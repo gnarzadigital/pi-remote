@@ -5,6 +5,7 @@ import {
   getModelContextWindowTokens,
   isLatestAttachRequest,
   isLatestCapturePaneRequest,
+  isLatestStatusErrorToken,
   shouldApplyCapturePaneResponse,
   shouldAutoCancelPendingDialog,
 } from "./message-utils";
@@ -89,4 +90,12 @@ test("shouldAutoCancelPendingDialog only cancels a different, still-unresolved r
   expect(shouldAutoCancelPendingDialog("req-1", "req-1")).toBe(false);
   // No dialog currently pending: nothing to cancel.
   expect(shouldAutoCancelPendingDialog(undefined, "req-1")).toBe(false);
+});
+
+test("isLatestStatusErrorToken only clears the message its own timer was scheduled for", () => {
+  // An earlier error's auto-clear timer firing after a newer, unrelated
+  // error already replaced statusError must not clear the newer message.
+  expect(isLatestStatusErrorToken(1, 2)).toBe(false);
+  // The timer matching the current (latest) token clears normally.
+  expect(isLatestStatusErrorToken(2, 2)).toBe(true);
 });

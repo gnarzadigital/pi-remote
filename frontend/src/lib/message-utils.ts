@@ -86,6 +86,19 @@ export function shouldAutoCancelPendingDialog(
   return pendingId !== undefined && pendingId !== incomingId;
 }
 
+/**
+ * statusError has three independent writers (bridge_error, a failed
+ * handleResponse, "agent session not ready yet"), each scheduling its own
+ * auto-clear timeout. Without a generation token, an earlier error's timer
+ * firing after a second, unrelated error already replaced the message would
+ * blindly null it out early — dismissing the newer toast before its own
+ * duration elapsed. Only the clear scheduled by the most recent
+ * setStatusError call should actually apply.
+ */
+export function isLatestStatusErrorToken(token: number, latestToken: number): boolean {
+  return token === latestToken;
+}
+
 export function extractUserText(content: unknown): string {
   let text = "";
   if (typeof content === "string") text = content;

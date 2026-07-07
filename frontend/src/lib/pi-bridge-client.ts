@@ -7,6 +7,7 @@ import {
   getModelContextWindowTokens,
   isLatestAttachRequest,
   isLatestCapturePaneRequest,
+  isLatestStatusErrorToken,
   shouldApplyCapturePaneResponse,
   shouldAutoCancelPendingDialog,
   uid,
@@ -148,6 +149,12 @@ export class PiBridgeClient {
    * data right after the user had already moved on to B. Only the latest
    * switch's response is ever applied. */
   private latestSwitchSessionRequestId: string | null = null;
+  /** Bumped on every setStatusError() call. Each auto-clear timeout only
+   * nulls statusError if its token is still the latest — otherwise an
+   * earlier error's 3-4s timer could fire after a second, unrelated error
+   * has already replaced the message, clearing the newer toast early
+   * instead of the one it was actually scheduled for. */
+  private statusErrorToken = 0;
 
   snapshot: BridgeSnapshot = initialSnapshot();
 
@@ -191,6 +198,16 @@ export class PiBridgeClient {
 
   private nextId() {
     return `client-${++this.reqCounter}`;
+  }
+
+  /** Set statusError with an auto-clear that only fires if nothing newer
+   * has replaced this message in the meantime — see statusErrorToken. */
+  private setStatusError(text: string, ms: number) {
+    const token = ++this.statusErrorToken;
+    this.queuePatch({ statusError: text });
+    setTimeout(() => {
+      if (isLatestStatusErrorToken(token, this.statusErrorToken)) this.queuePatch({ statusError: null });
+    }, ms);
   }
 
   private send(cmd: Record<string, unknown>) {
@@ -348,8 +365,7 @@ export class PiBridgeClient {
       if (text.includes("deprecated") || text.includes("DeprecationWarning") || text.includes("DEP0")) return;
       const cmd = msg.command ? ` (${msg.command})` : "";
       this.appendError(`Bridge${cmd}: ${text}`);
-      this.queuePatch({ statusError: String(msg.command ?? "error") });
-      setTimeout(() => this.queuePatch({ statusError: null }), 4000);
+      this.setStatusError(String(msg.command ?? "error"), 4000);
       return;
     }
 
@@ -419,8 +435,7 @@ export class PiBridgeClient {
   }) {
     if (!msg.success) {
       if (msg.command !== "abort") {
-        this.queuePatch({ statusError: msg.command ? `${msg.command} failed` : "command failed" });
-        setTimeout(() => this.queuePatch({ statusError: null }), 4000);
+        this.setStatusError(msg.command ? `${msg.command} failed` : "command failed", 4000);
         if (
           msg.command === "switch_session" &&
           isLatestAttachRequest(msg.id ? String(msg.id) : undefined, this.latestSwitchSessionRequestId)
@@ -527,8 +542,7 @@ export class PiBridgeClient {
           this.attachedSessionPath = sessionPath;
           this.latestAttachAgentRequestId = this.sendWithId({ type: "attach_agent", agentId, sessionPath });
         } else {
-          this.queuePatch({ statusError: "Agent session not ready yet — try again in a moment" });
-          setTimeout(() => this.queuePatch({ statusError: null }), 3000);
+          this.setStatusError("Agent session not ready yet — try again in a moment", 3000);
         }
         break;
       }
