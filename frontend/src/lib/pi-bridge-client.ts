@@ -37,6 +37,7 @@ import type {
 import { applyTheme } from "./utils";
 import { shouldFlushQueueOnReconnect, shouldQueue } from "./message-queue";
 import {
+  appendUserLine,
   initialAgentChatState,
   isReconnectReattach,
   reduceAgentEvent,
@@ -998,9 +999,8 @@ export class PiBridgeClient {
     const agentId = this.snapshot.attachedAgentId;
     if (!agentId || !text.trim()) return;
     const turnId = uid("user");
-    this.queuePatch({
-      attachedAgentLines: [...this.snapshot.attachedAgentLines, { id: turnId, kind: "user", text }],
-    });
+    this.agentChatState = appendUserLine(this.agentChatState, turnId, text);
+    this.queuePatch({ attachedAgentLines: this.agentChatState.lines });
     this.sendWithId({ type: "agent_command", agentId, payload: { type: "prompt", message: text } });
   }
 

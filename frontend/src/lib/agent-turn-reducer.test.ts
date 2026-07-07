@@ -1,10 +1,18 @@
 import { expect, test } from "bun:test";
 import {
+  appendUserLine,
   initialAgentChatState,
   isReconnectReattach,
   reduceAgentEvent,
   shouldReattachAgentOnReconnect,
 } from "./agent-turn-reducer";
+
+test("appendUserLine survives the next agent_event (optimistic append is not clobbered)", () => {
+  let s = appendUserLine(initialAgentChatState(), "user-1", "hello");
+  expect(s.lines).toEqual([{ id: "user-1", kind: "user", text: "hello" }]);
+  s = reduceAgentEvent(s, { type: "agent_start" });
+  expect(s.lines.map((l) => l.kind)).toEqual(["user", "turn"]);
+});
 
 test("agent_start opens a streaming turn", () => {
   const s = reduceAgentEvent(initialAgentChatState(), { type: "agent_start" });

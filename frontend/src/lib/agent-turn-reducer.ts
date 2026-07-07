@@ -14,6 +14,16 @@ export function initialAgentChatState(): AgentChatState {
 }
 
 /**
+ * The optimistic user-message append (sendToAttachedAgent) and every other
+ * writer of attachedAgentLines must share the same source of truth
+ * (state.lines), or the next agent_event reduces on top of state that never
+ * saw the just-sent message and clobbers it out of the snapshot.
+ */
+export function appendUserLine(state: AgentChatState, id: string, text: string): AgentChatState {
+  return { ...state, lines: [...state.lines, { id, kind: "user", text }] };
+}
+
+/**
  * The bridge tears down an attached agent's RPC process when its owning
  * WebSocket closes (bridge.ts detachAgentsForClient). If the client was still
  * attached when a mid-turn disconnect happened, a bare reconnect leaves the
