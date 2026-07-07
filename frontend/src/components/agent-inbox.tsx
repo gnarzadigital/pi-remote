@@ -40,6 +40,14 @@ export function AgentInbox({ query }: { query: string }) {
     bridge.closePeek();
   };
 
+  // Re-look-up by id each render so status/surface stay live while the sheet
+  // is open (the 5s poll replaces snapshot.agents wholesale, so the object
+  // captured at tap time goes stale otherwise). Fall back to the stale
+  // object if the agent has dropped out of the live list (e.g. closed).
+  const liveTerminalAgent = terminalAgent
+    ? (snapshot.agents.find((a) => a.id === terminalAgent.id) ?? terminalAgent)
+    : null;
+
   const sections = groupInbox(filterInboxAgents(live, query));
 
   if (sections.length === 0 && !terminalAgent) return null;
@@ -62,7 +70,7 @@ export function AgentInbox({ query }: { query: string }) {
           </section>
         );
       })}
-      {terminalAgent ? <AgentTerminalView agent={terminalAgent} onClose={closeTerminal} /> : null}
+      {liveTerminalAgent ? <AgentTerminalView agent={liveTerminalAgent} onClose={closeTerminal} /> : null}
     </>
   );
 }
