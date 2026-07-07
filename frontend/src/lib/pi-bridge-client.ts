@@ -32,7 +32,12 @@ import type {
 } from "./types";
 import { applyTheme } from "./utils";
 import { shouldFlushQueueOnReconnect, shouldQueue } from "./message-queue";
-import { initialAgentChatState, reduceAgentEvent, type AgentChatState } from "./agent-turn-reducer";
+import {
+  initialAgentChatState,
+  reduceAgentEvent,
+  shouldReattachAgentOnReconnect,
+  type AgentChatState,
+} from "./agent-turn-reducer";
 
 const MODE_CYCLE: SendMode[] = ["prompt", "steer", "follow_up"];
 const THINKING_CYCLE: ThinkingLevel[] = ["none", "low", "high"];
@@ -95,6 +100,9 @@ export class PiBridgeClient {
   private messageQueue: string[] = [];
   private agentChatState: AgentChatState = initialAgentChatState();
   private pendingAttachAgentId: string | null = null;
+  /** sessionPath of the currently-attached agent, kept so a reconnect can
+   * re-attach the same RPC process the bridge tore down on WS close. */
+  private attachedSessionPath: string | null = null;
   private pendingImages: ImageAttachment[] = [];
   private connectionWatchdog: ReturnType<typeof setTimeout> | null = null;
   private pendingRenames = new Map<string, { sessionPath: string; name: string }>();
@@ -180,6 +188,17 @@ export class PiBridgeClient {
       // but leaves the queue stuck forever. Flush it now that we're back.
       if (shouldFlushQueueOnReconnect(this.messageQueue.length, this.snapshot.streaming)) {
         this.flushQueuedMessage();
+      }
+      // The bridge kills an attached agent's RPC process on WS close (bridge.ts
+      // detachAgentsForClient) — without this, the client's attachedAgentId
+      // survives the reconnect but points at a dead process, so any send after
+      // reconnecting silently no-ops. Re-attach the same agent + session.
+      if (shouldReattachAgentOnReconnect(this.snapshot.attachedAgentId, this.attachedSessionPath)) {
+        this.sendWithId({
+          type: "attach_agent",
+          agentId: this.snapshot.attachedAgentId,
+          sessionPath: this.attachedSessionPath,
+        });
       }
     });
 
@@ -431,6 +450,7 @@ export class PiBridgeClient {
         const agentId = this.pendingAttachAgentId;
         this.pendingAttachAgentId = null;
         if (sessionPath && agentId) {
+          this.attachedSessionPath = sessionPath;
           this.sendWithId({ type: "attach_agent", agentId, sessionPath });
         } else {
           this.queuePatch({ statusError: "Agent session not ready yet — try again in a moment" });
@@ -879,6 +899,7 @@ export class PiBridgeClient {
   detachFromAgent() {
     const agentId = this.snapshot.attachedAgentId;
     if (agentId) this.send({ type: "detach_agent", agentId, id: this.nextId() });
+    this.attachedSessionPath = null;
     this.agentChatState = initialAgentChatState();
     this.queuePatch({
       attachedAgentId: null,

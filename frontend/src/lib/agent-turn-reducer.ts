@@ -13,6 +13,21 @@ export function initialAgentChatState(): AgentChatState {
   return { lines: [], streaming: false, turnId: null, toolIndex: {} };
 }
 
+/**
+ * The bridge tears down an attached agent's RPC process when its owning
+ * WebSocket closes (bridge.ts detachAgentsForClient). If the client was still
+ * attached when a mid-turn disconnect happened, a bare reconnect leaves the
+ * UI showing "attached" while the agentId is dead server-side — any further
+ * send silently no-ops (sendToRpcAgent finds nothing to write to). Re-attach
+ * with the same agentId + sessionPath on reconnect to restore it.
+ */
+export function shouldReattachAgentOnReconnect(
+  attachedAgentId: string | null,
+  attachedSessionPath: string | null
+): boolean {
+  return attachedAgentId !== null && attachedSessionPath !== null;
+}
+
 let seq = 0;
 function uid(prefix: string): string {
   return `${prefix}-${++seq}`;

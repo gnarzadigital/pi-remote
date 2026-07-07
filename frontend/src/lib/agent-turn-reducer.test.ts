@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { initialAgentChatState, reduceAgentEvent } from "./agent-turn-reducer";
+import { initialAgentChatState, reduceAgentEvent, shouldReattachAgentOnReconnect } from "./agent-turn-reducer";
 
 test("agent_start opens a streaming turn", () => {
   const s = reduceAgentEvent(initialAgentChatState(), { type: "agent_start" });
@@ -72,4 +72,11 @@ test("unknown event type is a no-op", () => {
   const s0 = initialAgentChatState();
   const s1 = reduceAgentEvent(s0, { type: "something_else" });
   expect(s1).toEqual(s0);
+});
+
+test("shouldReattachAgentOnReconnect only fires when both agentId and sessionPath survived", () => {
+  expect(shouldReattachAgentOnReconnect("agent-1", "/tmp/session.jsonl")).toBe(true);
+  expect(shouldReattachAgentOnReconnect(null, "/tmp/session.jsonl")).toBe(false);
+  expect(shouldReattachAgentOnReconnect("agent-1", null)).toBe(false);
+  expect(shouldReattachAgentOnReconnect(null, null)).toBe(false);
 });
