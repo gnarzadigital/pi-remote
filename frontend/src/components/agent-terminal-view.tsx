@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { filterCommands } from "@/components/input-area";
 import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
-import { runtimeLabel } from "@/lib/agent-runtime";
+import { runtimeLabel, terminalWatchKey } from "@/lib/agent-runtime";
 import { commandsForRuntime } from "@/lib/runtime-commands";
 import { fitTerminalFontPx, maxLineLength, measureChRatio, MONO_CH_RATIO_FALLBACK } from "@/lib/terminal-fit";
 import type { AgentTreeNode } from "@/lib/types";
@@ -66,12 +66,22 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
   };
 
   // Load on open; auto-refresh silently so the agent's output streams in.
+  // Keyed on terminalWatchKey (id+surface+workspace), NOT the `agent` object:
+  // AgentInbox's 5s poll hands us a brand-new AgentTreeNode reference for the
+  // same agent on every tick, and depending on the object itself would restart
+  // this effect every 5s, resetting stickToBottom to true and yanking the
+  // view back down mid-read, exactly the behavior the comment above exists to
+  // avoid. The ref keeps the interval closure reading the latest agent.
+  const agentRef = useRef(agent);
+  agentRef.current = agent;
+  const watchKey = terminalWatchKey(agent);
   useEffect(() => {
     stickToBottom.current = true;
-    bridge.capturePane(agent);
-    const t = window.setInterval(() => bridge.capturePane(agent, true), 3000);
+    bridge.capturePane(agentRef.current);
+    const t = window.setInterval(() => bridge.capturePane(agentRef.current, true), 3000);
     return () => window.clearInterval(t);
-  }, [agent, bridge]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- watchKey is the intentional identity, see comment above
+  }, [watchKey, bridge]);
 
   const peek = snapshot.peek;
   const showFor = peek && peek.agentId === agent.id ? peek : null;

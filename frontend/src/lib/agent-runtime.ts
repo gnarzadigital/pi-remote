@@ -23,3 +23,15 @@ export function runtimeLabel(runtime?: string): string {
   };
   return map[r] ?? r;
 }
+
+/**
+ * Stable identity key for a terminal-runtime agent's pane-watch effect.
+ * AgentInbox's 5s poll replaces `snapshot.agents` wholesale, so a freshly
+ * fetched AgentTreeNode for the SAME agent is a new object reference every
+ * time even when nothing changed. Keying a useEffect on the object itself
+ * re-runs it every poll tick; keying on this string only re-runs it when the
+ * agent actually changes (or its pane target moves to a new surface).
+ */
+export function terminalWatchKey(agent: { id: string; surface: string | null; workspace?: string | null }): string {
+  return `${agent.id}|${agent.surface ?? ""}|${agent.workspace ?? ""}`;
+}
