@@ -547,6 +547,19 @@ export class PiBridgeClient {
     this.queuePatch({ lines: [] });
   }
 
+  /** A prompt queued mid-turn (shouldQueue) is only ever flushed by a future
+   * agent_end. Nothing dropped it when the ACTIVE SESSION changed out from
+   * under it — switching sessions or starting a new one left the stale
+   * message sitting in the queue, so it would later flush into whatever
+   * session happened to end its turn next, appending a message meant for
+   * the old session into the wrong conversation entirely. Clear the queue
+   * whenever the user deliberately moves to a different session. */
+  private clearMessageQueue() {
+    if (this.messageQueue.length === 0) return;
+    this.messageQueue = [];
+    this.queuePatch({ queuedMessages: [] });
+  }
+
   private appendUser(text: string, images?: ImageAttachment[]) {
     this.queuePatch({
       lines: [...this.snapshot.lines, { id: uid("user"), kind: "user", text, images }],
@@ -949,6 +962,7 @@ export class PiBridgeClient {
   }
 
   switchSession(session: PiSession) {
+    this.clearMessageQueue();
     this.queuePatch({
       activeSessionName: formatSessionName(session.name),
       activeSessionPath: session.path,
@@ -974,6 +988,7 @@ export class PiBridgeClient {
   }
 
   newSession() {
+    this.clearMessageQueue();
     this.queuePatch({
       activeSessionName: "New session",
       activeSessionPath: null,
@@ -992,6 +1007,7 @@ export class PiBridgeClient {
    * cwd is fixed per-process) then creates the session, so the whole app switches
    * to that workspace. */
   newSessionInDir(cwd: string) {
+    this.clearMessageQueue();
     this.queuePatch({
       activeSessionName: "New session",
       activeSessionPath: null,
