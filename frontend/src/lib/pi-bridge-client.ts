@@ -76,6 +76,7 @@ function initialSnapshot(): BridgeSnapshot {
     attachedAgentLabel: null,
     attachedAgentLines: [],
     attachedAgentStreaming: false,
+    attachedQueuedMessages: [],
     sessions: [],
     activeSessionName: null,
     activeSessionPath: null,
@@ -105,6 +106,11 @@ export class PiBridgeClient {
   private statsInterval: ReturnType<typeof setInterval> | null = null;
   private streaming: StreamingState | null = null;
   private messageQueue: string[] = [];
+  /** Same queue-while-streaming guard as `messageQueue`, mirrored for the
+   * attached-agent chat (the composer there has no streaming-disabled state,
+   * so without this a send mid-turn raced straight into the agent's running
+   * turn instead of waiting like the primary session does). */
+  private attachedMessageQueue: string[] = [];
   private agentChatState: AgentChatState = initialAgentChatState();
   /** resolve_agent_session request id -> the agentId it was requested for.
    * Tracked per-request (not a single mutable field) because tapping two
@@ -298,11 +304,13 @@ export class PiBridgeClient {
         this.handleExtensionUI(event, String(msg.agentId));
         return;
       }
+      const wasStreaming = this.agentChatState.streaming;
       this.agentChatState = reduceAgentEvent(this.agentChatState, event);
       this.queuePatch({
         attachedAgentLines: this.agentChatState.lines,
         attachedAgentStreaming: this.agentChatState.streaming,
       });
+      if (wasStreaming && !this.agentChatState.streaming) this.flushAttachedQueuedMessage();
       return;
     }
     if (msg.type === "prompt" || msg.type === "steer" || msg.type === "follow_up") {
@@ -533,10 +541,12 @@ export class PiBridgeClient {
             this.queuePatch({ attachedAgentId: agentId, view: "agent-chat" });
           } else {
             this.agentChatState = initialAgentChatState();
+            this.attachedMessageQueue = [];
             this.queuePatch({
               attachedAgentId: agentId,
               attachedAgentLines: [],
               attachedAgentStreaming: false,
+              attachedQueuedMessages: [],
               view: "agent-chat",
             });
           }
@@ -986,6 +996,7 @@ export class PiBridgeClient {
     if (agentId) this.send({ type: "detach_agent", agentId, id: this.nextId() });
     this.attachedSessionPath = null;
     this.agentChatState = initialAgentChatState();
+    this.attachedMessageQueue = [];
     // A resolve_agent_session/attach_agent request can still be in flight when
     // the user detaches (e.g. tap agent A, then immediately back out). Without
     // invalidating these, a late response would still pass isLatestAttachRequest
@@ -998,6 +1009,7 @@ export class PiBridgeClient {
       attachedAgentLabel: null,
       attachedAgentLines: [],
       attachedAgentStreaming: false,
+      attachedQueuedMessages: [],
       view: "sessions",
     });
   }
@@ -1016,11 +1028,36 @@ export class PiBridgeClient {
 
   sendToAttachedAgent(text: string) {
     const agentId = this.snapshot.attachedAgentId;
-    if (!agentId || !text.trim()) return;
+    const val = text.trim();
+    if (!agentId || !val) return;
+    if (shouldQueue(this.agentChatState.streaming, "prompt", false)) {
+      this.attachedMessageQueue.push(val);
+      this.queuePatch({ attachedQueuedMessages: [...this.attachedMessageQueue] });
+      return;
+    }
     const turnId = uid("user");
-    this.agentChatState = appendUserLine(this.agentChatState, turnId, text);
+    this.agentChatState = appendUserLine(this.agentChatState, turnId, val);
     this.queuePatch({ attachedAgentLines: this.agentChatState.lines });
-    this.sendWithId({ type: "agent_command", agentId, payload: { type: "prompt", message: text } });
+    this.sendWithId({ type: "agent_command", agentId, payload: { type: "prompt", message: val } });
+  }
+
+  /** Remove a queued attached-agent prompt before it sends. */
+  cancelAttachedQueued(index: number) {
+    if (index < 0 || index >= this.attachedMessageQueue.length) return;
+    this.attachedMessageQueue.splice(index, 1);
+    this.queuePatch({ attachedQueuedMessages: [...this.attachedMessageQueue] });
+  }
+
+  /** Send the next queued attached-agent prompt after its turn ends. */
+  private flushAttachedQueuedMessage() {
+    const agentId = this.snapshot.attachedAgentId;
+    if (this.attachedMessageQueue.length === 0 || !agentId) return;
+    const next = this.attachedMessageQueue.shift()!;
+    this.queuePatch({ attachedQueuedMessages: [...this.attachedMessageQueue] });
+    const turnId = uid("user");
+    this.agentChatState = appendUserLine(this.agentChatState, turnId, next);
+    this.queuePatch({ attachedAgentLines: this.agentChatState.lines });
+    this.sendWithId({ type: "agent_command", agentId, payload: { type: "prompt", message: next } });
   }
 
   searchSessions(query: string) {

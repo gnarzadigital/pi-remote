@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft } from "lucide-react";
+import { ArrowUp, ChevronLeft, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { ConversationView } from "@/components/conversation-view";
 import { ModelPickerAction } from "@/components/model-picker-action";
@@ -54,6 +54,32 @@ export function AgentChatView() {
 
       <div ref={bottomDockRef} className="chat-bottom-dock">
         <footer className="input-footer w-full max-w-full shrink-0 overflow-x-clip px-3 pt-2">
+          {snapshot.attachedQueuedMessages.length > 0 && (
+            <div className="mb-1.5 flex flex-col gap-1">
+              {snapshot.attachedQueuedMessages.map((m, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-[10px] border border-hairline bg-mist px-2.5 py-1.5"
+                >
+                  <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-concrete">
+                    Queued
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-graphite">{m}</span>
+                  <button
+                    type="button"
+                    aria-label="Cancel queued message"
+                    className="shrink-0 text-concrete hover:text-graphite"
+                    onClick={() => {
+                      hapticTap();
+                      bridge.cancelAttachedQueued(i);
+                    }}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex flex-col gap-1 rounded-[22px] border border-hairline bg-canvas p-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <textarea
               value={input}
@@ -78,7 +104,7 @@ export function AgentChatView() {
                 size="icon-sm"
                 className="ml-auto rounded-full"
                 disabled={!input.trim()}
-                aria-label="Send"
+                aria-label={snapshot.attachedAgentStreaming ? "Queue" : "Send"}
                 onClick={send}
               >
                 <ArrowUp className="size-4" />

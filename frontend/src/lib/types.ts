@@ -169,6 +169,8 @@ export interface BridgeSnapshot {
   attachedAgentLabel: string | null;
   attachedAgentLines: ChatLine[];
   attachedAgentStreaming: boolean;
+  /** Prompts typed while the attached agent is streaming; auto-sent on its turn end (FIFO). */
+  attachedQueuedMessages: string[];
   sessions: PiSession[];
   activeSessionName: string | null;
   activeSessionPath: string | null;
