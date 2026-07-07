@@ -451,21 +451,30 @@ not just "does it compile."
 - [ ] **4.3 Keyboard shortcuts + accessibility pass.** Arrow-key composer history recall; verify
   assistant-ui's exposed ARIA roles/focus management are actually wired through our custom
   renderers, not just present in the primitives we didn't touch.
-- [ ] **4.4 Thread/session switcher evaluation.** Compare assistant-ui's `ThreadList` primitive
-  against the existing `sessions-view.tsx`. Implement only if it's a net simplification over what
-  we have; otherwise mark this card `[x]` with a one-paragraph note on why it was skipped. Do not
-  build a second, competing session switcher.
-- [ ] **4.5 Markdown/syntax-highlighting renderer evaluation.** Try assistant-ui's
-  markdown/code-highlighting components against real pi transcript content (streaming
-  markdown, code blocks, the diff viewer's edit hunks, thinking blocks). Adopt only where it's
-  a genuine improvement over the current hand-rolled renderer (e.g. handles a real edge case
-  ours doesn't); keep our renderer for anything it does better (diff hunks, tool cards). Note
-  the comparison in the commit message either way — this is an evaluate-and-decide card, not an
-  automatic swap.
-- [ ] **4.6 Native slash-command / input-history primitives evaluation.** Compare assistant-ui's
-  built-in slash-command and composer-history support against our hand-built `CmdPicker` and
-  arrow-key recall (4.3). Adopt only if it's a net simplification; do not run two competing
-  slash-command systems. If skipped, say why in one paragraph, same rule as 4.4.
+- [ ] **4.4 Thread/session switcher — implement.** Nik wants the full feature set adopted, not
+  evaluated-and-skipped. Adopt assistant-ui's `ThreadList` primitive for session switching,
+  wired to the existing bridge session list. If it can't fully replace `sessions-view.tsx`'s
+  richer features (search, workspace grouping) in this pass, integrate it for what it does cover
+  and keep the rest of `sessions-view.tsx` alongside it rather than silently skipping the card —
+  log the gap under `## Open questions for Nik`, don't just decline to build.
+- [ ] **4.5 Markdown/syntax-highlighting renderer — implement.** Adopt assistant-ui's
+  markdown/code-highlighting components for message rendering (streaming markdown, code blocks,
+  thinking blocks), replacing the hand-rolled renderer where it's a straight swap. Keep our
+  renderer only for the pieces assistant-ui has no equivalent for (diff hunks, tool cards) — that
+  is a real gap, not a reason to skip the rest. If something about real pi content breaks their
+  renderer, fix it or fall back per-block, and log the specific gap as an open question, not a
+  card skip.
+- [ ] **4.6 Native slash-command / input-history — implement.** Adopt assistant-ui's built-in
+  slash-command and composer-history support, replacing the hand-built `CmdPicker` and arrow-key
+  recall (4.3) unless there's a hard technical blocker (not just "ours already works") — if
+  blocked, log the specific blocker under `## Open questions for Nik` and keep the current
+  system, don't drop the card silently.
+
+**4.4/4.5/4.6 completion rule:** these are IMPLEMENT cards, not evaluate-and-decide. "Ours is
+already fine" is not a reason to skip — only a genuine hard blocker (a real incompatibility with
+pi's data shape, a regression the gate catches and can't be fixed in-scope) is. Any such blocker
+gets logged under `## Open questions for Nik` with specifics, and the card stays `[ ]` rather
+than being marked done-by-skipping.
 
 Each iteration: pick the first unchecked card above, do only that card's work, gate, commit,
 push, log to `.ralph-state/iteration-log.md`, stop. No scope creep across cards.
