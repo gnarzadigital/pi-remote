@@ -28,6 +28,7 @@ import { isJunkWorkspace } from "./workspace-filter";
 import { spawnAgent, listAgents, sendToAgent, confirmAgent, resolveAgentSessionPath, captureAgentPane, type ContextMode } from "./agents";
 import { buildAgentTree, flattenTree } from "./lineage";
 import { resolveRoute } from "./broker-route";
+import { resolveBootCwd } from "./boot-cwd";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -60,6 +61,7 @@ interface Prefs {
   lastModel?: { provider: string; modelId: string };
   recentModels?: ModelRef[];
   lastThinkingLevel?: string;
+  lastCwd?: string;
 }
 
 interface PushPrefs {
@@ -81,6 +83,12 @@ function savePrefs(prefs: Prefs): void {
 }
 
 const prefs = loadPrefs();
+
+// Boot into the last-used workspace if it still exists; AGENT_CWD is only the
+// fallback for first boot / deleted folders (D-2, 2026-07-06).
+CWD = resolveBootCwd(prefs.lastCwd, CWD, (p) => {
+  try { return statSync(p).isDirectory(); } catch { return false; }
+});
 
 function loadPushPrefs(): PushPrefs {
   try { return JSON.parse(readFileSync(PUSH_PREFS_PATH, "utf8")); }
@@ -550,6 +558,8 @@ async function respawnPi(newCwd: string): Promise<void> {
     // already dead
   }
   CWD = newCwd;
+  prefs.lastCwd = newCwd;
+  savePrefs(prefs);
   fileListCache = [];
   fileListCacheTime = 0;
   loadedSessionFile = null;
