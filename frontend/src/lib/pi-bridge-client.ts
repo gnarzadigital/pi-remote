@@ -189,6 +189,16 @@ export class PiBridgeClient {
       // streaming: true forever (spinner + thinking-chain "…" never clear) if
       // we just drop the internal tracker — finalize it like a normal agent_end.
       this.finaliseStreamingTurn();
+      // Same finalize-on-disconnect gap existed for an attached agent's mirrored
+      // turn state (attachedAgentStreaming/attachedAgentLines) — it only reset on
+      // a real agent_end event, so a disconnect mid-turn left it stuck forever.
+      if (this.agentChatState.streaming) {
+        this.agentChatState = reduceAgentEvent(this.agentChatState, { type: "agent_end" });
+        this.queuePatch({
+          attachedAgentLines: this.agentChatState.lines,
+          attachedAgentStreaming: this.agentChatState.streaming,
+        });
+      }
       this.queuePatch({ connected: false, connectionPhase: "connecting", streaming: false });
       this.scheduleConnectionWatchdog();
       setTimeout(() => this.connect(), this.reconnectDelay);
