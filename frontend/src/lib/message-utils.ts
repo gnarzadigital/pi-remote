@@ -38,6 +38,22 @@ export function shouldApplyCapturePaneResponse(
   return requestedAgentId !== undefined && requestedAgentId === currentPeekAgentId;
 }
 
+/**
+ * The 3s auto-refresh poll and a manual "Refresh" tap can both have a
+ * capture_agent_pane request in flight for the same agent at once. If a
+ * slower, earlier-issued request's response lands after a faster, later
+ * one already rendered, applying it would silently regress the pane back to
+ * older text. Only the response matching the most recently issued request
+ * for that agent should be applied; older, superseded ones are dropped.
+ */
+export function isLatestCapturePaneRequest(
+  requestId: string | undefined,
+  requestedAgentId: string | undefined,
+  latestRequestIdForAgent: string | undefined
+): boolean {
+  return requestId !== undefined && requestedAgentId !== undefined && requestId === latestRequestIdForAgent;
+}
+
 export function extractUserText(content: unknown): string {
   let text = "";
   if (typeof content === "string") text = content;

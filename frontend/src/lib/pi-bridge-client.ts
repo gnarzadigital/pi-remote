@@ -5,6 +5,7 @@ import {
   extractUserText,
   finalizeTurnBlocks,
   getModelContextWindowTokens,
+  isLatestCapturePaneRequest,
   shouldApplyCapturePaneResponse,
   uid,
 } from "./message-utils";
@@ -113,6 +114,13 @@ export class PiBridgeClient {
   /** capture_agent_pane request id -> the agentId it was requested for, so a
    * response can be dropped if the user has since switched to another agent. */
   private pendingCapturePanes = new Map<string, string>();
+  /** agentId -> the most recently issued capture_agent_pane request id. The
+   * 3s poll and a manual refresh tap can both have a request in flight for
+   * the same agent; if they resolve out of order (e.g. a slow poll response
+   * lands after a faster manual refresh already rendered), the stale one
+   * would otherwise overwrite fresher pane text. Only the response matching
+   * the latest request per agent gets applied. */
+  private latestCapturePaneRequest = new Map<string, string>();
 
   snapshot: BridgeSnapshot = initialSnapshot();
 
@@ -443,9 +451,19 @@ export class PiBridgeClient {
         this.queuePatch({ agents: (msg.data?.agents as AgentTreeNode[]) ?? [] });
         break;
       case "capture_agent_pane": {
-        const requestedAgentId = msg.id ? this.pendingCapturePanes.get(String(msg.id)) : undefined;
-        if (msg.id) this.pendingCapturePanes.delete(String(msg.id));
-        if (this.snapshot.peek && shouldApplyCapturePaneResponse(requestedAgentId, this.snapshot.peek.agentId)) {
+        const requestId = msg.id ? String(msg.id) : undefined;
+        const requestedAgentId = requestId ? this.pendingCapturePanes.get(requestId) : undefined;
+        if (requestId) this.pendingCapturePanes.delete(requestId);
+        const isLatest = isLatestCapturePaneRequest(
+          requestId,
+          requestedAgentId,
+          requestedAgentId ? this.latestCapturePaneRequest.get(requestedAgentId) : undefined
+        );
+        if (
+          isLatest &&
+          this.snapshot.peek &&
+          shouldApplyCapturePaneResponse(requestedAgentId, this.snapshot.peek.agentId)
+        ) {
           this.queuePatch({
             peek: { ...this.snapshot.peek, text: (msg.data?.text as string | null) ?? null, loading: false },
           });
@@ -895,6 +913,7 @@ export class PiBridgeClient {
     if (!refresh) this.queuePatch({ peek: { agentId: agent.id, text: null, loading: true } });
     const id = this.sendWithId({ type: "capture_agent_pane", surface: agent.surface, workspace: agent.workspace, lines: 200 });
     this.pendingCapturePanes.set(id, agent.id);
+    this.latestCapturePaneRequest.set(agent.id, id);
   }
 
   closePeek() {

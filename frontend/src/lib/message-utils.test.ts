@@ -3,6 +3,7 @@ import {
   finalizeTurnBlocks,
   getContextUsedTokens,
   getModelContextWindowTokens,
+  isLatestCapturePaneRequest,
   shouldApplyCapturePaneResponse,
 } from "./message-utils";
 import type { TurnBlock } from "./types";
@@ -53,4 +54,15 @@ test("shouldApplyCapturePaneResponse drops a stale response from a since-abandon
   expect(shouldApplyCapturePaneResponse("agent-a", null)).toBe(false);
   // Unknown/untracked request id: drop it rather than guessing.
   expect(shouldApplyCapturePaneResponse(undefined, "agent-a")).toBe(false);
+});
+
+test("isLatestCapturePaneRequest drops a slower, superseded request's response", () => {
+  // A manual refresh (req-2) fires after the poll's req-1, and resolves first;
+  // req-1's response then lands late — it's no longer the latest for the agent.
+  expect(isLatestCapturePaneRequest("req-1", "agent-a", "req-2")).toBe(false);
+  // The latest request's own response applies normally.
+  expect(isLatestCapturePaneRequest("req-2", "agent-a", "req-2")).toBe(true);
+  // Untracked/unknown ids: drop rather than guessing.
+  expect(isLatestCapturePaneRequest(undefined, "agent-a", "req-2")).toBe(false);
+  expect(isLatestCapturePaneRequest("req-1", undefined, "req-2")).toBe(false);
 });
