@@ -3,6 +3,7 @@ import {
   finalizeTurnBlocks,
   getContextUsedTokens,
   getModelContextWindowTokens,
+  isLatestAttachRequest,
   isLatestCapturePaneRequest,
   shouldApplyCapturePaneResponse,
 } from "./message-utils";
@@ -65,4 +66,14 @@ test("isLatestCapturePaneRequest drops a slower, superseded request's response",
   // Untracked/unknown ids: drop rather than guessing.
   expect(isLatestCapturePaneRequest(undefined, "agent-a", "req-2")).toBe(false);
   expect(isLatestCapturePaneRequest("req-1", undefined, "req-2")).toBe(false);
+});
+
+test("isLatestAttachRequest drops a stale attach tap superseded by a newer one", () => {
+  // Tap agent A (req-1), then agent B (req-2) before A's slower response lands.
+  // req-1's response arrives late — it's no longer the latest tap, drop it.
+  expect(isLatestAttachRequest("req-1", "req-2")).toBe(false);
+  // req-2 (the latest tap) applies normally.
+  expect(isLatestAttachRequest("req-2", "req-2")).toBe(true);
+  // Untracked/unknown request id: drop rather than guessing.
+  expect(isLatestAttachRequest(undefined, "req-2")).toBe(false);
 });

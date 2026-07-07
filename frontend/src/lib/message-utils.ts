@@ -54,6 +54,23 @@ export function isLatestCapturePaneRequest(
   return requestId !== undefined && requestedAgentId !== undefined && requestId === latestRequestIdForAgent;
 }
 
+/**
+ * resolve_agent_session (attachToAgent) has the same out-of-order risk as
+ * capture_agent_pane, but was never correlated at all — the handler read a
+ * single mutable `pendingAttachAgentId` field instead of matching the
+ * response to the request that produced it. Tapping agent A then agent B
+ * (before A's slower, real filesystem scan for its newest session file
+ * returned) let A's stale response win: it read `pendingAttachAgentId`
+ * *after* B's tap had already overwritten it, attaching B's chat view to
+ * A's session file. Only the most recently issued request should apply.
+ */
+export function isLatestAttachRequest(
+  requestId: string | undefined,
+  latestRequestId: string | null
+): boolean {
+  return requestId !== undefined && requestId === latestRequestId;
+}
+
 export function extractUserText(content: unknown): string {
   let text = "";
   if (typeof content === "string") text = content;

@@ -5,6 +5,7 @@ import {
   extractUserText,
   finalizeTurnBlocks,
   getModelContextWindowTokens,
+  isLatestAttachRequest,
   isLatestCapturePaneRequest,
   shouldApplyCapturePaneResponse,
   uid,
@@ -104,7 +105,14 @@ export class PiBridgeClient {
   private streaming: StreamingState | null = null;
   private messageQueue: string[] = [];
   private agentChatState: AgentChatState = initialAgentChatState();
-  private pendingAttachAgentId: string | null = null;
+  /** resolve_agent_session request id -> the agentId it was requested for.
+   * Tracked per-request (not a single mutable field) because tapping two
+   * different agents in the inbox before the first, slower response lands
+   * would otherwise let the stale response win — see isLatestAttachRequest. */
+  private pendingAttachRequests = new Map<string, string>();
+  /** The most recently issued resolve_agent_session request id. Only its
+   * response is ever applied; anything older is a superseded, dropped tap. */
+  private latestAttachRequestId: string | null = null;
   /** sessionPath of the currently-attached agent, kept so a reconnect can
    * re-attach the same RPC process the bridge tore down on WS close. */
   private attachedSessionPath: string | null = null;
@@ -479,9 +487,11 @@ export class PiBridgeClient {
         this.listAgents(); // refresh the tree after any mutation
         break;
       case "resolve_agent_session": {
+        const requestId = msg.id ? String(msg.id) : undefined;
+        const agentId = requestId ? this.pendingAttachRequests.get(requestId) : undefined;
+        if (requestId) this.pendingAttachRequests.delete(requestId);
+        if (!isLatestAttachRequest(requestId, this.latestAttachRequestId)) break;
         const sessionPath = msg.data?.sessionPath as string | null | undefined;
-        const agentId = this.pendingAttachAgentId;
-        this.pendingAttachAgentId = null;
         if (sessionPath && agentId) {
           this.attachedSessionPath = sessionPath;
           this.sendWithId({ type: "attach_agent", agentId, sessionPath });
@@ -939,14 +949,15 @@ export class PiBridgeClient {
    * first, using the cwd/spawnedAt already on the node — works for any pi agent,
    * not just ones this phone spawned; only "pi" supports this, see AgentTreeNode.runtime). */
   attachToAgent(agent: AgentTreeNode) {
-    this.pendingAttachAgentId = agent.id;
     this.queuePatch({ attachedAgentLabel: agent.label });
-    this.sendWithId({
+    const id = this.sendWithId({
       type: "resolve_agent_session",
       agentId: agent.id,
       cwd: agent.cwd,
       spawnedAt: agent.spawnedAt,
     });
+    this.pendingAttachRequests.set(id, agent.id);
+    this.latestAttachRequestId = id;
   }
 
   detachFromAgent() {
