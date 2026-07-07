@@ -231,3 +231,19 @@
 1. **Streaming gap CLOSED.** Root cause of the earlier no-reply: pi's anthropic OAuth is expired machine-wide (access token in ~/.pi/agent/auth.json expired 5 days ago, refresh failing). **Nik: run `/login anthropic` in any pi session — this affects the live 7700 bridge too.** Verified streaming live with the zai key instead: GLM-4.5 picked via the ported model picker on ?spike=1, streamed turn observed (evidence: .validate/evidence/spike-zai-*).
 2. **Terminal slash commands remote (Nik request):** typing / in the agent-terminal-view reply box now shows that runtime's commands (claude/codex/hermes verified from primary sources; pi uses live RPC list). Tap inserts, send steers via cmux as before. Gate 86/86 + specs re-passed.
 Note: found this worktree switched to `backup/20260706-pi-remote-port` mid-session (not by me); fast-forwarded feat/assistant-ui-port to match and switched back.
+
+---
+
+## Session 2026-07-07 (very early AM) — overnight ralph-loop launched on assistant-ui port
+
+**Context:** Nik asked for a hands-off overnight loop: hunt+fix new UI/UX bugs from the assistant-ui port, then implement priority features from the assistant-ui library (researched via Context7 + GitHub). Full feature inventory given to Nik in chat (worth adding: edit-and-resubmit/regenerate, inline tool-approval prompts, keyboard/a11y pass, thread-switcher eval; explicitly skipped: paid Assistant Cloud, voice, attachments, other-backend adapters).
+
+**What's running:** `~/repos/pi-remote-port/loop.sh` (background bash task `byqhdqgf2` in this pane), a raw Ralph loop calling `/opt/homebrew/bin/claude-yolo -p` fresh each iteration against `PROMPT_build.md`. Scoped ONLY to the `pi-remote-port` worktree on `feat/assistant-ui-port` — hard-blocked in the prompt from touching `~/repos/pi-remote` (live checkout, serves the :7700 launchd bridge) or merging to main. Caps: 40 iterations or 8h wall-clock, whichever first, plus a 3-strikes-per-card stuck rule that marks a card `[!]` blocked instead of looping forever.
+
+**Work queue:** PLAN.md `## Phase 4` on that branch (pushed as `98ebd4c`): 4.0 bug hunt (repeats until 2 consecutive dry passes), 4.1 edit/regenerate, 4.2 inline tool-approval, 4.3 keyboard/a11y, 4.4 thread-switcher evaluation. Each card gates on bun test + tsc + build (+ Playwright for UI cards), commits, pushes to origin, never merges.
+
+**To check progress:** `tail -f ~/repos/pi-remote-port/.ralph-state/loop.log` or `cat ~/repos/pi-remote-port/.ralph-state/iteration-log.md`. To stop it: `kill 45818` (loop.sh's PID at launch — verify with `ps` first, PIDs don't survive a reboot).
+
+**Not touched:** live `~/repos/pi-remote` checkout, launchd bridge, `main` branch. Bridge continues serving whatever was live before this loop started.
+
+**Next (once it stops or Nik wakes up):** review `feat/assistant-ui-port` commits made overnight, check `.ralph-state/bug-hunt-log.txt` and any `[!]` blocked cards, decide what merges.
