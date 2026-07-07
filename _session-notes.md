@@ -207,3 +207,27 @@
 **Update (same evening):** Next items 1 and 2 are done. main fast-forwarded to d9df549 and pushed (52-commit divergence closed; redesign/sessions-inbox fully merged, safe to delete). Untracked junk deleted (.tmp/, 3 *.bak files, qa/_debug-single-click.spec.ts). Checkout now on main; bridge verified serving the current bundle (index-B1hnrqIn.js) at 200. Remaining: phone hard-refresh check; bridge AGENT_CWD still points at airtable-assignment (closeout-only) — repoint when Nik picks the next active project.
 
 **Update (later same evening):** Decisions locked via /decisions: D-1 redesign branch deleted (proven merged + backed up). D-2 bridge now boots into last-used workspace (boot-cwd.ts, prefs.lastCwd, b47a2d8, 77/77 tests, live-verified; seeded to gnarza-digital root). D-3 ADOPT @assistant-ui/react as chat-shell baseline; bug map confirmed the composer/keyboard area (8+ fix commits, 5 QA specs) is what the library owns. D-4 feature backlog deferred until the new baseline lands. Port worker spawned: surface:31 in workspace:12, working in a separate worktree ~/repos/pi-remote-port on branch feat/assistant-ui-port (live bridge checkout untouched), parity gated by the webkit-composer Playwright specs. Lead remains surface:14. Decision journal: ~/agency-brain/decisions/2026-07-06-pi-remote-direction.md.
+
+---
+
+## Session 2026-07-06 (night) — assistant-ui port worker (surface:31, workspace:12)
+
+**What changed:** D-3 executed. Branch `feat/assistant-ui-port` (pushed, 4 commits on main+spike merge) in worktree `~/repos/pi-remote-port` — main checkout untouched, live bridge never restarted.
+
+- `?spike=1` now renders the FULL AppShell with only ChatView's transcript+composer swapped to assistant-ui (`pi-chat-shell.tsx` + `pi-composer.tsx`). The standalone SpikeView page and the 8 unused CLI-generated assistant-ui components are deleted.
+- Message list: ThreadPrimitive viewport owns streaming/scroll; every message renders through the untouched production `ConversationLine` (markdown, thinking chain, tool cards, diff viewer, banners) via line-id lookup.
+- Composer: ComposerPrimitive.Input + composer.send() -> onNew -> production `bridge.sendMessage` (queue semantics intact). All chrome ported 1:1 (slash picker, queue chips, voice, thinking chip, model picker, interrupt, image attach). Dock stays the proven in-flow `.chat-bottom-dock` (NOT sticky ViewportFooter).
+- Gotcha fixed: ComposerPrimitive.Input's Enter submit requires a ComposerPrimitive.Root form (`closest("form").requestSubmit()`); handled Enter directly via the runtime instead.
+
+**Verified:** 4 parity specs (chat-keyboard, webkit-composer-bottom, webkit-composer-overflow, webkit-terminal-composer) 10/10 against the flagged build on a PORT=7701 worktree bridge AND 10/10 unflagged (production unregressed). bun 82/82 incl. pwa-container 3/3, tsc, build clean. Live e2e: transcript render + send round-trip proven with screenshots (`~/repos/pi-remote-port/.validate/evidence/spike-*`).
+
+**Known gap (honest):** assistant STREAMING turn not visually verified live — pi under a session-spawned bridge fails anthropic auth (keychain is user-session-scoped; WS probe proved the prompt reaches pi, identical in flagged+production UIs). Verify streaming on the real 7700 bridge with `?spike=1` after merge, plus real-iPhone keyboard checks (checklist section 2).
+
+**Next:** lead review of `feat/assistant-ui-port`, do NOT merge to main without review. Test bridge recipe: `cd ~/repos/pi-remote-port && PORT=7701 AGENT_CWD=~/repos/pi-remote bun run bridge.ts`.
+
+**Moved paths:** none. New worktree: `~/repos/pi-remote-port` (branch feat/assistant-ui-port).
+
+**Update (same session, surface:31):** Two additions on `feat/assistant-ui-port` @ 9cbbbb9 (pushed):
+1. **Streaming gap CLOSED.** Root cause of the earlier no-reply: pi's anthropic OAuth is expired machine-wide (access token in ~/.pi/agent/auth.json expired 5 days ago, refresh failing). **Nik: run `/login anthropic` in any pi session — this affects the live 7700 bridge too.** Verified streaming live with the zai key instead: GLM-4.5 picked via the ported model picker on ?spike=1, streamed turn observed (evidence: .validate/evidence/spike-zai-*).
+2. **Terminal slash commands remote (Nik request):** typing / in the agent-terminal-view reply box now shows that runtime's commands (claude/codex/hermes verified from primary sources; pi uses live RPC list). Tap inserts, send steers via cmux as before. Gate 86/86 + specs re-passed.
+Note: found this worktree switched to `backup/20260706-pi-remote-port` mid-session (not by me); fast-forwarded feat/assistant-ui-port to match and switched back.
