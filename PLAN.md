@@ -425,6 +425,14 @@ UI-touching cards additionally run the relevant `qa/*.spec.ts` Playwright specs.
 keyboard checks (checklist section 2) are out of scope for this headless loop — label anything
 that needs them "unverified for keyboard interaction (device-only)" instead of claiming done.
 
+**Self-review pass (every card, before the gate):** re-read your own diff once, adversarially,
+as if reviewing a stranger's PR. For this domain (React/TS chat UI over a stateful WebSocket)
+the recurring failure modes already found in this phase are: state not re-synced against a
+live poll, a cleanup/finalize path missing on one of several exit routes (disconnect vs normal
+end vs error), a queue/flag never cleared on a side-door state transition, and a response
+handler not correlated to its request. Check for those specifically before running the gate,
+not just "does it compile."
+
 - [ ] **4.0 Bug hunt on the ported chat shell (repeats until dry).** Each pass: run the full
   gate above, then actively probe the assistant-ui-backed transcript/composer for behavior gaps
   vs. the pre-port UI — message ordering, scroll/focus on new messages, error/disconnect states,
@@ -447,6 +455,23 @@ that needs them "unverified for keyboard interaction (device-only)" instead of c
   against the existing `sessions-view.tsx`. Implement only if it's a net simplification over what
   we have; otherwise mark this card `[x]` with a one-paragraph note on why it was skipped. Do not
   build a second, competing session switcher.
+- [ ] **4.5 Markdown/syntax-highlighting renderer evaluation.** Try assistant-ui's
+  markdown/code-highlighting components against real pi transcript content (streaming
+  markdown, code blocks, the diff viewer's edit hunks, thinking blocks). Adopt only where it's
+  a genuine improvement over the current hand-rolled renderer (e.g. handles a real edge case
+  ours doesn't); keep our renderer for anything it does better (diff hunks, tool cards). Note
+  the comparison in the commit message either way — this is an evaluate-and-decide card, not an
+  automatic swap.
+- [ ] **4.6 Native slash-command / input-history primitives evaluation.** Compare assistant-ui's
+  built-in slash-command and composer-history support against our hand-built `CmdPicker` and
+  arrow-key recall (4.3). Adopt only if it's a net simplification; do not run two competing
+  slash-command systems. If skipped, say why in one paragraph, same rule as 4.4.
 
 Each iteration: pick the first unchecked card above, do only that card's work, gate, commit,
 push, log to `.ralph-state/iteration-log.md`, stop. No scope creep across cards.
+
+**Stop conditions (in addition to the 3-strikes-per-card rule):** if a card requires a genuine
+product decision this loop cannot make on its own (e.g. exactly which tool calls should require
+approval in 4.2), do not guess — implement the safe default (off/no-op), note the open question
+plainly in PLAN.md under a new `## Open questions for Nik` heading at the bottom of this file,
+and move on to the next card.
