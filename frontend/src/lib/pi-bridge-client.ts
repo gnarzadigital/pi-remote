@@ -114,6 +114,10 @@ export class PiBridgeClient {
   /** The most recently issued resolve_agent_session request id. Only its
    * response is ever applied; anything older is a superseded, dropped tap. */
   private latestAttachRequestId: string | null = null;
+  /** The most recently issued attach_agent request id (fresh attach or
+   * reconnect re-attach). Guards the same stale-response race one hop later
+   * than resolve_agent_session — see the attach_agent response case below. */
+  private latestAttachAgentRequestId: string | null = null;
   /** sessionPath of the currently-attached agent, kept so a reconnect can
    * re-attach the same RPC process the bridge tore down on WS close. */
   private attachedSessionPath: string | null = null;
@@ -212,7 +216,7 @@ export class PiBridgeClient {
       // survives the reconnect but points at a dead process, so any send after
       // reconnecting silently no-ops. Re-attach the same agent + session.
       if (shouldReattachAgentOnReconnect(this.snapshot.attachedAgentId, this.attachedSessionPath)) {
-        this.sendWithId({
+        this.latestAttachAgentRequestId = this.sendWithId({
           type: "attach_agent",
           agentId: this.snapshot.attachedAgentId,
           sessionPath: this.attachedSessionPath,
@@ -502,14 +506,21 @@ export class PiBridgeClient {
         const sessionPath = msg.data?.sessionPath as string | null | undefined;
         if (sessionPath && agentId) {
           this.attachedSessionPath = sessionPath;
-          this.sendWithId({ type: "attach_agent", agentId, sessionPath });
+          this.latestAttachAgentRequestId = this.sendWithId({ type: "attach_agent", agentId, sessionPath });
         } else {
           this.queuePatch({ statusError: "Agent session not ready yet — try again in a moment" });
           setTimeout(() => this.queuePatch({ statusError: null }), 3000);
         }
         break;
       }
-      case "attach_agent":
+      case "attach_agent": {
+        const attachRequestId = msg.id ? String(msg.id) : undefined;
+        // Two attach_agent requests (e.g. tapping agent A then B before A's
+        // slower attach confirms) can race the same way resolve_agent_session
+        // does — drop anything but the most recently issued attach_agent
+        // response so a stale confirmation can't blank out the newer agent's
+        // transcript.
+        if (!isLatestAttachRequest(attachRequestId, this.latestAttachAgentRequestId)) break;
         if (msg.data?.agentId) {
           const agentId = String(msg.data.agentId);
           // A reconnect re-sends attach_agent for the SAME agent the client was
@@ -531,6 +542,7 @@ export class PiBridgeClient {
           }
         }
         break;
+      }
       case "get_session_stats":
         this.queuePatch({ stats: msg.data as SessionStats });
         break;
