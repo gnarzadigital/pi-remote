@@ -8,7 +8,9 @@ import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { runtimeLabel } from "@/lib/agent-runtime";
 import { commandsForRuntime } from "@/lib/runtime-commands";
+import { fitTerminalFontPx, maxLineLength, measureChRatio, MONO_CH_RATIO_FALLBACK } from "@/lib/terminal-fit";
 import type { AgentTreeNode } from "@/lib/types";
+import { getUiPrefs, type UiPrefs } from "@/lib/ui-prefs";
 import { hapticTap } from "@/lib/utils";
 
 /** Agents can run in a very narrow cmux split (confirmed live: ~10 columns),
@@ -73,6 +75,43 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
 
   const peek = snapshot.peek;
   const showFor = peek && peek.agentId === agent.id ? peek : null;
+
+  // Fit-to-width: cmux captures are hard-wrapped at the PANE's column width
+  // (a narrow split reads as a skinny left column at fixed 11px — the reported
+  // width bug). Scale the mono font so the longest line spans the container.
+  const [uiPrefs, setUiPrefsLocal] = useState<UiPrefs>(getUiPrefs);
+  const [paneWidth, setPaneWidth] = useState(0);
+  const chRatio = useRef(MONO_CH_RATIO_FALLBACK);
+  useEffect(() => {
+    const onPrefs = (e: Event) => setUiPrefsLocal((e as CustomEvent<UiPrefs>).detail);
+    window.addEventListener("pi-remote-ui-prefs", onPrefs);
+    return () => window.removeEventListener("pi-remote-ui-prefs", onPrefs);
+  }, []);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    chRatio.current = measureChRatio(el);
+    const apply = () => {
+      const s = getComputedStyle(el);
+      setPaneWidth(el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight));
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const displayText = showFor?.text ? reflowNarrowPane(showFor.text) : null;
+  const terminalFontPx = useMemo(
+    () =>
+      fitTerminalFontPx(
+        displayText ? maxLineLength(displayText) : 0,
+        paneWidth,
+        chRatio.current,
+        uiPrefs.terminalScale,
+        uiPrefs.terminalFit
+      ),
+    [displayText, paneWidth, uiPrefs.terminalScale, uiPrefs.terminalFit]
+  );
 
   // Keep the newest terminal output in view, but only if the user hasn't
   // scrolled up to read older output.
@@ -143,13 +182,13 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
       <pre
         ref={bodyRef}
         onScroll={onScroll}
-        className="chat-scroll-zone min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-canvas px-3 py-3 font-mono text-[11px] leading-[1.5] text-graphite"
+        style={{ fontSize: `${terminalFontPx}px` }}
+        className="chat-scroll-zone min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-canvas px-3 py-3 font-mono leading-[1.5] text-graphite"
       >
         {showFor?.loading
           ? "Reading terminal…"
-          : showFor?.text
-            ? reflowNarrowPane(showFor.text)
-            : "Could not read this pane (some agent surfaces don't expose their terminal text). You can still send a message below."}
+          : displayText ??
+            "Could not read this pane (some agent surfaces don't expose their terminal text). You can still send a message below."}
       </pre>
 
       <div ref={bottomDockRef} className="chat-bottom-dock">

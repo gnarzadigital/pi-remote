@@ -326,6 +326,16 @@ html.keyboard-open .sessions-scroll {
   accent-color: var(--color-graphite);
 }
 
+/* User-adjustable chat text (Settings → Text size). Prose children scale in
+   em off this root size; the composer stays fixed at 16px (iOS zoom rule). */
+.chat-prose-text {
+  font-size: calc(15px * var(--chat-text-scale, 1));
+}
+
+.chat-user-text {
+  font-size: calc(14px * var(--chat-text-scale, 1));
+}
+
 :root:not(.dark) .session-cursor-list {
   --session-row-active: #ebebeb;
   --session-row-hover: rgba(0, 0, 0, 0.04);

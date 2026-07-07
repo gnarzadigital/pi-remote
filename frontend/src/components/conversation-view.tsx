@@ -24,11 +24,11 @@ import { Wrench } from "lucide-react";
 // Assistant prose = the same sans as the rest of the UI (Inter). One font family
 // everywhere; code/pre stay mono via the typography plugin's own font-family.
 const messageContentClass =
-  "max-w-full min-w-0 overflow-x-clip rounded-[14px] border border-hairline bg-card px-3 py-2.5 text-[15px] leading-[1.6] font-sans text-graphite prose prose-sm max-w-none break-words [overflow-wrap:anywhere] dark:prose-invert prose-pre:max-w-full prose-pre:overflow-x-auto prose-pre:bg-mist prose-pre:border prose-pre:border-hairline prose-pre:font-mono prose-code:font-mono prose-code:break-all prose-code:bg-mist prose-code:px-1 prose-code:py-0.5 prose-code:before:content-none prose-code:after:content-none prose-table:my-0";
+  "max-w-full min-w-0 overflow-x-clip rounded-[14px] border border-hairline bg-card px-3 py-2.5 chat-prose-text leading-[1.6] font-sans text-graphite prose prose-sm max-w-none break-words [overflow-wrap:anywhere] dark:prose-invert prose-pre:max-w-full prose-pre:overflow-x-auto prose-pre:bg-mist prose-pre:border prose-pre:border-hairline prose-pre:font-mono prose-code:font-mono prose-code:break-all prose-code:bg-mist prose-code:px-1 prose-code:py-0.5 prose-code:before:content-none prose-code:after:content-none prose-table:my-0";
 
 // User bubble = same sans, explicit so it never inherits anything else.
 const userContentClass =
-  "max-w-[92%] rounded-[14px] border border-hairline bg-mist px-3 py-2.5 text-[14px] font-sans text-graphite";
+  "max-w-[92%] rounded-[14px] border border-hairline bg-mist px-3 py-2.5 chat-user-text font-sans text-graphite";
 
 /** edit/write tool with parseable args → render as an inline diff. */
 function isDiffTool(block: Extract<TurnBlock, { kind: "tool" }>): boolean {

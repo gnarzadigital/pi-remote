@@ -74,7 +74,9 @@ export function reduceAgentEvent(
           ? {
               ...l,
               streaming: false,
-              blocks: l.blocks.map((b) => (b.kind === "text" ? { ...b, streaming: false } : b)),
+              blocks: l.blocks.map((b) =>
+                b.kind === "text" || b.kind === "thinking" ? { ...b, streaming: false } : b
+              ),
             }
           : l
       );

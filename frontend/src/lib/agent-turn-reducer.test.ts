@@ -27,6 +27,14 @@ test("agent_end finalizes streaming off", () => {
   expect(line.kind === "turn" && line.blocks[0].kind === "text" && line.blocks[0].streaming).toBe(false);
 });
 
+test("agent_end also finalizes streaming off for a thinking block, not just text", () => {
+  let s = reduceAgentEvent(initialAgentChatState(), { type: "agent_start" });
+  s = reduceAgentEvent(s, { type: "message_update", assistantMessageEvent: { type: "thinking_delta", delta: "hmm" } });
+  s = reduceAgentEvent(s, { type: "agent_end" });
+  const line = s.lines[0];
+  expect(line.kind === "turn" && line.blocks[0].kind === "thinking" && line.blocks[0].streaming).toBe(false);
+});
+
 test("toolcall_end creates a tool block, tool_execution_end marks it done with output", () => {
   let s = reduceAgentEvent(initialAgentChatState(), { type: "agent_start" });
   s = reduceAgentEvent(s, {

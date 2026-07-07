@@ -179,7 +179,10 @@ export class PiBridgeClient {
 
     this.ws.addEventListener("close", () => {
       this.ws = null;
-      this.streaming = null;
+      // A mid-turn disconnect leaves the streaming turn's line/blocks stuck at
+      // streaming: true forever (spinner + thinking-chain "…" never clear) if
+      // we just drop the internal tracker — finalize it like a normal agent_end.
+      this.finaliseStreamingTurn();
       this.queuePatch({ connected: false, connectionPhase: "connecting", streaming: false });
       this.scheduleConnectionWatchdog();
       setTimeout(() => this.connect(), this.reconnectDelay);
@@ -594,7 +597,7 @@ export class PiBridgeClient {
             ...l,
             streaming: false,
             blocks: l.blocks.map((b) =>
-              b.kind === "text" ? { ...b, streaming: false } : b
+              b.kind === "text" || b.kind === "thinking" ? { ...b, streaming: false } : b
             ),
           }
         : l

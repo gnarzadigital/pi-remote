@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { useVisualViewport } from "@/hooks/use-visual-viewport";
 import { applyTheme, cn } from "@/lib/utils";
+import { applyUiPrefs, getUiPrefs } from "@/lib/ui-prefs";
 import { piBridge } from "@/lib/pi-bridge-client";
 
 function AppShell() {
@@ -62,6 +63,7 @@ export default function App() {
   }, [snapshot.theme]);
 
   useEffect(() => {
+    applyUiPrefs(getUiPrefs());
     piBridge.connect();
     piBridge.fetchSessions();
   }, []);
