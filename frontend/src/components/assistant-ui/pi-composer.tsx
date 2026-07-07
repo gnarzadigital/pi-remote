@@ -9,6 +9,7 @@ import {
   CmdPicker,
   filterCommands,
   InputToolbarChip,
+  PendingImagesRow,
   THINKING_LABELS,
 } from "@/components/input-area";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
@@ -100,6 +101,7 @@ export function PiComposer({ variant = "dock" }: PiComposerProps) {
       )}
     >
       <div className="relative w-full max-w-full overflow-x-clip">
+        <PendingImagesRow />
         {snapshot.queuedMessages.length > 0 && (
           <div className="mb-1.5 flex flex-col gap-1">
             {snapshot.queuedMessages.map((m, i) => (

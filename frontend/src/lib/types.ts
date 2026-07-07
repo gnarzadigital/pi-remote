@@ -186,4 +186,7 @@ export interface BridgeSnapshot {
   cmdSelectedIdx: number;
   extensionDialog: ExtensionDialogState | null;
   notificationsEnabled: boolean;
+  /** Images attached but not yet sent (thumbnail + mimeType only — the base64
+   * payload stays private to the bridge until send). */
+  pendingImages: { preview: string; mimeType: string }[];
 }

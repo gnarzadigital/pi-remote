@@ -90,6 +90,7 @@ function initialSnapshot(): BridgeSnapshot {
     cmdSelectedIdx: 0,
     extensionDialog: null,
     notificationsEnabled: localStorage.getItem("notifications-enabled") === "true",
+    pendingImages: [],
   };
 }
 
@@ -1159,6 +1160,7 @@ export class PiBridgeClient {
 
     this.pendingImages.forEach((img) => img.preview && URL.revokeObjectURL(img.preview));
     this.pendingImages = [];
+    this.syncPendingImages();
   }
 
   addPendingImages(files: FileList | File[]) {
@@ -1173,14 +1175,31 @@ export class PiBridgeClient {
           mimeType: file.type,
           preview: URL.createObjectURL(file),
         });
-        this.emit();
+        this.syncPendingImages();
       };
       reader.readAsDataURL(file);
     }
   }
 
-  get pendingImageCount() {
-    return this.pendingImages.length;
+  /** Drop one attached-but-unsent image (composer thumbnail's X button). */
+  removePendingImage(index: number) {
+    if (index < 0 || index >= this.pendingImages.length) return;
+    const [removed] = this.pendingImages.splice(index, 1);
+    if (removed?.preview) URL.revokeObjectURL(removed.preview);
+    this.syncPendingImages();
+  }
+
+  /** Mirror pendingImages (preview + mimeType only) into the reactive snapshot
+   * so the composer can show what's attached before send — a raw emit() here
+   * doesn't touch `this.snapshot`, so useSyncExternalStore never saw a change
+   * and no preview ever rendered. */
+  private syncPendingImages() {
+    this.queuePatch({
+      pendingImages: this.pendingImages.map(({ preview, mimeType }) => ({
+        preview: preview ?? "",
+        mimeType,
+      })),
+    });
   }
 
   showCmdPicker(filter: string) {

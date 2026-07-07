@@ -67,6 +67,38 @@ export function CmdPicker({ onSelect }: { onSelect: (value: string) => void }) {
   );
 }
 
+/** Thumbnails for images attached but not yet sent, each with its own remove
+ * button — shared by the production composer and the assistant-ui composer. */
+export function PendingImagesRow() {
+  const { snapshot, bridge } = usePiBridge();
+  if (snapshot.pendingImages.length === 0) return null;
+
+  return (
+    <div className="mb-1.5 flex flex-wrap gap-1.5">
+      {snapshot.pendingImages.map((img, i) => (
+        <div key={i} className="relative">
+          <img
+            src={img.preview}
+            alt=""
+            className="size-14 rounded-[10px] border border-hairline object-cover"
+          />
+          <button
+            type="button"
+            aria-label="Remove image"
+            className="absolute -right-1.5 -top-1.5 inline-flex size-5 items-center justify-center rounded-full border border-hairline bg-card text-concrete hover:text-graphite"
+            onClick={() => {
+              hapticTap();
+              bridge.removePendingImage(i);
+            }}
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function InputToolbarChip({
   active,
   onClick,
@@ -170,6 +202,7 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
       )}
     >
       <div className="relative w-full max-w-full overflow-x-clip">
+        <PendingImagesRow />
         {snapshot.queuedMessages.length > 0 && (
           <div className="mb-1.5 flex flex-col gap-1">
             {snapshot.queuedMessages.map((m, i) => (
