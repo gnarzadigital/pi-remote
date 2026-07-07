@@ -31,7 +31,7 @@ import type {
   TurnBlock,
 } from "./types";
 import { applyTheme } from "./utils";
-import { shouldQueue } from "./message-queue";
+import { shouldFlushQueueOnReconnect, shouldQueue } from "./message-queue";
 import { initialAgentChatState, reduceAgentEvent, type AgentChatState } from "./agent-turn-reducer";
 
 const MODE_CYCLE: SendMode[] = ["prompt", "steer", "follow_up"];
@@ -175,6 +175,12 @@ export class PiBridgeClient {
       // Re-bootstrap state after reconnect
       this.sendWithId({ type: "get_state" });
       this.sendWithId({ type: "get_available_models" });
+      // A message queued mid-turn only flushes on `agent_end` — a disconnect
+      // before that event fires finalizes the turn locally (close handler)
+      // but leaves the queue stuck forever. Flush it now that we're back.
+      if (shouldFlushQueueOnReconnect(this.messageQueue.length, this.snapshot.streaming)) {
+        this.flushQueuedMessage();
+      }
     });
 
     this.ws.addEventListener("close", () => {

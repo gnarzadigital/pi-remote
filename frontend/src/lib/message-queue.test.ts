@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { shouldQueue } from "./message-queue";
+import { shouldFlushQueueOnReconnect, shouldQueue } from "./message-queue";
 
 test("queues a plain prompt typed mid-stream", () => {
   expect(shouldQueue(true, "prompt", false)).toBe(true);
@@ -16,4 +16,16 @@ test("steer and follow-up always send immediately", () => {
 
 test("messages with images send immediately", () => {
   expect(shouldQueue(true, "prompt", true)).toBe(false);
+});
+
+test("flushes a stuck queue once reconnected and no longer streaming", () => {
+  expect(shouldFlushQueueOnReconnect(1, false)).toBe(true);
+});
+
+test("does not flush an empty queue", () => {
+  expect(shouldFlushQueueOnReconnect(0, false)).toBe(false);
+});
+
+test("does not flush while a turn is still marked streaming", () => {
+  expect(shouldFlushQueueOnReconnect(1, true)).toBe(false);
 });
