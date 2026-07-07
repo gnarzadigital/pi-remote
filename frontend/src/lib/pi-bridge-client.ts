@@ -35,6 +35,7 @@ import { applyTheme } from "./utils";
 import { shouldFlushQueueOnReconnect, shouldQueue } from "./message-queue";
 import {
   initialAgentChatState,
+  isReconnectReattach,
   reduceAgentEvent,
   shouldReattachAgentOnReconnect,
   type AgentChatState,
@@ -461,13 +462,24 @@ export class PiBridgeClient {
       }
       case "attach_agent":
         if (msg.data?.agentId) {
-          this.agentChatState = initialAgentChatState();
-          this.queuePatch({
-            attachedAgentId: String(msg.data.agentId),
-            attachedAgentLines: [],
-            attachedAgentStreaming: false,
-            view: "agent-chat",
-          });
+          const agentId = String(msg.data.agentId);
+          // A reconnect re-sends attach_agent for the SAME agent the client was
+          // already viewing (see shouldReattachAgentOnReconnect above) — the
+          // response is indistinguishable from a fresh attach on the wire, but
+          // wiping the transcript here would blank out everything the user was
+          // already reading on every WS blip. Only reset state for a genuinely
+          // new attach.
+          if (isReconnectReattach(this.snapshot.attachedAgentId, agentId)) {
+            this.queuePatch({ attachedAgentId: agentId, view: "agent-chat" });
+          } else {
+            this.agentChatState = initialAgentChatState();
+            this.queuePatch({
+              attachedAgentId: agentId,
+              attachedAgentLines: [],
+              attachedAgentStreaming: false,
+              view: "agent-chat",
+            });
+          }
         }
         break;
       case "get_session_stats":

@@ -28,6 +28,25 @@ export function shouldReattachAgentOnReconnect(
   return attachedAgentId !== null && attachedSessionPath !== null;
 }
 
+/**
+ * The `attach_agent` response handler resets the agent-chat transcript to
+ * blank on every success, which is correct for a genuinely new attach (the
+ * user just opened this agent's chat and should see it start empty) but
+ * wrong for the reconnect flow above: that flow re-sends `attach_agent` for
+ * the SAME agent the client was already viewing, and the response looks
+ * identical on the wire. Without this check, any WS blip while watching an
+ * attached agent's live stream silently blanks the transcript the user was
+ * reading. Distinguish by comparing the incoming agentId against the one
+ * already attached client-side (only null before a genuinely fresh attach,
+ * since detach clears it and a disconnect alone does not).
+ */
+export function isReconnectReattach(
+  currentAttachedAgentId: string | null,
+  incomingAgentId: string
+): boolean {
+  return currentAttachedAgentId === incomingAgentId;
+}
+
 let seq = 0;
 function uid(prefix: string): string {
   return `${prefix}-${++seq}`;

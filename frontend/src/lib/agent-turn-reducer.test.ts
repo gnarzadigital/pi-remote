@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { initialAgentChatState, reduceAgentEvent, shouldReattachAgentOnReconnect } from "./agent-turn-reducer";
+import {
+  initialAgentChatState,
+  isReconnectReattach,
+  reduceAgentEvent,
+  shouldReattachAgentOnReconnect,
+} from "./agent-turn-reducer";
 
 test("agent_start opens a streaming turn", () => {
   const s = reduceAgentEvent(initialAgentChatState(), { type: "agent_start" });
@@ -90,4 +95,10 @@ test("shouldReattachAgentOnReconnect only fires when both agentId and sessionPat
   expect(shouldReattachAgentOnReconnect(null, "/tmp/session.jsonl")).toBe(false);
   expect(shouldReattachAgentOnReconnect("agent-1", null)).toBe(false);
   expect(shouldReattachAgentOnReconnect(null, null)).toBe(false);
+});
+
+test("isReconnectReattach is true only when the incoming agentId matches an already-attached one", () => {
+  expect(isReconnectReattach("agent-1", "agent-1")).toBe(true);
+  expect(isReconnectReattach(null, "agent-1")).toBe(false);
+  expect(isReconnectReattach("agent-1", "agent-2")).toBe(false);
 });
