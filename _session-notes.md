@@ -132,3 +132,74 @@
 - Untracked: `bridge.ts.bak-20260703-125325`, `public/assets/code-block-DjOakUBt.js`, `public/assets/index-DGKVBtjO.js`, `scripts/pi-remote-online.sh`, `scripts/pi-remote-online.sh.bak-20260703-111139`, `scripts/pi-remote.sh.bak-20260703-111139`
 
 **Next session (if task is still live):** "workspace-fix-verify" was never defined. Clarify with orchestrator which "workspace" — cmux workspace, the pi-remote repo working tree, or MacBook↔Mac Mini path parity — and what "fix" + "verify" should produce.
+
+---
+
+## Session 2026-07-06 — cmux project-lead cleanup from pi-remote pane
+
+**Context:** Nik clarified the four active project contexts need durable lead orchestrators and asked to get the cmux/mesh state fixed and back on track.
+
+**What changed:**
+- Ran `pi update --extensions` successfully (`RC=0`).
+- Updated `/Users/nicholasgarza/.agents/scripts/cmux-agent`:
+  - `spawn` now accepts `--workspace` and sends/keys/captures inside that explicit workspace.
+  - `confirm` now passes `--workspace` to `cmux send` / `send-key`, preventing accidental close of the wrong per-workspace `surface:NN`.
+  - Wrapper syntax check passed and `test-cmux-agent-regression.sh` passed.
+- Locked Rule 7 into `/Users/nicholasgarza/.agents/RULES.md` and synced via `sync-agent-rules.sh`: one active project = one cmux workspace = one durable lead pane; no cross-project default workspace mixing.
+- Added the same project-lead topology guidance to `/Users/nicholasgarza/.agents/skills/cmux-agents/SKILL.md`.
+- Cleaned stale `default` mesh entries for `surface:12` (airtable worker) and `surface:64` (this pane) using explicit `--workspace default`.
+- Created/restored durable leads:
+  - pi-remote: `workspace:12/surface:28` (Claude lead, cwd `/Users/nicholasgarza/repos/pi-remote`, `--keep`).
+  - revops-architect: `workspace:13/surface:30` (Claude lead, cwd `/Users/nicholasgarza/Projects/gnarza-digital/infrastructure/agents/revops-architect`, `--keep`).
+  - Crystal opportunity-lifecycle: status request sent to `workspace:10/surface:25`.
+- Confirmed airtable-assignment `PLAN.md` status is `SUBMITTED (Greenhouse, 2026-07-01)`; treat as closeout-only unless Nik reopens it.
+
+**What is next:**
+- Use the new pi-remote lead at `workspace:12/surface:28` for all pi-remote work. It is currently alive and ready to own future worker spawns.
+- Consolidate duplicate old pi-remote panes/workspaces only after Nik confirms which ones to close.
+- Let each durable lead report `DONE / NEXT / BLOCKED`, then decide the next project action from those summaries.
+
+**Moved paths:** none.
+
+---
+
+## Session 2026-07-06 — pi-remote cmux surface consolidation
+
+**What changed:** Consolidated all visible pi-remote cmux surfaces into the official `workspace:12 "pi-remote"` workspace/window.
+
+**Moved into `workspace:12`:**
+- `surface:5` — old Pi pi-remote pane from duplicate `workspace:2`.
+- `surface:10` — old Pi pi-remote pane from duplicate `workspace:7`.
+- `surface:14` — old Claude/status pi-remote pane from duplicate `workspace:7`.
+- Existing official lead remained `surface:28`.
+
+**Closed duplicate workspaces:**
+- `workspace:2 "π - pi-remote"`
+- `workspace:7 "Pi-remote"`
+
+**Current pi-remote topology:** `workspace:12` contains `surface:28`, `surface:5`, `surface:10`, and `surface:14` in one pane/window. No sessions were intentionally killed; this was a topology move/consolidation.
+
+**Next:** Use `workspace:12/surface:28` as the official pi-remote lead. Review the older Pi panes (`surface:5`, `surface:10`) and old Claude/status pane (`surface:14`) before closing any of them.
+
+---
+
+## Session 2026-07-06 (evening) — lead consolidation complete, surface:14 is the durable lead
+
+**Context:** Two Claude leads existed (surface:14 and surface:28). Handoff from Claude session 3e6d26d4 (iOS standalone fix, assistant-ui spike, launchd PATH fix 7e1d77f) was verified fully pushed: 0 local commits missing from origin on any branch; local main is fully contained in origin/redesign/sessions-inbox.
+
+**What changed:**
+- surface:28 (previous official lead), surface:5, and surface:10 (old Pi panes) were closed by Nik. workspace:12 "pi-remote" now contains only surface:14.
+- **surface:14 is now the durable pi-remote lead** (Claude Code, session 05f36e4b, cwd ~/repos/pi-remote). Mesh registry workspace_12 updated to match.
+- Committed this notes file (was the only dirty tracked file).
+
+**Repo truth at close of consolidation:**
+- redesign/sessions-inbox @ 7e1d77f, pushed, bridge running live off it (port 7700 healthy).
+- spike/assistant-ui-shell @ 31b6c52, pushed, untouched.
+- Untracked junk (.tmp/, *.bak-*, qa/_debug-single-click.spec.ts) left alone pending Nik.
+
+**Next:**
+1. Nik decision: merge redesign/sessions-inbox into main and push (closes the 52-commit divergence).
+2. Then delete untracked junk.
+3. Phone-verify latest UI build if not already done.
+
+**Moved paths:** none.
