@@ -203,3 +203,5 @@
 3. Phone-verify latest UI build if not already done.
 
 **Moved paths:** none.
+
+**Update (same evening):** Next items 1 and 2 are done. main fast-forwarded to d9df549 and pushed (52-commit divergence closed; redesign/sessions-inbox fully merged, safe to delete). Untracked junk deleted (.tmp/, 3 *.bak files, qa/_debug-single-click.spec.ts). Checkout now on main; bridge verified serving the current bundle (index-B1hnrqIn.js) at 200. Remaining: phone hard-refresh check; bridge AGENT_CWD still points at airtable-assignment (closeout-only) — repoint when Nik picks the next active project.
