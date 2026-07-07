@@ -76,4 +76,7 @@ test("isLatestAttachRequest drops a stale attach tap superseded by a newer one",
   expect(isLatestAttachRequest("req-2", "req-2")).toBe(true);
   // Untracked/unknown request id: drop rather than guessing.
   expect(isLatestAttachRequest(undefined, "req-2")).toBe(false);
+  // detachFromAgent() nulls out the tracker so a late response for the agent
+  // the user just left can never pass as "latest" and resurrect it.
+  expect(isLatestAttachRequest("req-1", null)).toBe(false);
 });

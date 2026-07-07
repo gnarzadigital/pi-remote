@@ -986,6 +986,13 @@ export class PiBridgeClient {
     if (agentId) this.send({ type: "detach_agent", agentId, id: this.nextId() });
     this.attachedSessionPath = null;
     this.agentChatState = initialAgentChatState();
+    // A resolve_agent_session/attach_agent request can still be in flight when
+    // the user detaches (e.g. tap agent A, then immediately back out). Without
+    // invalidating these, a late response would still pass isLatestAttachRequest
+    // (nothing newer superseded it) and silently re-attach the just-detached
+    // agent, resurrecting a view the user deliberately left.
+    this.latestAttachRequestId = null;
+    this.latestAttachAgentRequestId = null;
     this.queuePatch({
       attachedAgentId: null,
       attachedAgentLabel: null,
