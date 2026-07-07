@@ -461,12 +461,14 @@ not just "does it compile."
   `ThreadPrimitive.Viewport` doesn't use — added `StreamingLiveRegion` as a dependency-free
   equivalent tied to `snapshot.streaming`. No Playwright spec needed (ARIA/focus change, not
   composer layout/keyboard geometry).
-- [ ] **4.4 Thread/session switcher — implement.** Nik wants the full feature set adopted, not
-  evaluated-and-skipped. Adopt assistant-ui's `ThreadList` primitive for session switching,
-  wired to the existing bridge session list. If it can't fully replace `sessions-view.tsx`'s
-  richer features (search, workspace grouping) in this pass, integrate it for what it does cover
-  and keep the rest of `sessions-view.tsx` alongside it rather than silently skipping the card —
-  log the gap under `## Open questions for Nik`, don't just decline to build.
+- [!] **4.4 Thread/session switcher.** BLOCKED — see `## Open questions for Nik`: assistant-ui's
+  `ThreadListPrimitive` only gets real multi-thread switching from `useRemoteThreadListRuntime`,
+  whose `adapter.initialize()` contract requires a promise that resolves to the newly-created
+  session's canonical id — and pi's bridge protocol has no correlated response that returns a
+  fresh session's real path (traced in `pi-bridge-client.ts`/`bridge.ts`, not guessed). That gap
+  sits on the app's most common path (fresh session, first message), not an edge case. Needs a
+  decision from Nik (add a correlated `new_session` response, or accept a narrower switcher) before
+  any code change.
 - [ ] **4.5 Markdown/syntax-highlighting renderer — implement.** Adopt assistant-ui's
   markdown/code-highlighting components for message rendering (streaming markdown, code blocks,
   thinking blocks), replacing the hand-rolled renderer where it's a straight swap. Keep our
@@ -536,3 +538,44 @@ and move on to the next card.
     pi itself, not just this repo.
   Card 4.2 is marked `[!]` blocked pending this decision rather than `[ ]`, so future loop
   iterations skip it and move to 4.3 instead of re-deriving this same analysis.
+
+- **4.4 (thread/session switcher) — `ThreadListPrimitive` needs a runtime primitive pi's
+  protocol can't back.** Traced the actual mechanics before writing any UI, since "ours already
+  works" isn't a valid reason to skip this card:
+  1. `ThreadListPrimitive.Items`/`ItemByIndex` read from `useAssistantRuntime().threads`, a
+     `ThreadListRuntime`. The only runtime factories in this `@assistant-ui/react@0.14.26`
+     install that populate a real (switchable, multi-item) `.threads` are
+     `useRemoteThreadListRuntime` and `useCloudThreadListRuntime` (the latter needs Assistant
+     Cloud, not applicable here). Plain `useExternalStoreRuntime` — what `pi-chat-shell.tsx`
+     uses today — backs `.threads` with `SingleThreadList`, a single fixed entry with no
+     switch/list capability, so it can't drive a real switcher.
+  2. `useRemoteThreadListRuntime` requires a `RemoteThreadListAdapter` with
+     `initialize(threadId): Promise<{remoteId, externalId}>`. This fires whenever the runtime is
+     on a not-yet-persisted local thread and a message is sent — which includes the app's default
+     state: `threadId: undefined` ("switch to new thread") is exactly what a fresh session is
+     today (`snapshot.activeSessionPath === null`), and that's the most common entry point, not
+     an edge case (every "New chat" starts here).
+  3. pi's bridge protocol has no correlated response for session creation:
+     `bridge.ts`'s `new_session` handler (same-cwd path) never sends a `type: "response",
+     command: "new_session"` success payload carrying the new session's path (contrast
+     `rename_session`, which does correlate via `id` → `pendingRenames`), and
+     `pi-bridge-client.ts`'s `handleResponse` switch has no `case "new_session"` at all. The
+     frontend only ever learns a new session's real path later, indirectly, when the user
+     manually reopens Sessions and the periodic `fetchSessions()` list happens to include it.
+  4. A workaround — minting a client-side placeholder id in `initialize()` so the promise
+     resolves — was considered and rejected: the real backend-assigned session would show up as a
+     *second*, separate entry once `fetchSessions()` polls, while the live thread keeps pointing
+     at the placeholder. That's precisely the "state not re-synced against a live poll" failure
+     mode this phase's self-review pass exists to catch, not a safe no-op.
+  Given that, swapping `AssistantChatShell`'s runtime to `useRemoteThreadListRuntime` isn't a
+  contained UI change — it's blocked on a real protocol gap on the app's default path. Two paths
+  forward, need Nik's call:
+  - (a) Add a correlated `new_session` response in `bridge.ts` (mirror `rename_session`'s `id` →
+    pending-map pattern) that reports the real session path once pi assigns one, so
+    `initialize()` can await it honestly. Unblocks a full `ThreadListPrimitive` swap.
+  - (b) Skip the full runtime swap; build a narrower switcher using `ThreadListPrimitive`'s
+    presentational pieces against a hand-rolled list model (not `useRemoteThreadListRuntime`) that
+    only ever operates on already-persisted sessions, explicitly excluding
+    `ThreadListPrimitive.New` — functionally close to what `sessions-view.tsx` already does today,
+    so the payoff over the existing UI would be mostly cosmetic.
+  Card 4.4 is marked `[!]` blocked pending this decision, same pattern as 4.2.
