@@ -404,7 +404,14 @@ export class PiBridgeClient {
           this.queuePatch({ view: "sessions" });
         }
         if (msg.command === "rename_session") {
+          const pending = this.pendingRenames.get(String(msg.id));
           this.pendingRenames.delete(String(msg.id));
+          if (pending && this.snapshot.activeSessionPath === pending.sessionPath) {
+            const existing = this.snapshot.sessions.find((s) => s.path === pending.sessionPath);
+            this.queuePatch({
+              activeSessionName: existing ? formatSessionName(existing.name) : this.snapshot.activeSessionName,
+            });
+          }
           this.fetchSessions();
         }
       }
@@ -556,6 +563,7 @@ export class PiBridgeClient {
         }
         break;
       case "rename_session":
+        if (msg.id) this.pendingRenames.delete(msg.id);
         if (msg.data?.name && msg.data?.sessionPath) {
           const sessionPath = String(msg.data.sessionPath);
           const newName = String(msg.data.name);
