@@ -695,6 +695,26 @@ export class PiBridgeClient {
     this.syncPendingImages();
   }
 
+  /** Same side-door-transition gap as clearMessageQueue/clearPendingImages, for
+   * a pending tool-approval dialog (extension_ui_request): without this, a
+   * confirm/input/editor prompt left unanswered when the user switches or
+   * starts a session kept floating over the new session's UI, and resolving
+   * it later would silently answer the ABANDONED session's tool call instead
+   * of the one the user is now looking at. Auto-cancel it (same shape as
+   * shouldAutoCancelPendingDialog) so pi's tool call isn't left blocked
+   * forever waiting for a response the user can no longer even see. */
+  private clearExtensionDialog() {
+    const pending = this.snapshot.extensionDialog;
+    if (!pending) return;
+    const cancelPayload = { id: pending.id, cancelled: true, value: null };
+    if (pending.agentId) {
+      this.send({ type: "agent_command", agentId: pending.agentId, payload: { type: "extension_ui_response", ...cancelPayload } });
+    } else {
+      this.send({ type: "extension_ui_response", ...cancelPayload });
+    }
+    this.queuePatch({ extensionDialog: null });
+  }
+
   private appendUser(text: string, images?: ImageAttachment[]) {
     this.queuePatch({
       lines: [...this.snapshot.lines, { id: uid("user"), kind: "user", text, images }],
@@ -1068,6 +1088,10 @@ export class PiBridgeClient {
     // agent, resurrecting a view the user deliberately left.
     this.latestAttachRequestId = null;
     this.latestAttachAgentRequestId = null;
+    // A tool-approval dialog raised by the agent being detached (agentId set)
+    // must not keep floating over the sessions view the user backed out to —
+    // primary-session dialogs (agentId undefined) are untouched here.
+    if (this.snapshot.extensionDialog?.agentId) this.clearExtensionDialog();
     this.queuePatch({
       attachedAgentId: null,
       attachedAgentLabel: null,
@@ -1148,6 +1172,7 @@ export class PiBridgeClient {
   switchSession(session: PiSession) {
     this.clearMessageQueue();
     this.clearPendingImages();
+    this.clearExtensionDialog();
     this.queuePatch({
       activeSessionName: formatSessionName(session.name),
       activeSessionPath: session.path,
@@ -1175,6 +1200,7 @@ export class PiBridgeClient {
   newSession() {
     this.clearMessageQueue();
     this.clearPendingImages();
+    this.clearExtensionDialog();
     this.queuePatch({
       activeSessionName: "New session",
       activeSessionPath: null,
@@ -1195,6 +1221,7 @@ export class PiBridgeClient {
   newSessionInDir(cwd: string) {
     this.clearMessageQueue();
     this.clearPendingImages();
+    this.clearExtensionDialog();
     this.queuePatch({
       activeSessionName: "New session",
       activeSessionPath: null,
