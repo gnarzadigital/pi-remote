@@ -1,11 +1,13 @@
 import { createContext, useContext, useMemo, useRef } from "react";
 import {
+  ActionBarPrimitive,
   AssistantRuntimeProvider,
+  ComposerPrimitive,
   ThreadPrimitive,
   useAuiState,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Pencil, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConversationLine } from "@/components/conversation-view";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -23,13 +25,57 @@ import type { ChatLine } from "@/lib/types";
  * system banners) — the "bespoke renderers stay plug-ins" half of D-3. */
 const LineMapContext = createContext<Map<string, ChatLine>>(new Map());
 
+const actionButtonClass =
+  "inline-flex size-6 items-center justify-center rounded-full text-concrete hover:bg-mist hover:text-graphite disabled:pointer-events-none disabled:opacity-40";
+
+/** Edit-and-resubmit (4.1): the user-message textarea swaps in for the static
+ * bubble while editing; assistant-ui's edit composer pre-fills it with the
+ * message's current text. Save resubmits via `onEdit` -> the same bridge
+ * send path as a normal message (see the onEdit comment in AssistantChatShell
+ * for why this can't be a true in-place history rewind against pi). */
+function EditingMessage() {
+  return (
+    <ComposerPrimitive.Root className="flex flex-col items-end gap-1 py-1">
+      <ComposerPrimitive.Input
+        rows={1}
+        className="max-h-[140px] w-full max-w-[92%] resize-none rounded-[14px] border border-hairline bg-canvas px-3 py-2.5 text-[14px] text-graphite outline-none"
+      />
+      <div className="flex items-center gap-3 pr-1">
+        <ComposerPrimitive.Cancel className="text-[12px] text-concrete hover:text-graphite">
+          Cancel
+        </ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Send className="text-[12px] font-medium text-graphite hover:text-graphite">
+          Save
+        </ComposerPrimitive.Send>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+}
+
 function ShellMessage() {
   const id = useAuiState((s) => s.message.id);
+  const role = useAuiState((s) => s.message.role);
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
   const line = useContext(LineMapContext).get(id);
   if (!line) return null;
+  if (isEditing) return <EditingMessage />;
   return (
     <ErrorBoundary inline>
       <ConversationLine line={line} />
+      {role === "user" && (
+        <div className="flex justify-end">
+          <ActionBarPrimitive.Edit aria-label="Edit message" className={actionButtonClass}>
+            <Pencil className="size-3.5" />
+          </ActionBarPrimitive.Edit>
+        </div>
+      )}
+      {role === "assistant" && line.kind === "turn" && !line.streaming && (
+        <div className="flex justify-start">
+          <ActionBarPrimitive.Reload aria-label="Regenerate response" className={actionButtonClass}>
+            <RotateCcw className="size-3.5" />
+          </ActionBarPrimitive.Reload>
+        </div>
+      )}
     </ErrorBoundary>
   );
 }
@@ -76,6 +122,22 @@ export function AssistantChatShell() {
         .join("")
         .trim();
       if (text) bridge.sendMessage(text);
+    },
+    // pi's bridge protocol has no "rewind agent context" primitive (see
+    // bridge.ts: prompt/follow_up/steer only append). Editing a user message
+    // or reloading an assistant reply can't truly replace what the agent
+    // already ingested, so both resubmit as a new prompt instead of a true
+    // in-place rewind. Open question logged in PLAN.md.
+    onEdit: async (msg) => {
+      const text = msg.content
+        .map((p) => (p.type === "text" ? p.text : ""))
+        .join("")
+        .trim();
+      if (text) bridge.sendMessage(text);
+    },
+    onReload: async (parentId) => {
+      const parent = parentId ? snapshot.lines.find((l) => l.id === parentId) : undefined;
+      if (parent?.kind === "user") bridge.sendMessage(parent.text);
     },
   });
 

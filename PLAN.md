@@ -440,7 +440,7 @@ not just "does it compile."
   queue-while-streaming. Fix anything real, commit, and append one line to
   `.ralph-state/bug-hunt-log.txt`: `FOUND: <one-line bug>` or `DRY`. Only mark this card `[x]`
   once the log's last two lines both read `DRY`. Until then it stays `[ ]` and gets picked again.
-- [ ] **4.1 Edit-and-resubmit / regenerate last reply.** Wire `ExternalStoreRuntime`'s `onEdit`/
+- [x] **4.1 Edit-and-resubmit / regenerate last reply.** Wire `ExternalStoreRuntime`'s `onEdit`/
   `onReload` against the existing bridge send path; add the UI affordance on user + assistant
   messages (reuse existing icon/button patterns, don't invent a new visual language).
 - [ ] **4.2 Inline tool-approval prompts.** For any pi tool call that should require confirmation
@@ -484,3 +484,15 @@ product decision this loop cannot make on its own (e.g. exactly which tool calls
 approval in 4.2), do not guess — implement the safe default (off/no-op), note the open question
 plainly in PLAN.md under a new `## Open questions for Nik` heading at the bottom of this file,
 and move on to the next card.
+
+## Open questions for Nik
+
+- **4.1 (edit/regenerate) — no true history rewind.** pi's bridge protocol (`bridge.ts`) only
+  ever appends (`prompt`/`follow_up`/`steer`); there's no "forget this turn and everything after
+  it" command, so the underlying agent process keeps whatever it already ingested. `onEdit` and
+  `onReload` are wired to resubmit the edited/original text as a new prompt through the normal
+  send path (same as typing a fresh message) rather than truly replacing the original turn in the
+  agent's own context. The UI will show the edited text as a new message below the original, not
+  in place of it. If you want a true rewind, the bridge protocol needs a new command that resets
+  the agent session or otherwise drops trailing turns before resubmitting — flag if that's worth
+  building.
