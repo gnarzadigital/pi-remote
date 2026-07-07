@@ -73,6 +73,7 @@ function TurnLine({ line }: { line: Extract<ChatLine, { kind: "turn" }> }) {
               <MessageContent
                 key={`text-${gi}`}
                 markdown
+                streaming={block.streaming}
                 className={cn(messageContentClass, "w-full max-w-full")}
               >
                 {block.text + (block.streaming ? " ▋" : "")}

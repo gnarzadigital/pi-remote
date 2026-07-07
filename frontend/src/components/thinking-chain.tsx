@@ -54,7 +54,10 @@ export function ThinkingChain({
                     key={itemIdx}
                     className="text-[12px] leading-relaxed text-concrete"
                   >
-                    <Markdown className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1">
+                    <Markdown
+                      className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1"
+                      streaming={block.streaming}
+                    >
                       {item}
                     </Markdown>
                   </ChainOfThoughtItem>

@@ -1,16 +1,19 @@
 import { cn } from "@/lib/utils"
-import { marked } from "marked"
-import { memo, useEffect, useId, useMemo, useState } from "react"
-import ReactMarkdown, { type Components } from "react-markdown"
+import {
+  MarkdownTextPrimitive,
+  type MarkdownTextPrimitiveProps,
+} from "@assistant-ui/react-markdown"
+import { TextMessagePartProvider } from "@assistant-ui/react"
+import { memo, useEffect, useState } from "react"
 import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
 import { Source, SourceContent, SourceTrigger } from "./source"
 
 export type MarkdownProps = {
   children: string
-  id?: string
   className?: string
-  components?: Partial<Components>
+  streaming?: boolean
+  components?: MarkdownTextPrimitiveProps["components"]
 }
 
 function isExternalHttpUrl(href: string | undefined): href is string {
@@ -23,10 +26,13 @@ function isExternalHttpUrl(href: string | undefined): href is string {
   }
 }
 
-function LazyCodeBlock(props: {
-  className?: string
-  code: string
+// ponytail: no header/copy button, matches the pre-swap renderer's behavior.
+function LazySyntaxHighlighter({
+  language,
+  code,
+}: {
   language: string
+  code: string
 }) {
   const [mod, setMod] = useState<typeof import("./code-block") | null>(null)
 
@@ -37,31 +43,20 @@ function LazyCodeBlock(props: {
   if (!mod) {
     return (
       <pre className="overflow-x-auto rounded-xl border border-hairline bg-mist p-4 text-[13px]">
-        <code>{props.code}</code>
+        <code>{code}</code>
       </pre>
     )
   }
 
   const { CodeBlock, CodeBlockCode } = mod
   return (
-    <CodeBlock className={props.className}>
-      <CodeBlockCode code={props.code} language={props.language} />
+    <CodeBlock>
+      <CodeBlockCode code={code} language={language || "plaintext"} />
     </CodeBlock>
   )
 }
 
-function parseMarkdownIntoBlocks(markdown: string): string[] {
-  const tokens = marked.lexer(markdown)
-  return tokens.map((token) => token.raw)
-}
-
-function extractLanguage(className?: string): string {
-  if (!className) return "plaintext"
-  const match = className.match(/language-(\w+)/)
-  return match ? match[1] : "plaintext"
-}
-
-const INITIAL_COMPONENTS: Partial<Components> = {
+const INITIAL_COMPONENTS: MarkdownTextPrimitiveProps["components"] = {
   a: function LinkComponent({ href, children, ...props }) {
     const label =
       typeof children === "string"
@@ -93,37 +88,18 @@ const INITIAL_COMPONENTS: Partial<Components> = {
       </a>
     )
   },
-  code: function CodeComponent({ className, children, ...props }) {
-    const isInline =
-      !props.node?.position?.start.line ||
-      props.node?.position?.start.line === props.node?.position?.end.line
-
-    if (isInline) {
-      return (
-        <span
-          className={cn(
-            "bg-primary-foreground rounded-sm px-1 font-mono text-sm",
-            className
-          )}
-          {...props}
-        >
-          {children}
-        </span>
-      )
-    }
-
-    const language = extractLanguage(className)
-
+  code: function InlineCodeComponent({ className, children, ...props }) {
     return (
-      <LazyCodeBlock
-        className={className}
-        code={children as string}
-        language={language}
-      />
+      <span
+        className={cn(
+          "bg-primary-foreground rounded-sm px-1 font-mono text-sm",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </span>
     )
-  },
-  pre: function PreComponent({ children }) {
-    return <>{children}</>
   },
   table: function TableComponent({ children, ...props }) {
     return (
@@ -132,51 +108,25 @@ const INITIAL_COMPONENTS: Partial<Components> = {
       </div>
     )
   },
-}
-
-const MemoizedMarkdownBlock = memo(
-  function MarkdownBlock({
-    content,
-    components = INITIAL_COMPONENTS,
-  }: {
-    content: string
-    components?: Partial<Components>
-  }) {
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
-        components={components}
-      >
-        {content}
-      </ReactMarkdown>
-    )
+  SyntaxHighlighter: function SyntaxHighlighterComponent({ language, code }) {
+    return <LazySyntaxHighlighter language={language} code={code} />
   },
-  function propsAreEqual(prevProps, nextProps) {
-    return prevProps.content === nextProps.content
-  }
-)
-
-MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock"
+}
 
 function MarkdownComponent({
   children,
-  id,
   className,
+  streaming = false,
   components = INITIAL_COMPONENTS,
 }: MarkdownProps) {
-  const generatedId = useId()
-  const blockId = id ?? generatedId
-  const blocks = useMemo(() => parseMarkdownIntoBlocks(children), [children])
-
   return (
     <div className={cn("max-w-full min-w-0", className)}>
-      {blocks.map((block, index) => (
-        <MemoizedMarkdownBlock
-          key={`${blockId}-block-${index}`}
-          content={block}
+      <TextMessagePartProvider text={children} isRunning={streaming}>
+        <MarkdownTextPrimitive
+          remarkPlugins={[remarkGfm, remarkBreaks]}
           components={components}
         />
-      ))}
+      </TextMessagePartProvider>
     </div>
   )
 }

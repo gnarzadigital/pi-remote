@@ -469,13 +469,32 @@ not just "does it compile."
   sits on the app's most common path (fresh session, first message), not an edge case. Needs a
   decision from Nik (add a correlated `new_session` response, or accept a narrower switcher) before
   any code change.
-- [ ] **4.5 Markdown/syntax-highlighting renderer — implement.** Adopt assistant-ui's
-  markdown/code-highlighting components for message rendering (streaming markdown, code blocks,
-  thinking blocks), replacing the hand-rolled renderer where it's a straight swap. Keep our
-  renderer only for the pieces assistant-ui has no equivalent for (diff hunks, tool cards) — that
-  is a real gap, not a reason to skip the rest. If something about real pi content breaks their
-  renderer, fix it or fall back per-block, and log the specific gap as an open question, not a
-  card skip.
+- [x] **4.5 Markdown/syntax-highlighting renderer — implement.** Traced the actual pipeline
+  first: message text never goes through assistant-ui's `MessagePrimitive.Content`/message-part
+  tree at all — `pi-chat-shell.tsx`'s `ShellMessage` renders `ConversationLine` directly off the
+  live `ChatLine` (deliberately, per its own comment, so the bespoke tool/diff renderers stay
+  plug-ins). `@assistant-ui/react-markdown`'s `MarkdownTextPrimitive` reads its text via
+  `useMessagePartText()`, which needs a message-part context we don't have. Fixed the gap with
+  `@assistant-ui/react`'s own `TextMessagePartProvider` (an exported escape hatch that wraps an
+  ad-hoc `{text, isRunning}` pair into that context for exactly this standalone case) — installed
+  `@assistant-ui/react-markdown@0.14.5` (peer-compatible with the installed
+  `@assistant-ui/react@0.14.26`) and rewrote `frontend/src/components/ui/markdown.tsx`'s
+  `Markdown` component to wrap `TextMessagePartProvider` + `MarkdownTextPrimitive` instead of a
+  hand-rolled `ReactMarkdown` + `marked.lexer` block-splitter. `Markdown`'s external API
+  (`children`, `className`, `components`) is unchanged, plus one new `streaming?: boolean` prop
+  wired from `block.streaming` at both call sites (`conversation-view.tsx`'s text blocks,
+  `thinking-chain.tsx`'s reasoning items) so assistant-ui's built-in typewriter smoothing
+  (`useSmooth`) only animates while actually streaming — non-streaming content still renders
+  instantly, matching the old behavior exactly (verified in `useSmooth.ts`: `displayedText`
+  initializes to the full text whenever `status !== "running"`). Code blocks now go through
+  `MarkdownTextPrimitive`'s `SyntaxHighlighter` extension point (our existing shiki-based
+  `code-block.tsx`, still lazy-loaded, same chunk) instead of overriding `code`/`pre` directly;
+  inline code and the external-link `Source` popover and scrollable-table wrapper carried over
+  unchanged since those are plain `components` overrides on the same underlying `react-markdown`.
+  Removed the now-unused `marked` dependency. Diff hunks (`diff.tsx`) and tool cards (`tool.tsx`)
+  were already markdown-free and untouched, per the card's own scope note. Gate green: 120/120
+  bun tests, clean `tsc --noEmit`, `pnpm run build:ui` (code-block chunk still splits correctly).
+  No qa/*.spec.ts is relevant (none cover markdown rendering); not a composer/keyboard change.
 - [ ] **4.6 Native slash-command / input-history — implement.** Adopt assistant-ui's built-in
   slash-command and composer-history support, replacing the hand-built `CmdPicker` and arrow-key
   recall (4.3) unless there's a hard technical blocker (not just "ours already works") — if
