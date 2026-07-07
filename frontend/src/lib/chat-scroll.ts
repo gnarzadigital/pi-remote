@@ -25,6 +25,21 @@ export function sessionSwitchScrollBaseline(lines: ChatLine[]): {
   };
 }
 
+/**
+ * A session switch lands in at least two separate snapshot updates: the
+ * transitional "Switching session..." patch (same render as the path change),
+ * then the real get_messages history replacing `lines` once the round trip
+ * to the bridge resolves. Re-baselining only on the path-change render lets
+ * the second update inherit a baseline computed off the stale transitional
+ * content, so `lines` growing/shrinking as the real history lands can
+ * misfire the "new user message" scroll-to-top instead of the "session
+ * loaded" scroll-to-bottom. Keep re-baselining for any lines change that
+ * lands shortly after a switch, not just the one that changed the path.
+ */
+export function withinSessionSwitchWindow(switchedAtMs: number, nowMs: number, windowMs = 3000): boolean {
+  return nowMs - switchedAtMs < windowMs;
+}
+
 /** Place a transcript line near the top of the scroll viewport (shadcn #4, #11). */
 export function scrollLineToViewportStart(
   scrollRoot: HTMLElement,

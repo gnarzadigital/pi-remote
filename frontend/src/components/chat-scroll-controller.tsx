@@ -1,5 +1,9 @@
 import { usePiBridge } from "@/hooks/use-pi-bridge";
-import { scrollLineToViewportStart, sessionSwitchScrollBaseline } from "@/lib/chat-scroll";
+import {
+  scrollLineToViewportStart,
+  sessionSwitchScrollBaseline,
+  withinSessionSwitchWindow,
+} from "@/lib/chat-scroll";
 import { useEffect, useRef } from "react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
@@ -14,10 +18,19 @@ export function ChatScrollController() {
   const prevSessionPath = useRef<string | null | undefined>(undefined);
   const prevLastUserId = useRef<string | null>(null);
   const resumeAtUserTurn = useRef(true);
+  const switchedAt = useRef(0);
 
   useEffect(() => {
-    if (prevSessionPath.current !== snapshot.activeSessionPath) {
+    const pathChanged = prevSessionPath.current !== snapshot.activeSessionPath;
+    if (pathChanged) {
       prevSessionPath.current = snapshot.activeSessionPath;
+      switchedAt.current = Date.now();
+    }
+    // Re-baseline on the path-change render AND on any lines change shortly
+    // after — the real history (get_messages) lands in a later, separate
+    // update than the transitional "Switching session..." patch. See
+    // withinSessionSwitchWindow for why a single one-shot baseline isn't enough.
+    if (pathChanged || withinSessionSwitchWindow(switchedAt.current, Date.now())) {
       resumeAtUserTurn.current = true;
       const baseline = sessionSwitchScrollBaseline(snapshot.lines);
       prevLineCount.current = baseline.lineCount;
