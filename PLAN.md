@@ -433,7 +433,7 @@ end vs error), a queue/flag never cleared on a side-door state transition, and a
 handler not correlated to its request. Check for those specifically before running the gate,
 not just "does it compile."
 
-- [ ] **4.0 Bug hunt on the ported chat shell (repeats until dry).** Each pass: run the full
+- [x] **4.0 Bug hunt on the ported chat shell (repeats until dry).** Each pass: run the full
   gate above, then actively probe the assistant-ui-backed transcript/composer for behavior gaps
   vs. the pre-port UI — message ordering, scroll/focus on new messages, error/disconnect states,
   reconnect handling, tool-card/diff rendering through the line-id lookup, terminal-agent view,
