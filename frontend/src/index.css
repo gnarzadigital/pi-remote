@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-shimmer";
 
 @custom-variant dark (&:is(.dark *));
 
