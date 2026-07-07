@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.14.26",
+    "@assistant-ui/react-markdown": "^0.14.5",
     "@fontsource/geist-mono": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
     "@radix-ui/react-dialog": "^1.1.17",
@@ -30,7 +32,9 @@
     "shiki": "^4.3.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.1",
-    "use-stick-to-bottom": "^1.1.6"
+    "tw-shimmer": "^0.4.11",
+    "use-stick-to-bottom": "^1.1.6",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

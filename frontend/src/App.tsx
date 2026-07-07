@@ -4,6 +4,7 @@ import { ChatView } from "@/components/chat-view";
 import { DiagOverlay } from "@/components/diag-overlay";
 import { ExtensionDialog } from "@/components/extension-dialog";
 import { SessionsView } from "@/components/sessions-view";
+import { SpikeView } from "@/components/spike/spike-view";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
@@ -50,9 +51,17 @@ function AppShell() {
   );
 }
 
+/** spike/assistant-ui-shell: gate behind ?spike=1, no bridge/reducer changes.
+ * Remove this + the components/spike/ directory entirely if the spike is
+ * rejected; `git mv` them into production paths if accepted. */
+function isSpikeMode(): boolean {
+  return new URLSearchParams(window.location.search).has("spike");
+}
+
 export default function App() {
   const { snapshot } = usePiBridge();
   useVisualViewport();
+  const spikeMode = isSpikeMode();
 
   useEffect(() => {
     applyTheme(snapshot.theme);
@@ -67,7 +76,7 @@ export default function App() {
     <TooltipProvider>
       <ErrorBoundary>
         <div className="app-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-canvas text-graphite font-sans antialiased">
-          <AppShell />
+          {spikeMode ? <SpikeView /> : <AppShell />}
           <ExtensionDialog />
           <DiagOverlay />
         </div>
