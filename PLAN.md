@@ -448,9 +448,19 @@ not just "does it compile."
   tool-call-correlated, and `bridge.ts` forwards every command type straight to the live pi
   process with no allowlist, so a speculative stub command would be unsafe to send. Needs a
   decision from Nik before any code change.
-- [ ] **4.3 Keyboard shortcuts + accessibility pass.** Arrow-key composer history recall; verify
+- [x] **4.3 Keyboard shortcuts + accessibility pass.** Arrow-key composer history recall; verify
   assistant-ui's exposed ARIA roles/focus management are actually wired through our custom
-  renderers, not just present in the primitives we didn't touch.
+  renderers, not just present in the primitives we didn't touch. Arrow-key recall was already
+  wired (`unstable_useComposerInputHistory` in `pi-composer.tsx`, present since the initial port).
+  Audited every custom renderer against the primitive source in `node_modules/@assistant-ui`
+  (CmdPicker's listbox/option roles, action buttons, composer input) and found two real gaps,
+  both fixed: (1) `EditingMessage`'s edit textarea (`pi-chat-shell.tsx`) never set `autoFocus`
+  (default `false` on `ComposerPrimitive.Input`), so clicking Edit never moved keyboard focus into
+  the field; (2) the ported shell dropped `ChatScrollController`'s sr-only `aria-live` "still
+  responding" announcer because it's coupled to `use-stick-to-bottom`'s context, which
+  `ThreadPrimitive.Viewport` doesn't use — added `StreamingLiveRegion` as a dependency-free
+  equivalent tied to `snapshot.streaming`. No Playwright spec needed (ARIA/focus change, not
+  composer layout/keyboard geometry).
 - [ ] **4.4 Thread/session switcher — implement.** Nik wants the full feature set adopted, not
   evaluated-and-skipped. Adopt assistant-ui's `ThreadList` primitive for session switching,
   wired to the existing bridge session list. If it can't fully replace `sessions-view.tsx`'s

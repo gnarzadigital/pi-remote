@@ -38,6 +38,7 @@ export function CmdPicker({ onSelect }: { onSelect: (value: string) => void }) {
 
   return (
     <div
+      id="cmd-picker-listbox"
       className="absolute bottom-full left-0 z-30 mb-1 w-full max-w-full overflow-x-clip overflow-y-auto overscroll-contain rounded-[10px] border border-hairline bg-chalk shadow-[0_-8px_24px_rgba(0,0,0,0.12)] dark:shadow-[0_-8px_24px_rgba(0,0,0,0.45)]"
       role="listbox"
       aria-label="Slash commands"
@@ -45,6 +46,7 @@ export function CmdPicker({ onSelect }: { onSelect: (value: string) => void }) {
       {matches.map((c, i) => (
         <button
           key={c.name}
+          id={`cmd-picker-option-${i}`}
           type="button"
           role="option"
           aria-selected={i === snapshot.cmdSelectedIdx}

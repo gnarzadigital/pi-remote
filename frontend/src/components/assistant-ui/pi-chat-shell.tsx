@@ -38,6 +38,7 @@ function EditingMessage() {
     <ComposerPrimitive.Root className="flex flex-col items-end gap-1 py-1">
       <ComposerPrimitive.Input
         rows={1}
+        autoFocus
         className="max-h-[140px] w-full max-w-[92%] resize-none rounded-[14px] border border-hairline bg-canvas px-3 py-2.5 text-[14px] text-graphite outline-none"
       />
       <div className="flex items-center gap-3 pr-1">
@@ -77,6 +78,19 @@ function ShellMessage() {
         </div>
       )}
     </ErrorBoundary>
+  );
+}
+
+/** Ported ChatView had ChatScrollController's sr-only aria-live region
+ * (announces "still responding" to screen readers); that component is tied
+ * to use-stick-to-bottom's context, which this shell doesn't use
+ * (ThreadPrimitive.Viewport is its own scroll engine), so it can't be reused
+ * as-is. This keeps the same accessibility signal without that dependency. */
+function StreamingLiveRegion({ streaming }: { streaming: boolean }) {
+  return (
+    <div aria-live="polite" aria-atomic="true" className="sr-only">
+      {streaming ? "Assistant is responding" : ""}
+    </div>
   );
 }
 
@@ -165,6 +179,7 @@ export function AssistantChatShell() {
               <div className="chat-scroll-jump pointer-events-none absolute inset-x-0 z-50">
                 <JumpToLatest streaming={snapshot.streaming} />
               </div>
+              <StreamingLiveRegion streaming={snapshot.streaming} />
             </ThreadPrimitive.Root>
             <div ref={bottomDockRef} className="chat-bottom-dock">
               <StreamingStatusBar />

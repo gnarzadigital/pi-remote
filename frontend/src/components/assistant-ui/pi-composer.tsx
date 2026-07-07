@@ -1,6 +1,11 @@
 import { ArrowUp, Mic, Paperclip, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import { ComposerPrimitive, useAuiState, useComposerRuntime } from "@assistant-ui/react";
+import {
+  ComposerPrimitive,
+  unstable_useComposerInputHistory,
+  useAuiState,
+  useComposerRuntime,
+} from "@assistant-ui/react";
 import { Button } from "@/components/ui/button";
 import { PromptInputAction, PromptInputActions } from "@/components/ui/prompt-input";
 import { PromptSuggestionsRow } from "@/components/prompt-suggestions-row";
@@ -34,6 +39,9 @@ export function PiComposer({ variant = "dock" }: PiComposerProps) {
   const { snapshot, bridge } = usePiBridge();
   const composer = useComposerRuntime();
   const text = useAuiState((s) => s.composer.text);
+  // Arrow-key recall of previously sent messages (empty draft, caret on the
+  // first/last line) — assistant-ui's own history primitive, not reinvented.
+  const { onKeyDown: historyOnKeyDown } = unstable_useComposerInputHistory();
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<Recognition | null>(null);
   const baseInputRef = useRef("");
@@ -146,6 +154,15 @@ export function PiComposer({ variant = "dock" }: PiComposerProps) {
             rows={1}
             disabled={!snapshot.connected}
             cancelOnEscape={false}
+            role="combobox"
+            aria-haspopup="listbox"
+            aria-expanded={snapshot.cmdPickerOpen && matches.length > 0}
+            aria-controls={snapshot.cmdPickerOpen && matches.length > 0 ? "cmd-picker-listbox" : undefined}
+            aria-activedescendant={
+              snapshot.cmdPickerOpen && matches.length > 0
+                ? `cmd-picker-option-${snapshot.cmdSelectedIdx}`
+                : undefined
+            }
             onChange={(e) => handleTextChange(e.target.value)}
             onFocus={() => {
               window.setTimeout(() => {
@@ -191,7 +208,11 @@ export function PiComposer({ variant = "dock" }: PiComposerProps) {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 sendCurrent();
+                return;
               }
+              // Runs last: bails immediately if the picker branch above already
+              // called preventDefault, so cmd-picker nav always wins ArrowUp/Down.
+              historyOnKeyDown(e);
             }}
           />
           <PromptInputActions className="gap-1 px-0.5 pb-0.5 pt-1">
