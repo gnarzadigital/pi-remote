@@ -1,11 +1,13 @@
 import { ArrowUp, Check, ChevronLeft, RotateCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ScreenHeader } from "@/components/screen-header";
 import { Button } from "@/components/ui/button";
+import { filterCommands } from "@/components/input-area";
 import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { runtimeLabel } from "@/lib/agent-runtime";
+import { commandsForRuntime } from "@/lib/runtime-commands";
 import type { AgentTreeNode } from "@/lib/types";
 import { hapticTap } from "@/lib/utils";
 
@@ -33,6 +35,19 @@ function reflowNarrowPane(text: string): string {
 export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; onClose: () => void }) {
   const { snapshot, bridge } = usePiBridge();
   const [reply, setReply] = useState("");
+  // Slash commands for this agent's runtime, so /compact, /model etc. are
+  // discoverable from the phone the same way they are in the terminal.
+  const runtimeCommands = useMemo(
+    () => commandsForRuntime(agent.runtime, snapshot.commands),
+    [agent.runtime, snapshot.commands]
+  );
+  const slashMatches = useMemo(
+    () =>
+      reply.startsWith("/") && !reply.includes(" ") && runtimeCommands.length > 0
+        ? filterCommands(runtimeCommands, reply.slice(1))
+        : [],
+    [reply, runtimeCommands]
+  );
   const bodyRef = useRef<HTMLPreElement>(null);
   // Same fixed bottom-dock contract as AgentChatView: publish --chat-bottom-height
   // so the scroll zone reserves room and the composer pins to the true viewport
@@ -139,6 +154,35 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
 
       <div ref={bottomDockRef} className="chat-bottom-dock">
         <footer className="input-footer w-full max-w-full shrink-0 overflow-x-clip px-3 pt-2">
+          <div className="relative w-full max-w-full">
+            {slashMatches.length > 0 && (
+              <div
+                className="absolute bottom-full left-0 z-30 mb-1 max-h-[40vh] w-full max-w-full overflow-x-clip overflow-y-auto overscroll-contain rounded-[10px] border border-hairline bg-chalk shadow-[0_-8px_24px_rgba(0,0,0,0.12)] dark:shadow-[0_-8px_24px_rgba(0,0,0,0.45)]"
+                role="listbox"
+                aria-label={`${runtimeLabel(agent.runtime)} commands`}
+              >
+                {slashMatches.map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className="block w-full border-b border-hairline px-3 py-2.5 text-left last:border-b-0 hover:bg-mist"
+                    onMouseDown={(e) => {
+                      // mousedown (not click): fires before the input's blur on iOS.
+                      e.preventDefault();
+                      hapticTap();
+                      setReply(`/${c.name} `);
+                    }}
+                  >
+                    <div className="truncate text-[13px] font-medium text-graphite">/{c.name}</div>
+                    {c.description && (
+                      <div className="mt-0.5 truncate text-[12px] text-concrete">{c.description}</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           <div className="flex items-center gap-2 rounded-[22px] border border-hairline bg-canvas p-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <input
               type="text"
@@ -159,6 +203,7 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
             >
               <ArrowUp className="size-4" />
             </Button>
+          </div>
           </div>
         </footer>
       </div>
