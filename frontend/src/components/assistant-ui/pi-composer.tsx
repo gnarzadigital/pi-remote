@@ -156,6 +156,7 @@ export function PiComposer({ variant = "dock" }: PiComposerProps) {
               window.setTimeout(() => bridge.hideCmdPicker(), 300);
             }}
             onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
               if (snapshot.cmdPickerOpen && matches.length > 0) {
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
@@ -180,9 +181,14 @@ export function PiComposer({ variant = "dock" }: PiComposerProps) {
                   return;
                 }
               }
-              // Whitespace-only never sends (parity with production trim gate).
-              if (e.key === "Enter" && !e.shiftKey && !text.trim()) {
+              // Send directly via the runtime. The primitive's own Enter path
+              // requires a wrapping ComposerPrimitive.Root <form>; we skip the
+              // form (the pi chrome buttons aren't form-aware) and preventDefault
+              // so the primitive's handler stays out of the way. sendCurrent's
+              // trim gate keeps whitespace-only from ever sending.
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
+                sendCurrent();
               }
             }}
           />
