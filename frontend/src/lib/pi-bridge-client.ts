@@ -189,12 +189,6 @@ export class PiBridgeClient {
       // Re-bootstrap state after reconnect
       this.sendWithId({ type: "get_state" });
       this.sendWithId({ type: "get_available_models" });
-      // A message queued mid-turn only flushes on `agent_end` — a disconnect
-      // before that event fires finalizes the turn locally (close handler)
-      // but leaves the queue stuck forever. Flush it now that we're back.
-      if (shouldFlushQueueOnReconnect(this.messageQueue.length, this.snapshot.streaming)) {
-        this.flushQueuedMessage();
-      }
       // The bridge kills an attached agent's RPC process on WS close (bridge.ts
       // detachAgentsForClient) — without this, the client's attachedAgentId
       // survives the reconnect but points at a dead process, so any send after
@@ -402,10 +396,21 @@ export class PiBridgeClient {
     switch (msg.command) {
       case "get_state":
         if (msg.data) {
-          this.queuePatch({ streaming: Boolean(msg.data.isStreaming) });
+          const trueStreaming = Boolean(msg.data.isStreaming);
+          this.queuePatch({ streaming: trueStreaming });
           if (msg.data.model) this.setSelectedModel(msg.data.model as PiModel);
           if (typeof msg.data.sessionName === "string" && msg.data.sessionName.trim()) {
             this.queuePatch({ activeSessionName: msg.data.sessionName.trim() });
+          }
+          // The close handler forces streaming:false locally so the client's own
+          // turn UI finalizes immediately, but on a brief WS blip the bridge/agent
+          // process can still genuinely be mid-turn server-side. Flushing a queued
+          // message off that forced-false flag (as this used to do, synchronously
+          // in the `open` handler) raced ahead of this response and could send the
+          // queued prompt into a turn that was still generating. Only flush once
+          // this response tells us the true state.
+          if (shouldFlushQueueOnReconnect(this.messageQueue.length, trueStreaming)) {
+            this.flushQueuedMessage();
           }
         }
         break;
