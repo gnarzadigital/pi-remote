@@ -1,5 +1,5 @@
 import { usePiBridge } from "@/hooks/use-pi-bridge";
-import { scrollLineToViewportStart } from "@/lib/chat-scroll";
+import { scrollLineToViewportStart, sessionSwitchScrollBaseline } from "@/lib/chat-scroll";
 import { useEffect, useRef } from "react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
@@ -19,9 +19,11 @@ export function ChatScrollController() {
     if (prevSessionPath.current !== snapshot.activeSessionPath) {
       prevSessionPath.current = snapshot.activeSessionPath;
       resumeAtUserTurn.current = true;
-      prevLastUserId.current = null;
+      const baseline = sessionSwitchScrollBaseline(snapshot.lines);
+      prevLineCount.current = baseline.lineCount;
+      prevLastUserId.current = baseline.lastUserId;
     }
-  }, [snapshot.activeSessionPath]);
+  }, [snapshot.activeSessionPath, snapshot.lines]);
 
   // Session load / reconnect: scroll to BOTTOM so the latest response is visible.
   // Uses the library's scrollToBottom + retries to handle async content rendering
