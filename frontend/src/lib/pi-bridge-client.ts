@@ -539,6 +539,19 @@ export class PiBridgeClient {
           // new attach.
           if (isReconnectReattach(this.snapshot.attachedAgentId, agentId)) {
             this.queuePatch({ attachedAgentId: agentId, view: "agent-chat" });
+            // A message queued while the attached agent was mid-turn
+            // (attachedMessageQueue) only ever flushed on a genuine
+            // agent_event streaming->false transition. But the bridge kills
+            // the attached agent's RPC process on WS close, so the close
+            // handler finalizes agentChatState.streaming to false locally
+            // (see the close handler above) without ever emitting that
+            // transition — and after reattach, the freshly-initialized
+            // agentChatState.streaming is already false, so wasStreaming is
+            // never true on the next real event either. Without this, the
+            // queued message sat stuck forever. This reattach response is the
+            // first point at which we know the agent process is back and
+            // ready to receive it.
+            this.flushAttachedQueuedMessage();
           } else {
             this.agentChatState = initialAgentChatState();
             this.attachedMessageQueue = [];
