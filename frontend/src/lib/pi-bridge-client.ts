@@ -669,6 +669,18 @@ export class PiBridgeClient {
     this.queuePatch({ queuedMessages: [] });
   }
 
+  /** Same side-door-transition gap as clearMessageQueue, for the composer's
+   * staged-but-unsent images: without this, an image attached in session A
+   * silently carried over and got sent into session B (or a fresh session)
+   * the next time the user hit send there, attached to a message the image
+   * was never meant for. Revokes the object URLs so previews don't leak. */
+  private clearPendingImages() {
+    if (this.pendingImages.length === 0) return;
+    this.pendingImages.forEach((img) => img.preview && URL.revokeObjectURL(img.preview));
+    this.pendingImages = [];
+    this.syncPendingImages();
+  }
+
   private appendUser(text: string, images?: ImageAttachment[]) {
     this.queuePatch({
       lines: [...this.snapshot.lines, { id: uid("user"), kind: "user", text, images }],
@@ -1121,6 +1133,7 @@ export class PiBridgeClient {
 
   switchSession(session: PiSession) {
     this.clearMessageQueue();
+    this.clearPendingImages();
     this.queuePatch({
       activeSessionName: formatSessionName(session.name),
       activeSessionPath: session.path,
@@ -1147,6 +1160,7 @@ export class PiBridgeClient {
 
   newSession() {
     this.clearMessageQueue();
+    this.clearPendingImages();
     this.queuePatch({
       activeSessionName: "New session",
       activeSessionPath: null,
@@ -1166,6 +1180,7 @@ export class PiBridgeClient {
    * to that workspace. */
   newSessionInDir(cwd: string) {
     this.clearMessageQueue();
+    this.clearPendingImages();
     this.queuePatch({
       activeSessionName: "New session",
       activeSessionPath: null,
@@ -1290,9 +1305,7 @@ export class PiBridgeClient {
       this.send(cmd);
     }
 
-    this.pendingImages.forEach((img) => img.preview && URL.revokeObjectURL(img.preview));
-    this.pendingImages = [];
-    this.syncPendingImages();
+    this.clearPendingImages();
   }
 
   addPendingImages(files: FileList | File[]) {
