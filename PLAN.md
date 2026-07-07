@@ -443,11 +443,11 @@ not just "does it compile."
 - [x] **4.1 Edit-and-resubmit / regenerate last reply.** Wire `ExternalStoreRuntime`'s `onEdit`/
   `onReload` against the existing bridge send path; add the UI affordance on user + assistant
   messages (reuse existing icon/button patterns, don't invent a new visual language).
-- [ ] **4.2 Inline tool-approval prompts.** For any pi tool call that should require confirmation
-  before running, render an approve/deny control directly in the transcript via
-  `onAddToolResult`, instead of the agent just acting. Confirm with Nik which tool calls should
-  actually gate (don't guess — if unclear, implement the plumbing behind a flag and leave it off
-  by default, note this in the card instead of guessing wrong).
+- [!] **4.2 Inline tool-approval prompts.** BLOCKED — see `## Open questions for Nik`: the real
+  approval gate already exists (`extension_ui_request`/`ExtensionDialog`) and isn't
+  tool-call-correlated, and `bridge.ts` forwards every command type straight to the live pi
+  process with no allowlist, so a speculative stub command would be unsafe to send. Needs a
+  decision from Nik before any code change.
 - [ ] **4.3 Keyboard shortcuts + accessibility pass.** Arrow-key composer history recall; verify
   assistant-ui's exposed ARIA roles/focus management are actually wired through our custom
   renderers, not just present in the primitives we didn't touch.
@@ -496,3 +496,33 @@ and move on to the next card.
   in place of it. If you want a true rewind, the bridge protocol needs a new command that resets
   the agent session or otherwise drops trailing turns before resubmitting — flag if that's worth
   building.
+
+- **4.2 (inline tool-approval prompts) — real gate already exists, isn't what the card assumes.**
+  Traced the actual approval path before writing any UI: pi's own permission prompts already
+  arrive as `extension_ui_request` events and are already rendered as a blocking modal
+  (`ExtensionDialog`, wired through `pi-bridge-client.ts`'s `extensionDialog` state) — that IS the
+  live gate; tools that need confirmation already pause on it today. Two things block building
+  the card as written (an inline approve/deny control anchored to a specific tool card via
+  assistant-ui's `onAddToolResult`):
+  1. `ExtensionDialogState` (`types.ts`) has no `toolCallId` — it's a generic
+     title/message/options/input/editor dialog, not correlated to any specific tool block in the
+     transcript, so there's no key to anchor an inline control to.
+  2. `tool_execution_start`/`tool_execution_end` events (bridge.ts) are pure fire-and-forget
+     status updates; the bridge has no "pause this tool, wait for a response, then let it
+     proceed" primitive for the general case. Worse, `handleCommand` in `bridge.ts` forwards
+     every command type straight to `sendToPi(cmd)` with no allowlist — sending a made-up
+     "approve/deny this tool call" command type down to the live pi process to build inert
+     plumbing isn't safe, it just hands pi an unrecognized command it wasn't built to handle.
+  Given that, "implement the plumbing behind a flag" isn't a safe no-op here the way it would be
+  for a pure front-end feature — the only genuinely inert version of this card is documentation,
+  which is what this entry is. Two real paths forward, need Nik's call:
+  - (a) Re-skin the existing `ExtensionDialog` to render inline in the transcript (anchored by
+    `agentId` + turn position) instead of as a modal, for the subset of `extension_ui_request`s
+    that are actually tool-permission prompts (vs. other extension UI uses) — this reuses the
+    real, already-working gate and needs no bridge/pi changes.
+  - (b) A true `onAddToolResult`-style per-tool-call gate needs a new bridge+pi protocol
+    (tag `tool_execution_start` with an "awaiting approval" state, add a real
+    `approve_tool_call`/`deny_tool_call` command bridge.ts explicitly handles) — bigger, touches
+    pi itself, not just this repo.
+  Card 4.2 is marked `[!]` blocked pending this decision rather than `[ ]`, so future loop
+  iterations skip it and move to 4.3 instead of re-deriving this same analysis.
