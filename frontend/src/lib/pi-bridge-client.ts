@@ -5,6 +5,7 @@ import {
   extractUserText,
   finalizeTurnBlocks,
   getModelContextWindowTokens,
+  shouldApplyCapturePaneResponse,
   uid,
 } from "./message-utils";
 import { enrichSessionWorkspace, formatSessionName } from "./session-utils";
@@ -108,6 +109,9 @@ export class PiBridgeClient {
   private pendingImages: ImageAttachment[] = [];
   private connectionWatchdog: ReturnType<typeof setTimeout> | null = null;
   private pendingRenames = new Map<string, { sessionPath: string; name: string }>();
+  /** capture_agent_pane request id -> the agentId it was requested for, so a
+   * response can be dropped if the user has since switched to another agent. */
+  private pendingCapturePanes = new Map<string, string>();
 
   snapshot: BridgeSnapshot = initialSnapshot();
 
@@ -432,13 +436,16 @@ export class PiBridgeClient {
       case "list_agents":
         this.queuePatch({ agents: (msg.data?.agents as AgentTreeNode[]) ?? [] });
         break;
-      case "capture_agent_pane":
-        if (this.snapshot.peek) {
+      case "capture_agent_pane": {
+        const requestedAgentId = msg.id ? this.pendingCapturePanes.get(String(msg.id)) : undefined;
+        if (msg.id) this.pendingCapturePanes.delete(String(msg.id));
+        if (this.snapshot.peek && shouldApplyCapturePaneResponse(requestedAgentId, this.snapshot.peek.agentId)) {
           this.queuePatch({
             peek: { ...this.snapshot.peek, text: (msg.data?.text as string | null) ?? null, loading: false },
           });
         }
         break;
+      }
       case "list_dirs":
         this.queuePatch({ dirListing: (msg.data as unknown as DirListing) ?? null });
         break;
@@ -880,7 +887,8 @@ export class PiBridgeClient {
       return;
     }
     if (!refresh) this.queuePatch({ peek: { agentId: agent.id, text: null, loading: true } });
-    this.sendWithId({ type: "capture_agent_pane", surface: agent.surface, workspace: agent.workspace, lines: 200 });
+    const id = this.sendWithId({ type: "capture_agent_pane", surface: agent.surface, workspace: agent.workspace, lines: 200 });
+    this.pendingCapturePanes.set(id, agent.id);
   }
 
   closePeek() {

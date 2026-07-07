@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { finalizeTurnBlocks, getContextUsedTokens, getModelContextWindowTokens } from "./message-utils";
+import {
+  finalizeTurnBlocks,
+  getContextUsedTokens,
+  getModelContextWindowTokens,
+  shouldApplyCapturePaneResponse,
+} from "./message-utils";
 import type { TurnBlock } from "./types";
 
 test("context used reads first available token field", () => {
@@ -37,4 +42,15 @@ test("finalizeTurnBlocks clears streaming on text/thinking and flips a running t
   expect(out[2]).toEqual({ kind: "tool", id: "t1", name: "bash", status: "error", output: "Interrupted" });
   // Already-finished tool blocks are left alone.
   expect(out[3]).toEqual({ kind: "tool", id: "t2", name: "read", status: "done", output: "ok" });
+});
+
+test("shouldApplyCapturePaneResponse drops a stale response from a since-abandoned agent", () => {
+  // Same agent still being viewed: apply it.
+  expect(shouldApplyCapturePaneResponse("agent-a", "agent-a")).toBe(true);
+  // User switched to viewing a different agent before this response arrived: drop it.
+  expect(shouldApplyCapturePaneResponse("agent-a", "agent-b")).toBe(false);
+  // No peek open anymore: drop it.
+  expect(shouldApplyCapturePaneResponse("agent-a", null)).toBe(false);
+  // Unknown/untracked request id: drop it rather than guessing.
+  expect(shouldApplyCapturePaneResponse(undefined, "agent-a")).toBe(false);
 });

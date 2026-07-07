@@ -22,6 +22,22 @@ export function finalizeTurnBlocks(blocks: TurnBlock[]): TurnBlock[] {
   });
 }
 
+/**
+ * capture_agent_pane responses carry no agentId (bridge.ts only echoes back
+ * `text`), and the terminal view's 3s auto-refresh keeps a request in flight
+ * per agent. Switching from viewing agent A to agent B before A's response
+ * lands used to blindly merge into whatever `peek` is current, painting
+ * agent A's stale terminal text under agent B's header. Correlate by request
+ * id (tracked client-side per capturePane() call) and only apply a response
+ * whose requested agentId still matches the currently-viewed peek.
+ */
+export function shouldApplyCapturePaneResponse(
+  requestedAgentId: string | undefined,
+  currentPeekAgentId: string | null
+): boolean {
+  return requestedAgentId !== undefined && requestedAgentId === currentPeekAgentId;
+}
+
 export function extractUserText(content: unknown): string {
   let text = "";
   if (typeof content === "string") text = content;
