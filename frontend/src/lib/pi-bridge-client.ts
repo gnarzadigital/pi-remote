@@ -3,6 +3,7 @@ import {
   extractToolResultText,
   extractUserImages,
   extractUserText,
+  finalizeTurnBlocks,
   getModelContextWindowTokens,
   uid,
 } from "./message-utils";
@@ -629,13 +630,7 @@ export class PiBridgeClient {
     if (!this.streaming) return;
     const lines = this.snapshot.lines.map((l) =>
       l.id === this.streaming!.turnId && l.kind === "turn"
-        ? {
-            ...l,
-            streaming: false,
-            blocks: l.blocks.map((b) =>
-              b.kind === "text" || b.kind === "thinking" ? { ...b, streaming: false } : b
-            ),
-          }
+        ? { ...l, streaming: false, blocks: finalizeTurnBlocks(l.blocks) }
         : l
     );
     this.streaming = null;

@@ -35,6 +35,17 @@ test("agent_end also finalizes streaming off for a thinking block, not just text
   expect(line.kind === "turn" && line.blocks[0].kind === "thinking" && line.blocks[0].streaming).toBe(false);
 });
 
+test("agent_end flips a still-running tool block to error instead of leaving it spinning forever", () => {
+  let s = reduceAgentEvent(initialAgentChatState(), { type: "agent_start" });
+  s = reduceAgentEvent(s, {
+    type: "message_update",
+    assistantMessageEvent: { type: "toolcall_end", toolCall: { id: "t1", name: "bash" } },
+  });
+  s = reduceAgentEvent(s, { type: "agent_end" });
+  const line = s.lines[0];
+  expect(line.kind === "turn" && line.blocks[0]).toMatchObject({ status: "error", output: "Interrupted" });
+});
+
 test("toolcall_end creates a tool block, tool_execution_end marks it done with output", () => {
   let s = reduceAgentEvent(initialAgentChatState(), { type: "agent_start" });
   s = reduceAgentEvent(s, {

@@ -1,8 +1,25 @@
-import type { ImageAttachment } from "./types";
+import type { ImageAttachment, TurnBlock } from "./types";
 
 let idCounter = 0;
 export function uid(prefix = "id"): string {
   return `${prefix}-${++idCounter}-${Date.now()}`;
+}
+
+/**
+ * Force-finalize a turn's blocks when it ends abnormally (agent_end, or a
+ * disconnect finalized as a synthetic agent_end): clears the streaming flag
+ * on text/thinking blocks AND flips any tool block still `status: "running"`
+ * to `"error"` — a tool_execution_end can be lost the same way a text_delta's
+ * trailing chunk can, and without this a tool card spins forever.
+ */
+export function finalizeTurnBlocks(blocks: TurnBlock[]): TurnBlock[] {
+  return blocks.map((b) => {
+    if (b.kind === "text" || b.kind === "thinking") return { ...b, streaming: false };
+    if (b.kind === "tool" && b.status === "running") {
+      return { ...b, status: "error" as const, output: b.output ?? "Interrupted" };
+    }
+    return b;
+  });
 }
 
 export function extractUserText(content: unknown): string {

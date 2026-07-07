@@ -1,5 +1,5 @@
 import type { ChatLine, TurnBlock } from "./types";
-import { extractToolResultText } from "./message-utils";
+import { extractToolResultText, finalizeTurnBlocks } from "./message-utils";
 
 export interface AgentChatState {
   lines: ChatLine[];
@@ -86,13 +86,7 @@ export function reduceAgentEvent(
     case "agent_end": {
       const lines = state.lines.map((l) =>
         l.id === state.turnId && l.kind === "turn"
-          ? {
-              ...l,
-              streaming: false,
-              blocks: l.blocks.map((b) =>
-                b.kind === "text" || b.kind === "thinking" ? { ...b, streaming: false } : b
-              ),
-            }
+          ? { ...l, streaming: false, blocks: finalizeTurnBlocks(l.blocks) }
           : l
       );
       return { ...state, lines, streaming: false, turnId: null, toolIndex: {} };

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { getContextUsedTokens, getModelContextWindowTokens } from "./message-utils";
+import { finalizeTurnBlocks, getContextUsedTokens, getModelContextWindowTokens } from "./message-utils";
+import type { TurnBlock } from "./types";
 
 test("context used reads first available token field", () => {
   expect(getContextUsedTokens({ tokens: { context: 1234 } })).toBe(1234);
@@ -21,4 +22,19 @@ test("percent math clamps to 100", () => {
   const used = getContextUsedTokens({ tokens: { context: 250000 } })!;
   const max = getModelContextWindowTokens({ contextWindow: 200000 })!;
   expect(Math.min(100, Math.round((used / max) * 100))).toBe(100);
+});
+
+test("finalizeTurnBlocks clears streaming on text/thinking and flips a running tool to error", () => {
+  const blocks: TurnBlock[] = [
+    { kind: "text", text: "hi", streaming: true },
+    { kind: "thinking", text: "hmm", streaming: true },
+    { kind: "tool", id: "t1", name: "bash", status: "running" },
+    { kind: "tool", id: "t2", name: "read", status: "done", output: "ok" },
+  ];
+  const out = finalizeTurnBlocks(blocks);
+  expect(out[0]).toEqual({ kind: "text", text: "hi", streaming: false });
+  expect(out[1]).toEqual({ kind: "thinking", text: "hmm", streaming: false });
+  expect(out[2]).toEqual({ kind: "tool", id: "t1", name: "bash", status: "error", output: "Interrupted" });
+  // Already-finished tool blocks are left alone.
+  expect(out[3]).toEqual({ kind: "tool", id: "t2", name: "read", status: "done", output: "ok" });
 });
