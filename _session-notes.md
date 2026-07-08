@@ -401,3 +401,17 @@ Nik's call — library version too unstable). Fresh full gate re-run confirms th
 (a core runtime swap for session switching, not just bug fixes), recommending a live test-bridge
 look before merging into what his phone actually runs, same pattern as prior verification
 (`PORT=7701` isolated bridge). Awaiting Nik's call on next step.
+
+---
+
+## Session 2026-07-08 (~12:15AM) — test bridge for Phase 4 live review
+
+Found and reused an already-running `bun --watch bridge.ts` on port 7701 in
+`~/repos/pi-remote-port` (PID 93568, up 18h+, auto-reloaded on every commit all night — didn't
+start a duplicate). Confirmed reachable over Tailscale (`http://mb-pro-max.tail62a752.ts.net:7701`,
+plain http not https). AGENT_CWD is `~/repos/pi-remote` (has real session history to test the
+switcher against). Live 7700 bridge confirmed unaffected throughout (still 200, still on `main`).
+
+**Handed to Nik for live review before merge.** If approved: merge `feat/assistant-ui-port` →
+`main`, restart the real 7700 launchd service, flip `?spike=1` default on (or make it the only
+path — TBD with Nik). If rejected/needs changes: iterate on the branch, no live impact either way.
