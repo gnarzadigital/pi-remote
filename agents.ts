@@ -426,12 +426,22 @@ export interface TtyRuntime {
 
 /**
  * Parse `ps -eo pid,tty,args` output into tty -> {runtime, pid}, one entry per
- * tty that has a currently-running agent. Only the DEEPEST process per tty
- * (highest pid — the most recently started, i.e. the actual foreground
- * command, not the login/shell wrapper chain in front of it) is matched; see
- * RUNTIME_PATTERNS' doc comment for why matching the whole chain is wrong.
- * ttys whose deepest process doesn't match anything are omitted (idle shell,
- * or running something that isn't a known agent CLI).
+ * tty that has a currently-running agent. Among each tty's processes, only
+ * the highest-pid process that actually MATCHES a known runtime is used —
+ * NOT simply the highest-pid process on the tty (real bug found live
+ * 2026-07-08: a long-running Claude Code session with several MCP server
+ * child processes, and a separate pi session driven by an until-done loop
+ * that periodically forks a `sleep` heartbeat, both had non-agent
+ * subprocesses with HIGHER pids than the actual claude/pi process — under
+ * the old "highest pid wins, then check if it matches" logic, that highest
+ * pid was `sleep 1` or an MCP server binary, matched nothing, and the whole
+ * tty was silently dropped even though a real, live agent was running on it).
+ * Filtering to matching candidates first, then taking the highest pid among
+ * those, is deepest-matching-process without being fooled by unrelated child
+ * processes that happen to have forked later. See RUNTIME_PATTERNS' doc
+ * comment for why matching the whole process chain (lowest pid too) is wrong
+ * in the other direction. ttys with no matching process at all are omitted
+ * (idle shell, or running something that isn't a known agent CLI).
  */
 export function parseTtyRuntimes(psOutput: string): Map<string, TtyRuntime> {
   const byTty = new Map<string, Array<{ pid: number; args: string }>>();
@@ -448,9 +458,12 @@ export function parseTtyRuntimes(psOutput: string): Map<string, TtyRuntime> {
 
   const result = new Map<string, TtyRuntime>();
   for (const [tty, procs] of byTty) {
-    const deepest = procs.reduce((a, b) => (b.pid > a.pid ? b : a));
-    const runtime = matchRuntimeFromArgs(deepest.args);
-    if (runtime) result.set(tty, { runtime, pid: deepest.pid });
+    let best: { pid: number; runtime: string } | null = null;
+    for (const proc of procs) {
+      const runtime = matchRuntimeFromArgs(proc.args);
+      if (runtime && (!best || proc.pid > best.pid)) best = { pid: proc.pid, runtime };
+    }
+    if (best) result.set(tty, { runtime: best.runtime, pid: best.pid });
   }
   return result;
 }

@@ -190,6 +190,18 @@ test("parseTtyRuntimes only matches the deepest (highest-pid) process per tty, a
   expect(result.get("ttys033")).toEqual({ runtime: "pi", pid: 19421 });
 });
 
+test("parseTtyRuntimes finds the matching agent even when a later, non-agent subprocess has a higher pid (regression: a Claude Code session's MCP server children, or an until-done loop's periodic 'sleep' heartbeat, can fork with a higher pid than the actual agent process itself — 2026-07-08, revops-architect and opportunity-lifecycle were both silently dropped from the live agent list because the OLD logic picked whichever process had the highest pid on the tty first, THEN checked if it matched anything; here that was 'sleep 1', which matches no runtime, so the whole tty vanished even though a real agent was running on it)", () => {
+  const psOutput = [
+    "  PID TTY      COMM           ARGS",
+    " 5531 ttys008  /usr/bin/login /usr/bin/login -q -flp nicholasgarza /bin/bash",
+    " 5536 ttys008  -/bin/zsh      -/bin/zsh",
+    " 8096 ttys008  -/bin/zsh      -/bin/zsh",
+    " 8098 ttys008  pi             pi",
+    "26028 ttys008  sleep          sleep 1",
+  ].join("\n");
+  expect(parseTtyRuntimes(psOutput).get("ttys008")).toEqual({ runtime: "pi", pid: 8098 });
+});
+
 test("parseTtyRuntimes omits a tty whose deepest process isn't a known agent (idle shell)", () => {
   const psOutput = ["  PID TTY      COMM           ARGS", "58287 ttys046  -/bin/zsh      -/bin/zsh"].join("\n");
   expect(parseTtyRuntimes(psOutput).has("ttys046")).toBe(false);
