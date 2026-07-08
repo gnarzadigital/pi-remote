@@ -5,6 +5,10 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { SessionListTextPreview } from "@/components/session-list-text-preview";
 import {
+  getCollapseAgentsByWorkspace,
+  setCollapseAgentsByWorkspace,
+} from "@/lib/agent-inbox-prefs";
+import {
   applyTextScale,
   formatTextScalePercent,
   getTextScale,
@@ -18,6 +22,7 @@ import { cn, hapticTap } from "@/lib/utils";
 export function SettingsPanel() {
   const [open, setOpen] = useState(false);
   const [textScale, setTextScaleLocal] = useState(getTextScale);
+  const [collapseByWorkspace, setCollapseByWorkspaceLocal] = useState(getCollapseAgentsByWorkspace);
   const { snapshot, bridge } = usePiBridge();
 
   useEffect(() => {
@@ -109,6 +114,34 @@ export function SettingsPanel() {
             </div>
             <p className="text-[12px] leading-snug text-concrete">
               Adjusts session names and folder labels only. Timestamps, headers, and chat are unchanged.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <p className="text-[12px] font-medium uppercase tracking-wide text-concrete">Agents inbox</p>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 rounded-[10px] border border-hairline bg-chalk px-3 py-2.5 text-left hover:bg-mist"
+              onClick={() => {
+                hapticTap();
+                const next = !collapseByWorkspace;
+                setCollapseAgentsByWorkspace(next);
+                setCollapseByWorkspaceLocal(next);
+              }}
+            >
+              <span className="text-[13px] text-graphite">One row per workspace</span>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  collapseByWorkspace ? "bg-graphite text-chalk" : "bg-mist text-concrete"
+                )}
+              >
+                {collapseByWorkspace ? "On" : "Off"}
+              </span>
+            </button>
+            <p className="text-[12px] leading-snug text-concrete">
+              When a cmux workspace has several sessions running, show only the most relevant one
+              — a "+N" badge shows how many are folded in. Turn off to see every session.
             </p>
           </section>
         </DialogContent>

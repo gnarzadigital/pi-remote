@@ -3,7 +3,8 @@ import { AgentInboxRow } from "@/components/agent-inbox-row";
 import { AgentTerminalView } from "@/components/agent-terminal-view";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import { canAttachChat } from "@/lib/agent-runtime";
-import { filterInboxAgents, groupInbox } from "@/lib/inbox";
+import { AGENT_INBOX_PREFS_CHANGED_EVENT, getCollapseAgentsByWorkspace } from "@/lib/agent-inbox-prefs";
+import { collapseFamiliesByWorkspace, filterInboxAgents, groupInbox } from "@/lib/inbox";
 import type { AgentTreeNode } from "@/lib/types";
 
 /** The live-agent portion of the unified inbox: next-action groups (Needs you,
@@ -16,6 +17,7 @@ import type { AgentTreeNode } from "@/lib/types";
 export function AgentInbox({ query }: { query: string }) {
   const { snapshot, bridge } = usePiBridge();
   const [terminalAgent, setTerminalAgent] = useState<AgentTreeNode | null>(null);
+  const [collapseByWorkspace, setCollapseByWorkspace] = useState(getCollapseAgentsByWorkspace);
 
   const live = snapshot.agents.filter((a) => a.status !== "closed");
 
@@ -26,6 +28,12 @@ export function AgentInbox({ query }: { query: string }) {
     const t = window.setInterval(() => bridge.listAgents(), 5000);
     return () => window.clearInterval(t);
   }, [live.length, bridge]);
+
+  useEffect(() => {
+    const onPrefsChanged = () => setCollapseByWorkspace(getCollapseAgentsByWorkspace());
+    window.addEventListener(AGENT_INBOX_PREFS_CHANGED_EVENT, onPrefsChanged);
+    return () => window.removeEventListener(AGENT_INBOX_PREFS_CHANGED_EVENT, onPrefsChanged);
+  }, []);
 
   const open = (agent: AgentTreeNode) => {
     if (canAttachChat(agent.runtime)) {
@@ -40,7 +48,8 @@ export function AgentInbox({ query }: { query: string }) {
     bridge.closePeek();
   };
 
-  const sections = groupInbox(filterInboxAgents(live, query));
+  const { visible, extraByWorkspace } = collapseFamiliesByWorkspace(live, collapseByWorkspace);
+  const sections = groupInbox(filterInboxAgents(visible, query));
 
   if (sections.length === 0 && !terminalAgent) return null;
 
@@ -56,7 +65,12 @@ export function AgentInbox({ query }: { query: string }) {
             </div>
             <div className="pl-1">
               {section.agents.map((a) => (
-                <AgentInboxRow key={a.id} agent={a} onOpen={open} />
+                <AgentInboxRow
+                  key={a.id}
+                  agent={a}
+                  onOpen={open}
+                  extraInWorkspace={a.depth === 0 && a.workspace ? extraByWorkspace.get(a.workspace) : undefined}
+                />
               ))}
             </div>
           </section>

@@ -17,7 +17,17 @@ function AgentGlyph({ agent }: { agent: AgentTreeNode }) {
   return <span className={cn("size-2 shrink-0 rounded-full", cls)} aria-hidden />;
 }
 
-export function AgentInboxRow({ agent, onOpen }: { agent: AgentTreeNode; onOpen: (a: AgentTreeNode) => void }) {
+export function AgentInboxRow({
+  agent,
+  onOpen,
+  extraInWorkspace,
+}: {
+  agent: AgentTreeNode;
+  onOpen: (a: AgentTreeNode) => void;
+  /** Other sessions in the same cmux workspace folded into this row (collapse-
+   *  by-workspace setting). Shown so nothing reads as silently discarded. */
+  extraInWorkspace?: number;
+}) {
   const time = agent.spawnedAt ? formatRelativeTimeShort(agent.spawnedAt) : "";
   return (
     <button
@@ -40,6 +50,11 @@ export function AgentInboxRow({ agent, onOpen }: { agent: AgentTreeNode; onOpen:
           <span className="shrink-0 rounded-full bg-mist px-1.5 py-0.5 text-[10px] lowercase text-concrete">
             {runtimeLabel(agent.runtime)}
           </span>
+          {extraInWorkspace ? (
+            <span className="shrink-0 rounded-full bg-mist px-1.5 py-0.5 text-[10px] tabular-nums text-concrete">
+              +{extraInWorkspace}
+            </span>
+          ) : null}
         </span>
         <span className="min-w-0 truncate text-[11px] text-concrete">
           {agent.activitySummary ?? (agent.status === "awaiting-confirm" ? "awaiting confirm" : agent.workspaceLabel ?? "")}

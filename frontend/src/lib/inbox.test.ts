@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { filterInboxAgents, groupInbox, rootGroup, toFamilies } from "./inbox";
+import { collapseFamiliesByWorkspace, filterInboxAgents, groupInbox, rootGroup, toFamilies } from "./inbox";
 import type { AgentTreeNode } from "./types";
 
 function mk(p: Partial<AgentTreeNode> & { id: string }): AgentTreeNode {
@@ -78,4 +78,56 @@ test("filterInboxAgents keeps the whole family when any member matches, drops th
   expect(kept.map((a) => a.id)).toEqual(["root", "child"]);
   expect(filterInboxAgents(flat, "schema").map((a) => a.id)).toEqual(["other"]);
   expect(filterInboxAgents(flat, "").map((a) => a.id)).toEqual(["root", "child", "other"]);
+});
+
+test("collapseFamiliesByWorkspace is a no-op passthrough when disabled", () => {
+  const flat = [
+    mk({ id: "a", workspace: "workspace:5", status: "active" }),
+    mk({ id: "b", workspace: "workspace:5", status: "awaiting-confirm" }),
+  ];
+  const { visible, extraByWorkspace } = collapseFamiliesByWorkspace(flat, false);
+  expect(visible).toBe(flat);
+  expect(extraByWorkspace.size).toBe(0);
+});
+
+test("collapseFamiliesByWorkspace keeps one family per workspace, prefers needs-you over working", () => {
+  const flat = [
+    mk({ id: "working-one", workspace: "workspace:5", status: "active", spawnedAt: 100 }),
+    mk({ id: "needs-you-one", workspace: "workspace:5", status: "awaiting-confirm", spawnedAt: 50 }),
+    mk({ id: "working-two", workspace: "workspace:5", status: "active", spawnedAt: 200 }),
+  ];
+  const { visible, extraByWorkspace } = collapseFamiliesByWorkspace(flat, true);
+  expect(visible.map((a) => a.id)).toEqual(["needs-you-one"]);
+  expect(extraByWorkspace.get("workspace:5")).toBe(2);
+});
+
+test("collapseFamiliesByWorkspace ties on urgency by most-recent spawnedAt", () => {
+  const flat = [
+    mk({ id: "old", workspace: "workspace:9", status: "active", spawnedAt: 100 }),
+    mk({ id: "new", workspace: "workspace:9", status: "active", spawnedAt: 300 }),
+  ];
+  const { visible, extraByWorkspace } = collapseFamiliesByWorkspace(flat, true);
+  expect(visible.map((a) => a.id)).toEqual(["new"]);
+  expect(extraByWorkspace.get("workspace:9")).toBe(1);
+});
+
+test("collapseFamiliesByWorkspace leaves distinct workspaces and unresolved workspaces alone", () => {
+  const flat = [
+    mk({ id: "ws-a", workspace: "workspace:1", status: "active" }),
+    mk({ id: "ws-b", workspace: "workspace:2", status: "active" }),
+    mk({ id: "no-ws", workspace: null, status: "active" }),
+  ];
+  const { visible, extraByWorkspace } = collapseFamiliesByWorkspace(flat, true);
+  expect(visible.map((a) => a.id).sort()).toEqual(["no-ws", "ws-a", "ws-b"]);
+  expect(extraByWorkspace.size).toBe(0);
+});
+
+test("collapseFamiliesByWorkspace keeps a workspace's children attached to its kept root", () => {
+  const flat = [
+    mk({ id: "root1", workspace: "workspace:5", status: "active", depth: 0, spawnedAt: 200 }),
+    mk({ id: "child1", workspace: "workspace:5", status: "active", depth: 1, parentId: "root1" }),
+    mk({ id: "root2", workspace: "workspace:5", status: "active", depth: 0, spawnedAt: 100 }),
+  ];
+  const { visible } = collapseFamiliesByWorkspace(flat, true);
+  expect(visible.map((a) => a.id)).toEqual(["root1", "child1"]);
 });

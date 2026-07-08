@@ -57,6 +57,62 @@ export function filterInboxAgents(agents: AgentTreeNode[], query: string): Agent
     .flat();
 }
 
+const GROUP_URGENCY: Record<InboxGroupKey, number> = {
+  "needs-you": 0,
+  working: 1,
+  review: 2,
+  done: 3,
+};
+
+export interface WorkspaceCollapseResult {
+  /** DFS-ordered flat list, ready for groupInbox — one family kept per
+   *  workspace (plus every family with no resolved workspace, untouched). */
+  visible: AgentTreeNode[];
+  /** workspace ref -> how many sibling sessions were folded into the kept row. */
+  extraByWorkspace: Map<string, number>;
+}
+
+/** A cmux workspace commonly holds several terminal panes (a task spawned
+ *  alongside the one you're already in). Ambient discovery surfaces every pane
+ *  as its own root agent, which floods the inbox with siblings that all say
+ *  the same workspace. When `enabled`, keep only the most urgent (then most
+ *  recent) family per workspace and report how many were folded in, so the
+ *  row can say "+N in this workspace" instead of silently hiding them.
+ *  `enabled: false` is a no-op passthrough (nothing hidden, nothing counted). */
+export function collapseFamiliesByWorkspace(
+  agents: AgentTreeNode[],
+  enabled: boolean
+): WorkspaceCollapseResult {
+  const extraByWorkspace = new Map<string, number>();
+  if (!enabled) return { visible: agents, extraByWorkspace };
+
+  const byWorkspace = new Map<string, AgentTreeNode[][]>();
+  const kept: AgentTreeNode[][] = [];
+  for (const family of toFamilies(agents)) {
+    const ws = family[0]!.workspace;
+    if (!ws) {
+      kept.push(family);
+      continue;
+    }
+    const list = byWorkspace.get(ws);
+    if (list) list.push(family);
+    else byWorkspace.set(ws, [family]);
+  }
+
+  for (const [ws, families] of byWorkspace) {
+    const sorted = [...families].sort((a, b) => {
+      const ua = GROUP_URGENCY[rootGroup(a[0]!) ?? "done"];
+      const ub = GROUP_URGENCY[rootGroup(b[0]!) ?? "done"];
+      if (ua !== ub) return ua - ub;
+      return (b[0]!.spawnedAt ?? 0) - (a[0]!.spawnedAt ?? 0);
+    });
+    kept.push(sorted[0]!);
+    if (sorted.length > 1) extraByWorkspace.set(ws, sorted.length - 1);
+  }
+
+  return { visible: kept.flat(), extraByWorkspace };
+}
+
 /** Group agents into ordered next-action sections. Families stay together under
  *  the root's group; empty groups are omitted; within a group the most-recently
  *  active roots come first. */
