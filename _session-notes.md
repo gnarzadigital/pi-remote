@@ -415,3 +415,44 @@ switcher against). Live 7700 bridge confirmed unaffected throughout (still 200, 
 **Handed to Nik for live review before merge.** If approved: merge `feat/assistant-ui-port` →
 `main`, restart the real 7700 launchd service, flip `?spike=1` default on (or make it the only
 path — TBD with Nik). If rejected/needs changes: iterate on the branch, no live impact either way.
+
+---
+
+## Session 2026-07-08 (~12:35AM) — real bug found: 2 workspaces silently missing from ambient discovery
+
+**Trigger:** Nik reported the assistant-ui test bridge "looks the exact same" (still investigating,
+separately) and, checking his real app, "still don't see opportunity-lifecycle."
+
+**Investigated the second report directly against the live bridge (WS probe, not guessing).**
+Confirmed via `cmux tree --all` + direct `ps`/`lsof` that `opportunity-lifecycle` (workspace:10)
+and `revops-architect` (workspace:13) were BOTH consistently absent from `list_agents`, and this
+predates tonight's collapse-by-workspace fix entirely (the very first screenshot Nik sent already
+showed "WORKING 7" instead of 9 — this bug has been live for a while, not caused by anything
+built tonight).
+
+**Root cause, found live:** `parseTtyRuntimes` (agents.ts) picked the highest-pid process on a
+tty FIRST, then checked if it matched a known agent runtime. Both broken workspaces had
+non-agent subprocesses with a HIGHER pid than the real agent: revops-architect is a Claude Code
+session with a large MCP server tree (agentmemory, n8n, tavily, context7, supabase, filesystem —
+all forked after the claude process, so all have higher pids); opportunity-lifecycle is a pi
+session driven by an until-done loop that periodically forks a `sleep 1` heartbeat. In both
+cases the "highest pid" was that non-agent subprocess, matched nothing, and the whole tty
+silently dropped out of ambient discovery — even though a real, live agent was running on it.
+
+**Fix (commit `cf629de`, pushed):** filter to candidates that actually match a runtime FIRST,
+then take the highest pid among THOSE matches — instead of highest-pid-then-check. Regression
+test added for this exact scenario; the earlier wrapper-line false-positive test (claude-yolo
+env var) still passes unchanged, confirmed by re-running the full suite (83/83).
+
+**Verified live**, not just by test: restarted the bridge, WS-probed `list_agents` directly —
+`opportunity-lifecycle` and `revops-architect` both present now (13 total agent entries across
+all 9 workspaces, up from a persistent under-count). This means every long-running session with
+MCP tooling or a loop wrapper attached was likely invisible to pi-remote's ambient discovery
+before this fix, not just these two.
+
+**Still open:** the assistant-ui test bridge (port 7701) — Nik says it "looks the exact same."
+Ruled out service-worker caching (sw.js is already network-only on that branch). Grepping the
+minified bundle for new-feature identifiers was inconclusive (minification mangles names).
+Next: verify with a signal that survives minification (a literal UI string), or just walk Nik
+through triggering a feature that has an obviously different visual result (send a message, tap
+edit on it).
