@@ -335,3 +335,36 @@ guarantees: worktree-only, never touches `~/repos/pi-remote` or main, never merg
 `feat/assistant-ui-port` now has real, substantive assistant-ui adoption (not just parity) plus
 30 bug fixes the original port didn't have. Once this second loop finishes: full branch review,
 decide what merges.
+
+---
+
+## Session 2026-07-07 (~11:45PM) — collapse agent inbox to one row per cmux workspace
+
+**Trigger:** Nik screenshot: cmux showed 9 open workspaces, but the phone's Needs You/Working
+inbox had more rows than that and didn't map cleanly. Grounded before building anything —
+`cmux tree --all` confirmed all 9 workspaces (screenshot was comprehensive, not partial), and
+found the real cause: "voice-agent" workspace alone had 4 live terminal panes (including the
+"studios-dex-voice-morph-ui" entry Nik saw in Needs You), "opportunity-architecture" had 2.
+Ambient discovery correctly surfaces every pane as its own root agent (by design, from the
+2026-07-03 "surface every terminal session" phase) — that's what was flooding the inbox, not
+stale/ghost data.
+
+**Shipped directly to `main` (live), commit `5f7ac86`, pushed:**
+- `inbox.ts`: `collapseFamiliesByWorkspace(agents, enabled)` — pure, tested (6 new cases). Keeps
+  one family per workspace ref (needs-you > working > review > done, then most-recent
+  spawnedAt), reports folded count per workspace. No-op passthrough when disabled. Families with
+  no resolved `workspace` are left alone (never guessed into a group).
+- `agent-inbox-prefs.ts`: localStorage pref, default ON, dispatches a change event so Settings
+  and the inbox stay in sync without a poll-cycle delay.
+- `agent-inbox.tsx` / `agent-inbox-row.tsx`: wired in; kept rows show a "+N" badge when siblings
+  are folded in, so nothing reads as silently dropped.
+- `settings-panel.tsx`: new "Agents inbox" section, "One row per workspace" toggle, off reverts
+  to showing every session (old behavior, nothing removed).
+
+**Gate:** 82/82 bun tests, tsc clean, build clean. Live bridge restarted, confirmed serving the
+new bundle (`index-DLZE3HF9.js`) via direct HTTP fetch comparison against the built asset on
+disk.
+
+**Not yet done:** on-device visual confirmation — Nik needs to hard-refresh and confirm the
+inbox now shows ~9 rows (one per workspace) with +N badges where a workspace has siblings, and
+that toggling the new Settings switch reveals everything again.
