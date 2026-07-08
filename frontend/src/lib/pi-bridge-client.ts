@@ -149,6 +149,18 @@ export class PiBridgeClient {
    * data right after the user had already moved on to B. Only the latest
    * switch's response is ever applied. */
   private latestSwitchSessionRequestId: string | null = null;
+  /** new_session/switch_session request id -> resolve/reject for callers
+   * awaiting the real, bridge-correlated sessionFile (see bridge.ts's
+   * pendingSessionFileLookups). Rejected on WS disconnect so an awaiting
+   * caller (e.g. RemoteThreadListAdapter.initialize) never hangs forever. */
+  private pendingSessionInits = new Map<string, { resolve: (sessionFile: string) => void; reject: (err: Error) => void }>();
+  /** Set while a newSession()/newSessionInDir() RPC is in flight. Lets
+   * RemoteThreadListAdapter.initialize() (lazily triggered by assistant-ui on
+   * first send into a fresh thread) join an already-dispatched creation
+   * instead of firing a second, redundant new_session — the "+ New session"
+   * button and the workspace picker both call newSession()/newSessionInDir()
+   * directly, ahead of and independent from the runtime's own lazy init. */
+  private pendingNewSessionPromise: Promise<string> | null = null;
   /** Bumped on every setStatusError() call. Each auto-clear timeout only
    * nulls statusError if its token is still the latest — otherwise an
    * earlier error's 3-4s timer could fire after a second, unrelated error
@@ -222,6 +234,50 @@ export class PiBridgeClient {
     return id;
   }
 
+  /** Resolve/reject the promise (if any) an awaitSessionInit() caller is
+   * holding for this new_session/switch_session request id. No-ops if the id
+   * isn't tracked (e.g. this command wasn't issued via a *Async() helper, or
+   * it already resolved on an earlier arrival of this same id). */
+  private resolveOrRejectSessionInit(id: unknown, sessionFile: string | undefined) {
+    if (id == null) return;
+    const key = String(id);
+    const pending = this.pendingSessionInits.get(key);
+    if (!pending) return;
+    this.pendingSessionInits.delete(key);
+    if (sessionFile) pending.resolve(sessionFile);
+    else pending.reject(new Error("Session was cancelled before a sessionFile was assigned"));
+  }
+
+  /** Track `id` and return a promise that resolves with the real,
+   * bridge-correlated sessionFile once it lands (or rejects on cancel/disconnect). */
+  private awaitSessionInit(id: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.pendingSessionInits.set(id, { resolve, reject });
+    });
+  }
+
+  /** Track `promise` (a newSession()/newSessionInDir() in-flight RPC) so
+   * ensureActiveSession() can join it instead of dispatching a duplicate. */
+  private trackPendingNewSession(promise: Promise<string>): Promise<string> {
+    this.pendingNewSessionPromise = promise;
+    promise
+      .catch(() => {})
+      .finally(() => {
+        if (this.pendingNewSessionPromise === promise) this.pendingNewSessionPromise = null;
+      });
+    return promise;
+  }
+
+  /** Used by RemoteThreadListAdapter.initialize(): returns the currently
+   * active session's real path if one already exists, joins an in-flight
+   * newSession()/newSessionInDir() call if one was already dispatched, or
+   * (only otherwise) starts a fresh one. See pendingNewSessionPromise. */
+  ensureActiveSession(): Promise<string> {
+    if (this.snapshot.activeSessionPath) return Promise.resolve(this.snapshot.activeSessionPath);
+    if (this.pendingNewSessionPromise) return this.pendingNewSessionPromise;
+    return this.newSession();
+  }
+
   connect() {
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const clientId = encodeURIComponent(this.getPushClientId());
@@ -281,6 +337,14 @@ export class PiBridgeClient {
       // no-opped instead of doing anything. A primary-session dialog (agentId
       // undefined) is untouched — that process survives the disconnect.
       if (this.snapshot.extensionDialog?.agentId) this.clearExtensionDialog();
+      // A pending new_session/switch_session promise (e.g. RemoteThreadListAdapter's
+      // initialize()) has no way to hear about a disconnect otherwise — reject
+      // so the caller doesn't hang forever waiting on a response that will
+      // never arrive for this connection.
+      for (const { reject } of this.pendingSessionInits.values()) {
+        reject(new Error("Disconnected before session was created"));
+      }
+      this.pendingSessionInits.clear();
       this.queuePatch({ connected: false, connectionPhase: "connecting", streaming: false });
       this.scheduleConnectionWatchdog();
       setTimeout(() => this.connect(), this.reconnectDelay);
@@ -611,8 +675,20 @@ export class PiBridgeClient {
         this.queuePatch({ sessions });
         break;
       }
-      case "switch_session":
+      // new_session/switch_session land TWICE for the same request id: pi's raw
+      // response first (never carries sessionFile), then bridge.ts's chained,
+      // enriched response once it looks up the real path via get_state. Side
+      // effects (system message, conversation reset, refetches) only run on the
+      // first arrival; the second arrival just attaches the real sessionFile and
+      // resolves anyone awaiting it (e.g. RemoteThreadListAdapter.initialize()).
+      case "switch_session": {
         if (!isLatestAttachRequest(msg.id ? String(msg.id) : undefined, this.latestSwitchSessionRequestId)) break;
+        const sessionFile = msg.data?.sessionFile ? String(msg.data.sessionFile) : undefined;
+        if (sessionFile) {
+          if (!msg.data?.cancelled) this.queuePatch({ activeSessionPath: sessionFile });
+          this.resolveOrRejectSessionInit(msg.id, sessionFile);
+          break;
+        }
         if (!msg.data?.cancelled) {
           this.pendingRenames.delete(`switch-${msg.id}`);
           this.appendSystem("✓ Session loaded");
@@ -621,9 +697,17 @@ export class PiBridgeClient {
           this.send({ type: "get_session_stats", id: this.nextId() });
         } else {
           this.queuePatch({ view: "sessions" });
+          this.resolveOrRejectSessionInit(msg.id, undefined);
         }
         break;
-      case "new_session":
+      }
+      case "new_session": {
+        const sessionFile = msg.data?.sessionFile ? String(msg.data.sessionFile) : undefined;
+        if (sessionFile) {
+          if (!msg.data?.cancelled) this.queuePatch({ activeSessionPath: sessionFile });
+          this.resolveOrRejectSessionInit(msg.id, sessionFile);
+          break;
+        }
         if (!msg.data?.cancelled) {
           this.appendSystem("✓ New session started");
           this.clearConversation();
@@ -632,8 +716,11 @@ export class PiBridgeClient {
           // pi respawned in a new cwd). Refresh cwd-derived views.
           this.fetchSessions();
           this.fetchGitBranch();
+        } else {
+          this.resolveOrRejectSessionInit(msg.id, undefined);
         }
         break;
+      }
       case "rename_session":
         if (msg.id) this.pendingRenames.delete(msg.id);
         if (msg.data?.name && msg.data?.sessionPath) {
@@ -1179,7 +1266,10 @@ export class PiBridgeClient {
     if (view === "sessions") this.fetchSessions();
   }
 
-  switchSession(session: PiSession) {
+  /** Returns a promise resolving with the real (bridge-correlated) sessionFile
+   * once pi confirms the switch — used by RemoteThreadListAdapter.switchToThread.
+   * Fire-and-forget callers can ignore the return value. */
+  switchSession(session: PiSession): Promise<string> {
     this.clearMessageQueue();
     this.clearPendingImages();
     this.clearExtensionDialog();
@@ -1189,12 +1279,16 @@ export class PiBridgeClient {
       view: "chat",
     });
     markSessionRead(session.path, session.mtime);
-    this.latestSwitchSessionRequestId = this.sendWithId({ type: "switch_session", sessionPath: session.path });
+    const id = this.sendWithId({ type: "switch_session", sessionPath: session.path });
+    this.latestSwitchSessionRequestId = id;
     if (this.snapshot.connected) {
       this.appendSystem("↻ Switching session…");
     } else {
       this.appendSystem("⚠ pi not connected — commands will not work");
     }
+    const promise = this.awaitSessionInit(id);
+    promise.catch(() => {}); // fire-and-forget callers must not trigger unhandled rejection
+    return promise;
   }
 
   renameSession(sessionPath: string, name: string) {
@@ -1207,7 +1301,11 @@ export class PiBridgeClient {
     }
   }
 
-  newSession() {
+  /** Returns a promise resolving with the real (bridge-correlated) sessionFile
+   * once pi assigns one. Direct UI entry point ("+ New session"); also the
+   * fallback ensureActiveSession() dispatches when nothing is already in
+   * flight for RemoteThreadListAdapter.initialize(). */
+  newSession(): Promise<string> {
     this.clearMessageQueue();
     this.clearPendingImages();
     this.clearExtensionDialog();
@@ -1216,8 +1314,9 @@ export class PiBridgeClient {
       activeSessionPath: null,
       view: "chat",
     });
-    this.sendWithId({ type: "new_session" });
+    const id = this.sendWithId({ type: "new_session" });
     this.appendSystem("↻ Starting new session…");
+    return this.trackPendingNewSession(this.awaitSessionInit(id));
   }
 
   /** Browse folders for the workspace picker (default: home when path omitted). */
@@ -1228,7 +1327,7 @@ export class PiBridgeClient {
   /** Start a new session in a chosen folder. The bridge respawns pi there (its
    * cwd is fixed per-process) then creates the session, so the whole app switches
    * to that workspace. */
-  newSessionInDir(cwd: string) {
+  newSessionInDir(cwd: string): Promise<string> {
     this.clearMessageQueue();
     this.clearPendingImages();
     this.clearExtensionDialog();
@@ -1237,8 +1336,9 @@ export class PiBridgeClient {
       activeSessionPath: null,
       view: "chat",
     });
-    this.sendWithId({ type: "new_session", cwd });
+    const id = this.sendWithId({ type: "new_session", cwd });
     this.appendSystem(`↻ Starting new session in ${cwd}…`);
+    return this.trackPendingNewSession(this.awaitSessionInit(id));
   }
 
   setTheme(theme: Theme) {

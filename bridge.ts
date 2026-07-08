@@ -29,6 +29,7 @@ import { spawnAgent, listAgents, sendToAgent, confirmAgent, resolveAgentSessionP
 import { buildAgentTree, flattenTree } from "./lineage";
 import { resolveRoute } from "./broker-route";
 import { resolveBootCwd } from "./boot-cwd";
+import { buildCorrelatedSessionResponse, type PendingSessionFileLookup } from "./session-file-correlation";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -264,6 +265,11 @@ function isClientActive(clientId?: string): boolean {
 
 // Pending response routes: requestId -> ws  (null = broadcast to all)
 const pendingResponseRoutes = new Map<string, any | null>();
+
+// Chained get_state lookups issued after a successful new_session/switch_session
+// (neither of which carry a real sessionFile from pi itself). Keyed by the
+// internal bridge id used for the chained get_state call.
+const pendingSessionFileLookups = new Map<string, PendingSessionFileLookup>();
 
 // Track which extension_ui_request ids have already been answered
 const answeredDialogIds = new Set<string>();
@@ -511,6 +517,32 @@ function handlePiStdout(line: string) {
       parsed.data?.sessionFile
     ) {
       loadedSessionFile = String(parsed.data.sessionFile);
+    }
+
+    // This response IS the chained get_state answer for a pending
+    // new_session/switch_session correlation (see below) — build and broadcast
+    // the enriched response carrying the real sessionFile, and stop here (this
+    // internal lookup has no client-facing id of its own).
+    if (pendingSessionFileLookups.has(parsed.id)) {
+      const pending = pendingSessionFileLookups.get(parsed.id)!;
+      pendingSessionFileLookups.delete(parsed.id);
+      const merged = buildCorrelatedSessionResponse(pending, parsed.success ? parsed.data : undefined);
+      broadcast(JSON.stringify(merged));
+      return;
+    }
+
+    // pi's own new_session/switch_session responses never carry a real
+    // sessionFile — only get_state does. Chain an internal get_state call so
+    // clients can learn the real path via a correlated response instead of
+    // waiting on the next fetchSessions() poll.
+    if ((parsed.command === "new_session" || parsed.command === "switch_session") && parsed.success) {
+      const internalId = nextBridgeId();
+      pendingSessionFileLookups.set(internalId, {
+        originalId: parsed.id,
+        originalCommand: parsed.command,
+        originalData: parsed.data,
+      });
+      sendToPi({ type: "get_state", id: internalId });
     }
 
     // Broadcast new_session and switch_session to all clients so they all refresh

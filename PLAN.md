@@ -475,15 +475,39 @@ not just "does it compile."
   `ThreadPrimitive.Viewport` doesn't use — added `StreamingLiveRegion` as a dependency-free
   equivalent tied to `snapshot.streaming`. No Playwright spec needed (ARIA/focus change, not
   composer layout/keyboard geometry).
-- [ ] **4.4 Thread/session switcher — RESOLVED, rescoped.** Nik's decision (2026-07-07): option
-  (a) from the open question below — add a correlated `new_session` response in `bridge.ts`
-  (mirror `rename_session`'s `id` → pending-map pattern, tracked in the open question) that
-  reports the real session path once pi assigns one. THEN swap `AssistantChatShell` to
-  `useRemoteThreadListRuntime` with a `RemoteThreadListAdapter` whose `initialize()` awaits that
-  correlated response honestly (no client-side placeholder id — the earlier trace explicitly
-  found that unsafe, don't reintroduce it). Two sub-steps, do both in this one card: bridge
-  protocol change first (with its own test), then the runtime swap on top of it. Full gate
-  (bun test + tsc + build:ui) after each sub-step, not just at the end.
+- [x] **4.4 Thread/session switcher — implemented.** Nik's decision (2026-07-07): option (a) —
+  add a correlated `new_session` response in `bridge.ts`, then swap `AssistantChatShell` to
+  `useRemoteThreadListRuntime`. Corrected finding during implementation: the original analysis's
+  premise (bridge.ts already reads `parsed.data?.sessionFile` off pi's own `new_session`/
+  `switch_session` responses) turned out to be dead code — verified against the installed `pi`
+  binary's `rpc-mode.js`/`agent-session-runtime.js`, both RPCs return only `{cancelled: false}`,
+  never a `sessionFile`. Only `get_state` returns a real `sessionFile`. Real fix built instead:
+  `bridge.ts` chains an internal `get_state` call (via `nextBridgeId()`) after a successful
+  `new_session`/`switch_session`, tracked in `pendingSessionFileLookups`, and broadcasts a second,
+  enriched response (same `command`/`id`, `success: true`, real `sessionFile` merged in) once that
+  resolves — pure merge logic extracted to `session-file-correlation.ts` (`buildCorrelatedSessionResponse`),
+  tested in `session-file-correlation.test.ts` (4 cases incl. a failed chained `get_state`).
+  Frontend (`pi-bridge-client.ts`): `new_session`/`switch_session` handlers now branch on whether
+  `sessionFile` is present — first (raw) arrival runs the existing side effects once, second
+  (enriched) arrival sets `activeSessionPath` and resolves anyone awaiting it via
+  `pendingSessionInits` (rejected on WS close, so an awaiter can't hang forever).
+  `newSession()`/`newSessionInDir()`/`switchSession()` now return `Promise<string>`.
+  `ensureActiveSession()` + `pendingNewSessionPromise` dedup a lazy `initialize()` firing against
+  an already-in-flight or already-resolved session, so the runtime's lazy init can't spawn a
+  second pi session behind the "+ New" button's own call. New `remote-thread-list-adapter.ts`
+  (`piThreadListAdapter`): `list()`/`fetch()` off `snapshot.sessions`, `initialize()` awaits
+  `ensureActiveSession()` (no placeholder id, ever), `rename()` wired to `bridge.renameSession()`;
+  `archive`/`unarchive`/`delete`/`generateTitle` throw (`ponytail:` tagged — no bridge support and
+  no UI renders those controls in this card, add when needed). `pi-chat-shell.tsx`: extracted the
+  existing `useExternalStoreRuntime` into `usePiThreadRuntime()`, passed as `runtimeHook` to
+  `useRemoteThreadListRuntime({ runtimeHook, adapter: piThreadListAdapter, threadId:
+  snapshot.activeSessionPath ?? undefined })`; `LineMapContext`/`InlineExtensionDialog`/
+  `StreamingLiveRegion`/`JumpToLatest`/centered-hero layout all unchanged. `sessions-view.tsx`
+  (renders outside this shell's provider) still calls `bridge.switchSession()`/`newSessionInDir()`
+  directly, unaffected by the swap; the dedup guard makes that safe against the runtime's own lazy
+  init firing for the same thread. Gate green: 124/124 bun tests (120 + 4 new), clean
+  `tsc --noEmit`, `pnpm run build:ui`. Session-list/runtime plumbing, not composer/keyboard — no
+  qa/*.spec.ts applies.
 - [x] **4.5 Markdown/syntax-highlighting renderer — implement.** Traced the actual pipeline
   first: message text never goes through assistant-ui's `MessagePrimitive.Content`/message-part
   tree at all — `pi-chat-shell.tsx`'s `ShellMessage` renders `ConversationLine` directly off the

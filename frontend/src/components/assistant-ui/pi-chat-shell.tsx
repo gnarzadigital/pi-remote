@@ -6,6 +6,7 @@ import {
   ThreadPrimitive,
   useAuiState,
   useExternalStoreRuntime,
+  useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
 import { ChevronDown, Pencil, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { NewSessionHero } from "@/components/new-session-hero";
 import { PiComposer } from "@/components/assistant-ui/pi-composer";
 import { StreamingStatusBar } from "@/components/streaming-status-bar";
 import { chatLinesToThreadMessages } from "@/lib/assistant-ui-adapter";
+import { piThreadListAdapter } from "@/lib/remote-thread-list-adapter";
 import { useChatBottomInset } from "@/hooks/use-chat-bottom-inset";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
 import type { ChatLine } from "@/lib/types";
@@ -185,21 +187,20 @@ function JumpToLatest({ streaming }: { streaming: boolean }) {
 }
 
 /**
- * assistant-ui chat shell (the ?spike=1 body of ChatView): ExternalStoreRuntime
- * over the live bridge snapshot, ThreadPrimitive viewport for the message list
- * + streaming/scroll mechanics, and the proven in-flow `.chat-bottom-dock`
- * (NOT position:fixed, NOT sticky ViewportFooter — the flex-last-child pattern
- * that survived the iOS standalone saga) hosting the assistant-ui composer.
+ * The underlying per-thread runtime, backing whichever thread
+ * useRemoteThreadListRuntime currently has active. Session switching itself
+ * happens via bridge.switchSession() elsewhere (sessions-view.tsx, which
+ * renders outside this shell's provider) — snapshot.lines/streaming already
+ * reflect whatever session pi has loaded, so this only projects that live
+ * state into ThreadMessageLike, same as before the thread-list runtime swap.
+ * Passed as `runtimeHook` to useRemoteThreadListRuntime, which calls it as a
+ * normal hook for the active thread.
  */
-export function AssistantChatShell() {
+function usePiThreadRuntime() {
   const { snapshot, bridge } = usePiBridge();
   const messages = useMemo(() => chatLinesToThreadMessages(snapshot.lines), [snapshot.lines]);
-  const lineMap = useMemo(
-    () => new Map(snapshot.lines.map((l): [string, ChatLine] => [l.id, l])),
-    [snapshot.lines]
-  );
 
-  const runtime = useExternalStoreRuntime({
+  return useExternalStoreRuntime({
     messages,
     isRunning: snapshot.streaming,
     // `messages` is already ThreadMessageLike (adapter output), not the
@@ -228,6 +229,28 @@ export function AssistantChatShell() {
       const parent = parentId ? snapshot.lines.find((l) => l.id === parentId) : undefined;
       if (parent?.kind === "user") bridge.sendMessage(parent.text);
     },
+  });
+}
+
+/**
+ * assistant-ui chat shell (the ?spike=1 body of ChatView): RemoteThreadListRuntime
+ * (4.4 — real, switchable .threads backed by piThreadListAdapter) wrapping the
+ * ExternalStoreRuntime above, ThreadPrimitive viewport for the message list +
+ * streaming/scroll mechanics, and the proven in-flow `.chat-bottom-dock`
+ * (NOT position:fixed, NOT sticky ViewportFooter — the flex-last-child pattern
+ * that survived the iOS standalone saga) hosting the assistant-ui composer.
+ */
+export function AssistantChatShell() {
+  const { snapshot } = usePiBridge();
+  const lineMap = useMemo(
+    () => new Map(snapshot.lines.map((l): [string, ChatLine] => [l.id, l])),
+    [snapshot.lines]
+  );
+
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: usePiThreadRuntime,
+    adapter: piThreadListAdapter,
+    threadId: snapshot.activeSessionPath ?? undefined,
   });
 
   // Same "black gap" rule as production ChatView: fresh, never-prompted
