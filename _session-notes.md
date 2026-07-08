@@ -368,3 +368,36 @@ disk.
 **Not yet done:** on-device visual confirmation — Nik needs to hard-refresh and confirm the
 inbox now shows ~9 rows (one per workspace) with +N badges where a workspace has siblings, and
 that toggling the new Settings switch reveals everything again.
+
+---
+
+## Session 2026-07-08 (~12:07AM) — Phase 4 fully complete, all 7 cards shipped
+
+**Second loop run (PID 51353) finished in just 2 iterations** — both remaining cards done clean:
+
+- **4.2 inline tool-approval — done**, per Nik's decision. Re-skinned the existing
+  `ExtensionDialog` inline in the transcript instead of a modal. Correction during build: pi's
+  actual `extension_ui_request` methods split into no-ops (already filtered) and the real
+  blocking set (input/editor/confirm) — no server-side tag separates "tool permission" from other
+  blocking asks within that set, so all of them render inline now, the honest reading of the
+  decision given what pi actually sends. Scoped to primary-session dialogs; attached-agent
+  dialogs keep the modal.
+- **4.4 thread switcher — done**, per Nik's decision, but the implementation caught its own
+  planned approach was wrong mid-build: the original plan assumed bridge.ts already read a
+  `sessionFile` off pi's `new_session`/`switch_session` responses (mirroring `rename_session`'s
+  pattern) — traced against the installed `pi` binary and found that premise false, those RPCs
+  never return one, only `get_state` does. Built the correct fix instead: bridge.ts chains an
+  internal `get_state` after a successful new/switch, broadcasts a second enriched response with
+  the real path. Frontend dedupes so the runtime's lazy init can't double-spawn a session. Full
+  `RemoteThreadListAdapter` wired in.
+
+**Phase 4 (4.0–4.6) is now 100% complete on `feat/assistant-ui-port`.** Final tally: 30 real bugs
+found and fixed, 5 features actually shipped (edit/regenerate, keyboard/a11y, markdown renderer,
+inline tool-approval, real thread switcher), 1 intentionally kept as-is (native slash-commands,
+Nik's call — library version too unstable). Fresh full gate re-run confirms the whole branch:
+124/124 bun tests, tsc clean, build clean.
+
+**Not yet done:** this branch has NOT been merged to `main` or shown to Nik live. Given the scope
+(a core runtime swap for session switching, not just bug fixes), recommending a live test-bridge
+look before merging into what his phone actually runs, same pattern as prior verification
+(`PORT=7701` isolated bridge). Awaiting Nik's call on next step.
