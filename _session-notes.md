@@ -288,3 +288,50 @@ main, never merges). Log: `~/repos/pi-remote-port/.ralph-state/loop.log`.
 
 **Next (once it stops):** review the full `feat/assistant-ui-port` branch, check `## Open
 questions for Nik` in PLAN.md for anything it punted on, decide what merges.
+
+---
+
+## Session 2026-07-07 — full assistant-ui upgrade: first loop run complete, decisions locked, second loop launched
+
+**First loop run (PID 60938/45818, iterations 1-30) finished clean at `PHASE_4_COMPLETE`** —
+well under its 70-iteration/11h cap. Full result, all pushed to `origin/feat/assistant-ui-port`
+(HEAD `66f7fb7` at completion):
+
+- **30 real bugs found and fixed** in the bug hunt (card 4.0), closed after 2 consecutive dry
+  passes (31 total hunt passes). Recent finds: tool-approval dialog never cleared on session
+  transitions, tool cards not showing call arguments, a dialog not auto-cancelled on WS
+  disconnect of an attached agent.
+- **4.1 edit/regenerate — done.** Honest limitation logged: pi's bridge has no true "rewind"
+  command, so edits resubmit as a new message rather than replacing the original turn.
+- **4.3 keyboard/a11y — done.** Found + fixed 2 real gaps (edit-box autoFocus, dropped
+  aria-live streaming announcer).
+- **4.5 markdown renderer — done.** Actually adopted `@assistant-ui/react-markdown` for
+  message/thinking-chain text + code blocks, bridged via `TextMessagePartProvider` since this
+  app's renderer bypasses assistant-ui's message-part tree. Diff/tool cards untouched (no
+  markdown equivalent needed there).
+- **4.2, 4.4, 4.6 came back BLOCKED with real, traced technical reasons** (not skipped for
+  convenience — each includes the actual code path read, not guessed): 4.2's real approval gate
+  already exists but isn't tool-call-correlated and bridge.ts has no command allowlist; 4.4's
+  session switcher needs a bridge protocol response that doesn't exist yet (traced, a client-side
+  workaround was correctly rejected as unsafe); 4.6's slash-command primitives are
+  `Unstable_`-prefixed with proven doc/implementation drift within the installed version.
+
+**3 decisions locked with Nik via /decisions (AskUserQuestion, one at a time):**
+- D-1 (4.2): re-skin the EXISTING approval dialog inline in the transcript. Declined the bigger
+  per-tool-call gate (would need new bridge/pi protocol).
+- D-2 (4.4): build the bridge protocol fix (correlated `new_session` response, mirrors
+  `rename_session`'s pattern) THEN do the full `useRemoteThreadListRuntime` swap.
+- D-3 (4.6): keep the hand-built `CmdPicker`. Declined adopting the unstable primitives.
+
+PLAN.md rescoped accordingly (commit `2368f5b`, pushed): 4.2 and 4.4 reopened `[ ]` with concrete
+scope, 4.6 closed `[x]` as intentionally-kept-as-is. Original technical analysis preserved under
+`## Open questions for Nik`, marked RESOLVED so a future loop iteration doesn't re-derive it.
+
+**Second loop launched** (PID 51353, background task `blscm1b0m`) to build the two rescoped
+cards. Caps lowered to 20 iterations/4h since only 2 real cards remain. Same isolation
+guarantees: worktree-only, never touches `~/repos/pi-remote` or main, never merges.
+
+**State of the world:** nothing has touched `main` or the live phone bridge all session. Branch
+`feat/assistant-ui-port` now has real, substantive assistant-ui adoption (not just parity) plus
+30 bug fixes the original port didn't have. Once this second loop finishes: full branch review,
+decide what merges.
