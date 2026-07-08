@@ -443,11 +443,13 @@ not just "does it compile."
 - [x] **4.1 Edit-and-resubmit / regenerate last reply.** Wire `ExternalStoreRuntime`'s `onEdit`/
   `onReload` against the existing bridge send path; add the UI affordance on user + assistant
   messages (reuse existing icon/button patterns, don't invent a new visual language).
-- [!] **4.2 Inline tool-approval prompts.** BLOCKED — see `## Open questions for Nik`: the real
-  approval gate already exists (`extension_ui_request`/`ExtensionDialog`) and isn't
-  tool-call-correlated, and `bridge.ts` forwards every command type straight to the live pi
-  process with no allowlist, so a speculative stub command would be unsafe to send. Needs a
-  decision from Nik before any code change.
+- [ ] **4.2 Inline tool-approval prompts — RESOLVED, rescoped.** Nik's decision (2026-07-07):
+  option (a) from the open question below — re-skin the EXISTING `ExtensionDialog` gate to
+  render inline in the transcript instead of as a modal, for the subset of
+  `extension_ui_request`s that are tool-permission prompts. Do NOT build a new bridge/pi
+  protocol or a per-tool-call approve/deny command (option (b) was explicitly declined). Anchor
+  by `agentId` + turn position, same data already available. No new bridge command needed — this
+  is a front-end-only re-skin of an already-working gate.
 - [x] **4.3 Keyboard shortcuts + accessibility pass.** Arrow-key composer history recall; verify
   assistant-ui's exposed ARIA roles/focus management are actually wired through our custom
   renderers, not just present in the primitives we didn't touch. Arrow-key recall was already
@@ -461,14 +463,15 @@ not just "does it compile."
   `ThreadPrimitive.Viewport` doesn't use — added `StreamingLiveRegion` as a dependency-free
   equivalent tied to `snapshot.streaming`. No Playwright spec needed (ARIA/focus change, not
   composer layout/keyboard geometry).
-- [!] **4.4 Thread/session switcher.** BLOCKED — see `## Open questions for Nik`: assistant-ui's
-  `ThreadListPrimitive` only gets real multi-thread switching from `useRemoteThreadListRuntime`,
-  whose `adapter.initialize()` contract requires a promise that resolves to the newly-created
-  session's canonical id — and pi's bridge protocol has no correlated response that returns a
-  fresh session's real path (traced in `pi-bridge-client.ts`/`bridge.ts`, not guessed). That gap
-  sits on the app's most common path (fresh session, first message), not an edge case. Needs a
-  decision from Nik (add a correlated `new_session` response, or accept a narrower switcher) before
-  any code change.
+- [ ] **4.4 Thread/session switcher — RESOLVED, rescoped.** Nik's decision (2026-07-07): option
+  (a) from the open question below — add a correlated `new_session` response in `bridge.ts`
+  (mirror `rename_session`'s `id` → pending-map pattern, tracked in the open question) that
+  reports the real session path once pi assigns one. THEN swap `AssistantChatShell` to
+  `useRemoteThreadListRuntime` with a `RemoteThreadListAdapter` whose `initialize()` awaits that
+  correlated response honestly (no client-side placeholder id — the earlier trace explicitly
+  found that unsafe, don't reintroduce it). Two sub-steps, do both in this one card: bridge
+  protocol change first (with its own test), then the runtime swap on top of it. Full gate
+  (bun test + tsc + build:ui) after each sub-step, not just at the end.
 - [x] **4.5 Markdown/syntax-highlighting renderer — implement.** Traced the actual pipeline
   first: message text never goes through assistant-ui's `MessagePrimitive.Content`/message-part
   tree at all — `pi-chat-shell.tsx`'s `ShellMessage` renders `ConversationLine` directly off the
@@ -495,10 +498,11 @@ not just "does it compile."
   were already markdown-free and untouched, per the card's own scope note. Gate green: 120/120
   bun tests, clean `tsc --noEmit`, `pnpm run build:ui` (code-block chunk still splits correctly).
   No qa/*.spec.ts is relevant (none cover markdown rendering); not a composer/keyboard change.
-- [!] **4.6 Native slash-command / input-history — partially blocked.** Composer-history half is
-  already done: `unstable_useComposerInputHistory` was adopted in 4.3 (`pi-composer.tsx`). The
-  slash-command half (swap `CmdPicker` for assistant-ui's built-in trigger-popover) is blocked —
-  see `## Open questions for Nik`.
+- [x] **4.6 Native slash-command / input-history — RESOLVED, keep current implementation.**
+  Nik's decision (2026-07-07): decline to adopt the library's slash-command primitives — they're
+  explicitly `Unstable_`-prefixed with proven doc/implementation drift within this one installed
+  version (see the open question below for the trace). Composer-history half stays adopted
+  (`unstable_useComposerInputHistory`, done in 4.3). `CmdPicker` stays as-is, no further action.
 
 **4.4/4.5/4.6 completion rule:** these are IMPLEMENT cards, not evaluate-and-decide. "Ours is
 already fine" is not a reason to skip — only a genuine hard blocker (a real incompatibility with
@@ -516,6 +520,10 @@ plainly in PLAN.md under a new `## Open questions for Nik` heading at the bottom
 and move on to the next card.
 
 ## Open questions for Nik
+
+**All three below RESOLVED by Nik (2026-07-07) via /decisions — see the rescoped 4.2/4.4/4.6
+cards above for what to actually build. Kept the original analysis below for reference; do not
+re-derive it.**
 
 - **4.1 (edit/regenerate) — no true history rewind.** pi's bridge protocol (`bridge.ts`) only
   ever appends (`prompt`/`follow_up`/`steer`); there's no "forget this turn and everything after
