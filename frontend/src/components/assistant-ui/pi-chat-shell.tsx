@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -94,6 +94,81 @@ function StreamingLiveRegion({ streaming }: { streaming: boolean }) {
   );
 }
 
+/**
+ * Inline re-skin of ExtensionDialog (4.2): pi's own tool-permission /
+ * input / editor gate (extension_ui_request, already wired through
+ * pi-bridge-client's extensionDialog state) rendered as the last item in the
+ * transcript instead of a blocking modal. Only handles primary-session
+ * dialogs (no agentId) — attached-agent dialogs still use the global modal
+ * in App.tsx, since this shell never renders agent-chat. "Turn position" is
+ * simply the end of the transcript: pi blocks on this response before the
+ * current turn can continue, so nothing else can arrive above it meanwhile.
+ */
+function InlineExtensionDialog() {
+  const { snapshot, bridge } = usePiBridge();
+  const d = snapshot.extensionDialog;
+  const [input, setInput] = useState("");
+  const [editor, setEditor] = useState("");
+
+  const dialogKey = d ? `${d.id ?? ""}-${d.title}` : "";
+  useEffect(() => {
+    if (!d) return;
+    setInput(d.inputValue ?? "");
+    setEditor(d.editorValue ?? "");
+  }, [dialogKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!d || d.agentId) return null;
+
+  return (
+    <div
+      role="alertdialog"
+      aria-label={d.title}
+      className="flex flex-col gap-2 rounded-[14px] border border-hairline bg-card p-3"
+    >
+      <p className="text-[14px] font-medium text-graphite">{d.title}</p>
+      {d.message && <p className="text-[13px] text-concrete">{d.message}</p>}
+      {d.options?.map((opt) => (
+        <Button
+          key={opt}
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => bridge.resolveExtensionDialog(opt)}
+        >
+          {opt}
+        </Button>
+      ))}
+      {d.showEditor && (
+        <textarea
+          className="min-h-[120px] w-full rounded-[10px] border border-hairline p-2 font-mono text-sm"
+          value={editor}
+          onChange={(e) => setEditor(e.target.value)}
+        />
+      )}
+      {d.showInput && !d.showEditor && (
+        <input
+          className="w-full rounded-[10px] border border-hairline px-3 py-2 text-sm"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+        />
+      )}
+      {d.showConfirm && (
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => bridge.resolveExtensionDialog(null, true)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() =>
+              bridge.resolveExtensionDialog(d.showEditor ? editor : input ?? "")
+            }
+          >
+            OK
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function JumpToLatest({ streaming }: { streaming: boolean }) {
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
@@ -174,6 +249,7 @@ export function AssistantChatShell() {
               <ThreadPrimitive.Viewport className="chat-scroll-zone min-h-0 w-full min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
                 <div className="flex flex-col gap-3">
                   <ThreadPrimitive.Messages>{() => <ShellMessage />}</ThreadPrimitive.Messages>
+                  <InlineExtensionDialog />
                 </div>
               </ThreadPrimitive.Viewport>
               <div className="chat-scroll-jump pointer-events-none absolute inset-x-0 z-50">

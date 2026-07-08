@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
+import { isSpikeMode } from "@/lib/spike-mode";
 
 export function ExtensionDialog() {
   const { snapshot, bridge } = usePiBridge();
@@ -18,6 +19,13 @@ export function ExtensionDialog() {
   }, [dialogKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!d) return null;
+
+  // Primary-session dialogs (no agentId) render inline in the transcript
+  // instead (4.2's InlineExtensionDialog in pi-chat-shell.tsx) whenever the
+  // assistant-ui shell is actually the thing on screen. Everything else
+  // (attached-agent dialogs, non-spike ChatView, sessions view) still needs
+  // this modal.
+  if (!d.agentId && isSpikeMode() && snapshot.view === "chat") return null;
 
   const open = Boolean(d);
 

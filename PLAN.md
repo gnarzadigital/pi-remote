@@ -443,13 +443,25 @@ not just "does it compile."
 - [x] **4.1 Edit-and-resubmit / regenerate last reply.** Wire `ExternalStoreRuntime`'s `onEdit`/
   `onReload` against the existing bridge send path; add the UI affordance on user + assistant
   messages (reuse existing icon/button patterns, don't invent a new visual language).
-- [ ] **4.2 Inline tool-approval prompts — RESOLVED, rescoped.** Nik's decision (2026-07-07):
-  option (a) from the open question below — re-skin the EXISTING `ExtensionDialog` gate to
-  render inline in the transcript instead of as a modal, for the subset of
-  `extension_ui_request`s that are tool-permission prompts. Do NOT build a new bridge/pi
-  protocol or a per-tool-call approve/deny command (option (b) was explicitly declined). Anchor
-  by `agentId` + turn position, same data already available. No new bridge command needed — this
-  is a front-end-only re-skin of an already-working gate.
+- [x] **4.2 Inline tool-approval prompts — implemented.** Nik's decision (2026-07-07): option
+  (a) from the open question below — re-skin the EXISTING `ExtensionDialog` gate to render
+  inline in the transcript instead of as a modal, no new bridge/pi protocol. Implementation: pi's
+  `extension_ui_request` methods observed in `pi-bridge-client.ts` are `setStatus`/`setWidget`/
+  `setTitle` (no-ops, already filtered out), `notify` (fire-and-forget, already auto-acked), and
+  `input`/`editor`/`confirm` — there is no separate server-side tag distinguishing "tool
+  permission" from other blocking asks within that remaining set, so all of them (the actual
+  gate that blocks pi) now render inline; this is the honest reading of "the subset that are
+  tool-permission prompts vs other extension UI uses" given what pi actually sends. Added
+  `InlineExtensionDialog` in `pi-chat-shell.tsx`, rendered as the last item in
+  `AssistantChatShell`'s transcript, scoped to primary-session dialogs only (`!d.agentId`) —
+  attached-agent dialogs (`AgentChatView`, not part of the assistant-ui port) keep using the
+  existing modal. "Turn position" anchor: simply the end of the transcript, since pi blocks the
+  current turn on this response so nothing else can arrive above it meanwhile. `ExtensionDialog`
+  (the global modal in `App.tsx`) now no-ops when `!d.agentId && isSpikeMode() && snapshot.view
+  === "chat"` — i.e. whenever `AssistantChatShell` is actually the thing on screen and owns this
+  dialog — so there's no double-render; non-spike `ChatView`, `AgentChatView`, and the sessions
+  view are unaffected. Gate green: 120/120 bun tests, clean `tsc --noEmit`, `pnpm run build:ui`.
+  No qa/*.spec.ts covers extension dialogs; not a composer/keyboard change.
 - [x] **4.3 Keyboard shortcuts + accessibility pass.** Arrow-key composer history recall; verify
   assistant-ui's exposed ARIA roles/focus management are actually wired through our custom
   renderers, not just present in the primitives we didn't touch. Arrow-key recall was already
