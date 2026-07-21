@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AgentInboxRow } from "@/components/agent-inbox-row";
 import { AgentTerminalView } from "@/components/agent-terminal-view";
 import { usePiBridge } from "@/hooks/use-pi-bridge";
-import { canAttachChat } from "@/lib/agent-runtime";
+import { canOpenRichAgentChat } from "@/lib/agent-runtime";
 import { AGENT_INBOX_PREFS_CHANGED_EVENT, getCollapseAgentsByWorkspace } from "@/lib/agent-inbox-prefs";
 import { collapseFamiliesByWorkspace, filterInboxAgents, groupInbox } from "@/lib/inbox";
 import type { AgentTreeNode } from "@/lib/types";
@@ -36,10 +36,15 @@ export function AgentInbox({ query }: { query: string }) {
   }, []);
 
   const open = (agent: AgentTreeNode) => {
-    if (canAttachChat(agent.runtime)) {
-      bridge.attachToAgent(agent); // pi → full rich RPC chat (view switches to agent-chat)
+    // Rich RPC chat only works for Pi agents whose session path pi-remote can
+    // resolve reliably. Ambient cmux Pi panes can have a visible title/session
+    // that diverges from the process cwd (confirmed live on the Airtable pane),
+    // so opening them as RPC chat leaves a blank transcript. Terminal capture is
+    // the safe universal path for existing cmux panes.
+    if (canOpenRichAgentChat(agent)) {
+      bridge.attachToAgent(agent);
     } else {
-      setTerminalAgent(agent); // terminal runtime → full-screen terminal view
+      setTerminalAgent(agent);
     }
   };
 

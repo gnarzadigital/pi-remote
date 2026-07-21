@@ -9,6 +9,20 @@ export function canAttachChat(runtime?: string): boolean {
   return (runtime ?? "pi").toLowerCase() === "pi";
 }
 
+/** Existing/ambient cmux Pi panes look like runtime="pi", but they are
+ * interactive terminals, not pi-remote-owned RPC children. Opening those as
+ * rich chat can resolve the wrong session and render blank. Only use rich chat
+ * when the agent has a real spawn timestamp + cwd from pi-remote/canonical
+ * registry metadata; otherwise use terminal capture, which works for any cmux
+ * pane. */
+export function canOpenRichAgentChat(agent: {
+  runtime?: string;
+  spawnedAt?: number;
+  cwd?: string | null;
+}): boolean {
+  return canAttachChat(agent.runtime) && (agent.spawnedAt ?? 0) > 0 && Boolean(agent.cwd);
+}
+
 /** Short display label for the runtime badge on an inbox row. */
 export function runtimeLabel(runtime?: string): string {
   const r = (runtime ?? "pi").toLowerCase();

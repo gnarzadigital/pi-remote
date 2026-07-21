@@ -50,7 +50,13 @@ export function AgentChatView() {
         </span>
       </ScreenHeader>
 
-      <ConversationView lines={snapshot.attachedAgentLines} streaming={snapshot.attachedAgentStreaming} />
+      {snapshot.attachedAgentLines.length > 0 ? (
+        <ConversationView lines={snapshot.attachedAgentLines} streaming={snapshot.attachedAgentStreaming} />
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-[14px] leading-6 text-concrete">
+          Loading this agent's session history. If this stays empty, the pane may be an interactive terminal-only session; use refresh or reopen it from Agents.
+        </div>
+      )}
 
       <div ref={bottomDockRef} className="chat-bottom-dock">
         <footer className="input-footer w-full max-w-full shrink-0 overflow-x-clip px-3 pt-2">

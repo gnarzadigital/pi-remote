@@ -238,6 +238,17 @@ export class PiBridgeClient {
         this.handleExtensionUI(event, String(msg.agentId));
         return;
       }
+      if (event.type === "response" && event.command === "get_messages") {
+        this.agentChatState = {
+          ...initialAgentChatState(),
+          lines: this.messagesToLines((event.data as { messages?: Record<string, unknown>[] } | undefined)?.messages ?? []),
+        };
+        this.queuePatch({
+          attachedAgentLines: this.agentChatState.lines,
+          attachedAgentStreaming: false,
+        });
+        return;
+      }
       this.agentChatState = reduceAgentEvent(this.agentChatState, event);
       this.queuePatch({
         attachedAgentLines: this.agentChatState.lines,
@@ -525,7 +536,7 @@ export class PiBridgeClient {
     });
   }
 
-  private renderHistory(messages: Record<string, unknown>[]) {
+  private messagesToLines(messages: Record<string, unknown>[]): ChatLine[] {
     const lines: ChatLine[] = [];
     const toolBlocks = new Map<string, { turnIdx: number; blockIdx: number }>();
 
@@ -570,8 +581,12 @@ export class PiBridgeClient {
         lines.push({ id: uid("sys"), kind: "system", text: `$ ${msg.command}` });
       }
     }
+    return lines;
+  }
+
+  private renderHistory(messages: Record<string, unknown>[]) {
     this.streaming = null;
-    this.queuePatch({ lines });
+    this.queuePatch({ lines: this.messagesToLines(messages) });
   }
 
   private startStreamingTurn() {

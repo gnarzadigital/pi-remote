@@ -143,12 +143,7 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
   const handleValueChange = (value: string) => {
     setInput(value);
     if (value.startsWith("/") && !value.includes(" ")) {
-      // Empty session: PromptSuggestion chips (D). Existing chat: slash dropdown.
-      if (snapshot.lines.length > 0) {
-        bridge.showCmdPicker(value.slice(1));
-      } else {
-        bridge.hideCmdPicker();
-      }
+      bridge.showCmdPicker(value.slice(1));
     } else {
       bridge.hideCmdPicker();
     }
@@ -199,7 +194,7 @@ export function InputArea({ variant = "dock" }: InputAreaProps) {
         <div className="absolute bottom-full left-0 z-20 mb-1.5 w-full max-w-full overflow-hidden">
           <PromptSuggestionsRow input={input} onSelect={setInput} />
         </div>
-        {snapshot.lines.length > 0 && <CmdPicker onSelect={setInput} />}
+        <CmdPicker onSelect={setInput} />
         <PromptInput
           value={input}
           onValueChange={handleValueChange}

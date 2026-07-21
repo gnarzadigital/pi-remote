@@ -128,7 +128,7 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
       <pre
         ref={bodyRef}
         onScroll={onScroll}
-        className="chat-scroll-zone min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-canvas px-3 py-3 font-mono text-[11px] leading-[1.5] text-graphite"
+        className="chat-scroll-zone min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words bg-canvas px-1 py-3 font-mono text-[12px] leading-[1.45] text-graphite"
       >
         {showFor?.loading
           ? "Reading terminal…"
@@ -138,7 +138,7 @@ export function AgentTerminalView({ agent, onClose }: { agent: AgentTreeNode; on
       </pre>
 
       <div ref={bottomDockRef} className="chat-bottom-dock">
-        <footer className="input-footer w-full max-w-full shrink-0 overflow-x-clip px-3 pt-2">
+        <footer className="input-footer w-full max-w-full shrink-0 overflow-x-clip px-2 pt-2">
           <div className="flex items-center gap-2 rounded-[22px] border border-hairline bg-canvas p-2 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
             <input
               type="text"

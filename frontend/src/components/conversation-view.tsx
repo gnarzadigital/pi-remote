@@ -28,7 +28,7 @@ const messageContentClass =
 
 // User bubble = same sans, explicit so it never inherits anything else.
 const userContentClass =
-  "max-w-[92%] rounded-[14px] border border-hairline bg-mist px-3 py-2.5 text-[14px] font-sans text-graphite";
+  "w-full max-w-full rounded-[14px] border border-hairline bg-mist px-3 py-2.5 text-[14px] font-sans text-graphite";
 
 /** edit/write tool with parseable args → render as an inline diff. */
 function isDiffTool(block: Extract<TurnBlock, { kind: "tool" }>): boolean {
@@ -128,7 +128,7 @@ function ConversationLine({ line }: { line: ChatLine }) {
     return (
       <Message
         {...lineAnchorProps(line.id)}
-        className="flex-col items-end gap-1"
+        className="flex-col items-end gap-1 min-w-0 max-w-full"
       >
         <span className="text-[11px] text-concrete">You</span>
         <MessageContent className={userContentClass}>{line.text}</MessageContent>
@@ -172,7 +172,7 @@ export function ConversationView({ lines: linesOverride, streaming: streamingOve
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <ChatContainerRoot className="min-h-0 flex-1 w-full min-w-0 overscroll-contain px-4 py-3">
+      <ChatContainerRoot className="min-h-0 flex-1 w-full min-w-0 overscroll-contain px-2 py-3">
         {isPrimary && <ChatScrollController />}
         <ChatContainerContent className="gap-3">
           {lines.map((line) => (

@@ -456,3 +456,25 @@ minified bundle for new-feature identifiers was inconclusive (minification mangl
 Next: verify with a signal that survives minification (a literal UI string), or just walk Nik
 through triggering a feature that has an obviously different visual result (send a message, tap
 edit on it).
+
+---
+
+## Session 2026-07-09 — cmux Pi Session Blank Screen Fix
+
+**Issue:** Opening an existing cmux Pi session from pi-remote, reported on the Airtable pane, showed the agent chat shell/header and composer but a blank transcript.
+
+**Root cause:** Attached Pi agent history bootstrap was ignored. The bridge sent the attached agent's `get_messages` response as an `agent_event`, but the frontend only fed agent events through the streaming reducer. That reducer handles live events (`agent_start`, `message_update`, tool events) but not `response/get_messages`, so existing session history never rendered. `AgentChatView` also had no empty-state fallback, so the body looked fully blank.
+
+**Changed:**
+- `frontend/src/lib/pi-bridge-client.ts`: added shared `messagesToLines()` history mapping and handle attached-agent `response/get_messages` by populating `attachedAgentLines`.
+- `frontend/src/components/agent-chat-view.tsx`: added a visible empty/loading fallback instead of a blank content area.
+- Rebuilt frontend, updating `public/index.html` and generating new hashed public assets.
+
+**Verified:**
+- `pnpm --dir frontend run build` passes.
+- `bun test frontend/src/lib/agent-turn-reducer.test.ts frontend/src/lib/agent-runtime.test.ts frontend/src/lib/inbox.test.ts` passes (20 tests).
+- launchd service `com.gnarza.pi-remote` is running and `http://localhost:7700` returns HTTP 200.
+
+**Not yet verified:**
+- Phone hard-refresh and reopen the Airtable cmux Pi session. Expected result: prior session history appears; if there is truly no history, a loading/fallback message appears instead of a blank screen.
+- Old hashed public assets were left in place. `public/index.html` now references the new assets; remove stale tracked assets in a cleanup pass if desired.
