@@ -478,3 +478,18 @@ edit on it).
 **Not yet verified:**
 - Phone hard-refresh and reopen the Airtable cmux Pi session. Expected result: prior session history appears; if there is truly no history, a loading/fallback message appears instead of a blank screen.
 - Old hashed public assets were left in place. `public/index.html` now references the new assets; remove stale tracked assets in a cleanup pass if desired.
+
+---
+
+## Session 2026-07-21 — final maintenance patch committed; repo frozen as legacy
+
+Committed `ac64de3` (pushed): the 2026-07-09 blank-screen batch (history render +
+empty-state fallback, canOpenRichAgentChat gate, UI density tweaks) plus removal of
+12 stale hashed public assets. Bridge relaunched via launchd (had died since 07-10),
+serving the new bundle (all assets 200). Working tree clean.
+
+**Strategic state: pi-remote is now legacy/backup.** paseo-cmux (~/repos/paseo-cmux)
+is the canonical agent app going forward (desktop + mobile + web + CLI, multi-host,
+E2EE relay). Keep this launchd service running until paseo-cmux mobile proves itself
+in daily phone use, then bootout + archive. Only feature truly lost on retirement:
+deep pi RPC chat (tool cards, thinking blocks, live slash picker).
