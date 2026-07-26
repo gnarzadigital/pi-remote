@@ -213,19 +213,14 @@ console.log(`[bridge] Spawning pi --mode rpc, cwd=${CWD}`);
 
 // Shared spawn env so attachable RPC agents (see below) launch identically to the
 // primary pi — the NODE_PATH fix lets pi resolve @earendil-works/pi-tui etc.
+const PI_BIN = join(homedir(), ".nvm/versions/node/v22.21.1/bin/pi");
 const PI_SPAWN_ENV = {
   ...process.env,
-  NODE_PATH: [
-    process.env.NODE_PATH,
-    "/opt/homebrew/lib/node_modules",
-    "/Users/nicholasgarza/.nvm/versions/node/v22.21.1/lib/node_modules",
-  ]
-    .filter(Boolean)
-    .join(":"),
+  NODE_PATH: "/Users/nicholasgarza/.nvm/versions/node/v22.21.1/lib/node_modules",
 };
 
 function spawnPiProcess(cwd: string) {
-  return Bun.spawn(["pi", "--mode", "rpc"], {
+  return Bun.spawn([PI_BIN, "--mode", "rpc"], {
     cwd,
     stdin: "pipe",
     stdout: "pipe",
