@@ -1,0 +1,488 @@
+{
+  "run_id": "trun_e5eeec16b7e54deeb907c38f14384460",
+  "interaction_id": "trun_e5eeec16b7e54deeb907c38f14384460",
+  "result_url": "https://platform.parallel.ai/play/deep-research/trun_e5eeec16b7e54deeb907c38f14384460",
+  "status": "completed",
+  "output": {
+    "basis": [
+      {
+        "field": "executive_summary",
+        "reasoning": "Reasoning: The field_answer provides a cohesive executive_summary that covers multiple Parallel CLI capabilities (terminal-native access, retrieval-before-synthesis, deep research trade-offs, FindAll for dataset construction, Monitor for change detection, enrichment, and production evidence guidance). It also includes cautions about provenance, workflow copying vs metrics, and verification responsibilities. The excerpts list includes evidence about CLI usage, search/extract APIs, deep research, FindAll, Monitor, enrichment, and relevant case studies, which collectively support the topics mentioned in the field_answer. Therefore, the answer appears to be complete and well-supported by the provided excerpts.",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/integrations/cli",
+            "excerpts": [
+              "The parallel-cli is a command-line tool for interacting with the Parallel API. It works interactively or fully via command-line arguments, making it the"
+            ],
+            "title": "Parallel CLI"
+          },
+          {
+            "url": "https://docs.parallel.ai/search/search-quickstart",
+            "excerpts": [
+              "Execute natural language web searches and retrieve LLM-optimized excerpts with the Parallel Search API. on Search and Extract usage."
+            ],
+            "title": "Search API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/extract/extract-quickstart",
+            "excerpts": [
+              "The Extract API converts any public URL into clean markdown, including JavaScript-heavy pages and PDFs. It returns focused excerpts aligned to your objective,"
+            ],
+            "title": "Extract API Quickstart"
+          },
+          {
+            "url": "https://docs.parallel.ai/task-api/examples/task-deep-research",
+            "excerpts": [
+              "Deep Research is designed for open-ended research questions where you don't have structured input data to enrich. Instead of bringing data to enhance, you bring"
+            ],
+            "title": "Task API Deep Research Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/getting-started/pricing",
+            "excerpts": [
+              "Pricing varies by mode. Component Cost ($/1000) Per 1,000 turbo requests (default 10 results) 1 Per 1,000 basic or advanced requests (default 10"
+            ],
+            "title": "Parallel API Pricing"
+          },
+          {
+            "url": "https://docs.parallel.ai/findall-api/findall-quickstart",
+            "excerpts": [
+              "FindAll is a web-scale entity discovery system that turns natural language queries into structured, enriched databases of companies, people, and other real-"
+            ],
+            "title": "FindAll API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/monitor-api/monitor-quickstart",
+            "excerpts": [
+              "Continuously track web changes with scheduled queries and webhook notifications using the Monitor API. Create a monitor that tracks daily AI funding. Events:"
+            ],
+            "title": "Monitor API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/monitor-api/monitor-events",
+            "excerpts": [],
+            "title": "Events"
+          },
+          {
+            "url": "https://parallel.ai/blog/parallel-cli",
+            "excerpts": [
+              "Mar 10, 2026 \u2014 Parallel CLI, a standalone command-line tool that gives any terminal-based agent direct access to Parallel's web intelligence stack."
+            ],
+            "title": "Introducing the Parallel CLI"
+          },
+          {
+            "url": "https://parallel.ai/blog/case-study-opendoor",
+            "excerpts": [
+              "Mar 25, 2026 \u2014 Starting with an HOA research workflow, Parallel transforms a 10-minute manual process into a two-minute verification step, ensuring every"
+            ],
+            "title": "How Opendoor uses Parallel as the enterprise grade web ..."
+          },
+          {
+            "url": "https://parallel.ai/blog/case-study-finch",
+            "excerpts": [
+              "Apr 20, 2026 \u2014 Finch's AI agents run structured research workflows at scale, pulling case-relevant facts from the web, enriching records, and feeding"
+            ],
+            "title": "How Finch is scaling plaintiff law with AI agents that ..."
+          },
+          {
+            "url": "https://parallel.ai/blog/genpact-parallel-partnership",
+            "excerpts": [
+              "Apr 8, 2026 \u2014 Genpact uses Parallel to automate research on clients and prospects for better outreach strategies."
+            ],
+            "title": "Genpact and Parallel Web Systems Partner to Drive ..."
+          },
+          {
+            "url": "https://parallel.ai/blog/case-study-actively",
+            "excerpts": [
+              "Apr 29, 2026 \u2014 The Task API lets PAAs gather this information across the public web in minutes rather than the hours it would take a human researcher."
+            ],
+            "title": "How Actively's Per Account Agents use Parallel to turn the ..."
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "what_the_parallel_cli_is_and_where_it_fits",
+        "reasoning": "Assessment reasoning:\n- Field completeness: The field_answer provides a broad description of what Parallel CLI is, installation steps, command tree, and design implications, which aligns with the field description asking what the CLI is and where it fits. It covers both functional capabilities (search, extract, research, enrich, etc.), installation, authentication, command structure, JSON outputs, and design rationale. Therefore, completeness = true.\n- Excerpt support: Excerpts indicate that Parallel CLI is a command-line tool giving terminal-based agents access to Parallel's web intelligence stack, which matches the core definition in the field_answer. Although the field_answer contains more detail, the excerpts do support the fundamental claim that the CLI is a standalone command-line tool providing access to the Parallel API/stack. Therefore, supported = true.",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/integrations/cli",
+            "excerpts": [
+              "The parallel-cli is a command-line tool for interacting with the Parallel API. It works interactively or fully via command-line arguments, making it the"
+            ],
+            "title": "Parallel CLI"
+          },
+          {
+            "url": "https://parallel.ai/blog/parallel-cli",
+            "excerpts": [
+              "Mar 10, 2026 \u2014 Parallel CLI, a standalone command-line tool that gives any terminal-based agent direct access to Parallel's web intelligence stack."
+            ],
+            "title": "Introducing the Parallel CLI"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "search_and_extract_a_two_stage_evidence_pipeline",
+        "reasoning": "Analysis: The field_answer describes a two-stage evidence pipeline using Search and Extract with CLI examples, capabilities, and some notes about limitations. It covers the roles of Search (finding relevant pages, ranking, session info, filters, modes) and Extract (turning URLs into markdown, focusing excerpts, handling long/dense sources), plus a practical two-stage workflow (Search to identify primary sources, then Extract on selected URLs). The excerpts provided mention the Search API quickstart, Extract API quickstart, and related notes, which align with the described functionality. Therefore the field_answer appropriately addresses the two-stage evidence pipeline concept and its practical usage, and is supported by the excerpts.",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/search/search-quickstart",
+            "excerpts": [
+              "Execute natural language web searches and retrieve LLM-optimized excerpts with the Parallel Search API. on Search and Extract usage."
+            ],
+            "title": "Search API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/api-reference/search/search",
+            "excerpts": [],
+            "title": "Search"
+          },
+          {
+            "url": "https://parallel.ai/blog/search-api-benchmark",
+            "excerpts": [
+              "Jul 31, 2025 \u2014 Parallel's Task API and Search API, it demonstrates superior performance while being up to 50% cheaper than LLM-native web search"
+            ],
+            "title": "A state-of-the-art search API purpose-built for agents"
+          },
+          {
+            "url": "https://docs.parallel.ai/extract/extract-quickstart",
+            "excerpts": [
+              "The Extract API converts any public URL into clean markdown, including JavaScript-heavy pages and PDFs. It returns focused excerpts aligned to your objective,"
+            ],
+            "title": "Extract API Quickstart"
+          },
+          {
+            "url": "https://parallel.ai/blog/parallel-search-api",
+            "excerpts": [
+              "Apr 21, 2026 \u2014 The Parallel Extract API is especially useful when the source is long or dense, such as a 200-page SEC filing, an investor document, or a"
+            ],
+            "title": "Upgrades to the Parallel Search & Extract APIs"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "deep_research_when_a_task_run_beats_a_shell_loop",
+        "reasoning": "Assessment reasoning:\n- Completeness: The field answer provides a detailed explanation of how the Task API and its CLI (parallel-cli research) operate for open-ended questions, contrasts with Search and Extract, gives example commands, explains follow-up patterns, discusses processor options and pricing, and mentions a policy-based approach with citations and confidence signals. This aligns with what a field named deep_research_when_a_task_run_beats_a_shell_loop would reasonably require (how deep research is conducted when a task run surpasses a shell-loop approach). Therefore, completeness can be considered true.\n\n- Excerpt support: The excerpts cover Deep Research concepts, Parallel CLI, and pricing, which corroborate parts of the field answer (e.g., that Deep Research exists, CLI tooling is involved, and pricing/processor options). The field answer\u2019s specifics (e.g., exact command formatting) are not directly in the provided excerpts, but the core claims are supported by the excerpts. Hence, supported should be true.\n\n- Confidence: Moderate to high given the alignments between the field answer and excerpts, though some exact procedural details in the field answer are not verbatim in excerpts.\n",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/task-api/examples/task-deep-research",
+            "excerpts": [
+              "Deep Research is designed for open-ended research questions where you don't have structured input data to enrich. Instead of bringing data to enhance, you bring"
+            ],
+            "title": "Task API Deep Research Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://parallel.ai/blog/parallel-cli",
+            "excerpts": [
+              "Mar 10, 2026 \u2014 Parallel CLI, a standalone command-line tool that gives any terminal-based agent direct access to Parallel's web intelligence stack."
+            ],
+            "title": "Introducing the Parallel CLI"
+          },
+          {
+            "url": "https://docs.parallel.ai/integrations/cli",
+            "excerpts": [
+              "The parallel-cli is a command-line tool for interacting with the Parallel API. It works interactively or fully via command-line arguments, making it the"
+            ],
+            "title": "Parallel CLI"
+          },
+          {
+            "url": "https://docs.parallel.ai/getting-started/pricing",
+            "excerpts": [
+              "Pricing varies by mode. Component Cost ($/1000) Per 1,000 turbo requests (default 10 results) 1 Per 1,000 basic or advanced requests (default 10"
+            ],
+            "title": "Parallel API Pricing"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "findall_and_enrich_turning_natural_language_into_structured_datasets",
+        "reasoning": "Assessment rationale: The field_answer provides a comprehensive overview of FindAll as a discovery-to-dataset path, including input types, lifecycle steps, CLI usage, an entity-search path, enrichment vs matching, and typical use cases. The excerpts include explicit references to FindAll API/quickstart, enrichment semantics, example NL objectives, and CLI/pricing context, which align with the content in the field_answer. Therefore, the field_answer appears complete with respect to describing FindAll and its enrichment workflow, and is supported by the provided excerpts.",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/findall-api/findall-quickstart",
+            "excerpts": [
+              "FindAll is a web-scale entity discovery system that turns natural language queries into structured, enriched databases of companies, people, and other real-"
+            ],
+            "title": "FindAll API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/findall-api/features/findall-enrich",
+            "excerpts": [
+              "FindAll enrichments allow you to extract additional non-boolean information about candidates that should not be used as filters for matches."
+            ],
+            "title": "Enrichments - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/api-reference/findall/add-enrichment-to-findall-run",
+            "excerpts": [
+              "Natural language objective of the FindAll run. Example: \"Find all AI companies that raised Series A funding in 2024\"."
+            ],
+            "title": "Add Enrichment to FindAll Run"
+          },
+          {
+            "url": "https://parallel.ai/blog/parallel-cli",
+            "excerpts": [
+              "Mar 10, 2026 \u2014 Parallel CLI, a standalone command-line tool that gives any terminal-based agent direct access to Parallel's web intelligence stack."
+            ],
+            "title": "Introducing the Parallel CLI"
+          },
+          {
+            "url": "https://docs.parallel.ai/getting-started/pricing",
+            "excerpts": [
+              "Pricing varies by mode. Component Cost ($/1000) Per 1,000 turbo requests (default 10 results) 1 Per 1,000 basic or advanced requests (default 10"
+            ],
+            "title": "Parallel API Pricing"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "monitor_converting_web_change_into_agent_events",
+        "reasoning": "The field_answer provides a comprehensive overview of monitoring in Parallel AI: describes the monitor as a continuous/scheduled query surface, CLI capabilities (create/list/retrieve/update/cancel/triggers), two monitoring modes (event_stream vs snapshot), event retrieval structure, duplicate filtering, and a production pattern showing how monitors feed into agents via webhooks and extracts. Excerpts show corroborating details about Monitor API, CLI, monitoring concepts, and filtering behavior, aligning with the content in the field_answer. Therefore, completeness is true. The excerpts clearly support the claims in the field_answer, so supported is true.",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/monitor-api/monitor-quickstart",
+            "excerpts": [
+              "Continuously track web changes with scheduled queries and webhook notifications using the Monitor API. Create a monitor that tracks daily AI funding. Events:"
+            ],
+            "title": "Monitor API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/integrations/cli",
+            "excerpts": [
+              "The parallel-cli is a command-line tool for interacting with the Parallel API. It works interactively or fully via command-line arguments, making it the"
+            ],
+            "title": "Parallel CLI"
+          },
+          {
+            "url": "https://parallel.ai/blog/monitor-api",
+            "excerpts": [
+              "May 7, 2026 \u2014 This GA release introduces two processor tiers (Lite and Base), two run types (snapshot and event stream), Basis on every event, advanced"
+            ],
+            "title": "Parallel Monitor API: New processor tiers, snapshots and ..."
+          },
+          {
+            "url": "https://docs.parallel.ai/monitor-api/monitor-events",
+            "excerpts": [],
+            "title": "Events"
+          },
+          {
+            "url": "https://parallel.ai/products/monitor",
+            "excerpts": [
+              "The Monitor API tracks what's been surfaced in previous runs and filters duplicates automatically. You receive each relevant event once, even if the underlying"
+            ],
+            "title": "Monitor"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "real_world_cases_opendoor_finch_genpact_and_actively",
+        "reasoning": "Assessment reasoning:\n- The field answer provides multiple real-world case studies (Opendoor, Finch, Genpact, Actively) and describes how Parallel is used in each, including patterns (Search/Extract, FindAll/Enrich, Monitor+Task) and some qualitative outcomes. \n- It covers different domains (HOA verification, legal research, insurance/sales research, account intelligence) and notes caveats (claims require validation, evidence should be retained, not universal outcomes). \n- The excerpts provided map directly to the described cases and support the presence of these examples. \n- Therefore, the answer appears to comprehensively address real-world use cases and the relevant patterns, with caveats about interpretation and validation. \n- No obvious missing major use-case categories based on the given information; it aligns with the requested information of interest (output in real-world cases).",
+        "citations": [
+          {
+            "url": "https://parallel.ai/blog/case-study-opendoor",
+            "excerpts": [
+              "Mar 25, 2026 \u2014 Starting with an HOA research workflow, Parallel transforms a 10-minute manual process into a two-minute verification step, ensuring every"
+            ],
+            "title": "How Opendoor uses Parallel as the enterprise grade web ..."
+          },
+          {
+            "url": "https://parallel.ai/blog/case-study-finch",
+            "excerpts": [
+              "Apr 20, 2026 \u2014 Finch's AI agents run structured research workflows at scale, pulling case-relevant facts from the web, enriching records, and feeding"
+            ],
+            "title": "How Finch is scaling plaintiff law with AI agents that ..."
+          },
+          {
+            "url": "https://parallel.ai/blog/genpact-parallel-partnership",
+            "excerpts": [
+              "Apr 8, 2026 \u2014 Genpact uses Parallel to automate research on clients and prospects for better outreach strategies."
+            ],
+            "title": "Genpact and Parallel Web Systems Partner to Drive ..."
+          },
+          {
+            "url": "https://parallel.ai/blog/case-study-actively",
+            "excerpts": [
+              "Apr 29, 2026 \u2014 The Task API lets PAAs gather this information across the public web in minutes rather than the hours it would take a human researcher."
+            ],
+            "title": "How Actively's Per Account Agents use Parallel to turn the ..."
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "implementation_playbook_and_failure_controls",
+        "reasoning": "Assessment reasoning:\n- The field_answer provides an end-to-end shell workflow using the parallel-cli with steps for discovering sources, reading sources, conducting research tasks, finding/all enrichment, and monitoring. It includes commands for search, extract, findall, enrich, monitor, and a research run, which aligns with the information interests in the query (input values) and the field purpose (implementation_playbook_and_failure_controls).\n- The field_description (implied) asks for an implementation playbook and failure controls. The answer covers an end-to-end workflow and explicitly discusses state storage, identifiers, and controls such as surfacing missing publication dates, extraction errors, and status tracking, which addresses typical failure controls and operational considerations.\n- The excerpts provide corroborating documentation around the Exposure of the Parallel CLI, Search API, Extract API, FindAll, and related tooling, which supports the plausibility and presence of the components used in the field_answer (parallel-cli commands, FindAll, Search, Extract, Task analogues). Therefore, the field_answer is reasonably grounded in the excerpts.\n- Based on criteria, the field_answer appears to be complete (covers end-to-end workflow, steps, and failure-control considerations) and is supported by the provided excerpts showing the relevant tools and APIs.\n",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/integrations/cli",
+            "excerpts": [
+              "The parallel-cli is a command-line tool for interacting with the Parallel API. It works interactively or fully via command-line arguments, making it the"
+            ],
+            "title": "Parallel CLI"
+          },
+          {
+            "url": "https://docs.parallel.ai/findall-api/findall-quickstart",
+            "excerpts": [
+              "FindAll is a web-scale entity discovery system that turns natural language queries into structured, enriched databases of companies, people, and other real-"
+            ],
+            "title": "FindAll API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/search/search-quickstart",
+            "excerpts": [
+              "Execute natural language web searches and retrieve LLM-optimized excerpts with the Parallel Search API. on Search and Extract usage."
+            ],
+            "title": "Search API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/extract/extract-quickstart",
+            "excerpts": [
+              "The Extract API converts any public URL into clean markdown, including JavaScript-heavy pages and PDFs. It returns focused excerpts aligned to your objective,"
+            ],
+            "title": "Extract API Quickstart"
+          },
+          {
+            "url": "https://parallel.ai/blog/search-api-benchmark",
+            "excerpts": [
+              "Jul 31, 2025 \u2014 Parallel's Task API and Search API, it demonstrates superior performance while being up to 50% cheaper than LLM-native web search"
+            ],
+            "title": "A state-of-the-art search API purpose-built for agents"
+          },
+          {
+            "url": "https://docs.parallel.ai/getting-started/pricing",
+            "excerpts": [
+              "Pricing varies by mode. Component Cost ($/1000) Per 1,000 turbo requests (default 10 results) 1 Per 1,000 basic or advanced requests (default 10"
+            ],
+            "title": "Parallel API Pricing"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "synthesis",
+        "reasoning": "Assessment reasoning:\n- The field_name is synthesis and the provided field_answer is a comprehensive table describing six operations (Search, Extract, Task/Research, FindAll, Enrich, Monitor) with core mechanisms, inputs, outputs, best fit, and trade-offs. It also includes architectural guidance and time/scope distinctions, which align with a synthesis-oriented field expectation.\n- Step 1 (completeness): The answer appears to address all aspects typically expected for a synthesis field: operation descriptions, inputs, outputs, lifecycle, trade-offs, and architectural guidance. There is no evident missing required component given by the field description. Therefore, completeness = true.\n- Step 2 (support by excerpts): The provided excerpts discuss the same operations and APIs (Search, Extract, Task/Deep Research, FindAll, CLI, Monitor) and are consistent with the field_answer content. The excerpts support the presence and descriptions of these operations, so supported = true.\n- Overall verdict: completeness is true; supported is true. Confidence is high given explicit matches between the field_answer and the excerpts.",
+        "citations": [
+          {
+            "url": "https://docs.parallel.ai/search/search-quickstart",
+            "excerpts": [
+              "Execute natural language web searches and retrieve LLM-optimized excerpts with the Parallel Search API. on Search and Extract usage."
+            ],
+            "title": "Search API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/extract/extract-quickstart",
+            "excerpts": [
+              "The Extract API converts any public URL into clean markdown, including JavaScript-heavy pages and PDFs. It returns focused excerpts aligned to your objective,"
+            ],
+            "title": "Extract API Quickstart"
+          },
+          {
+            "url": "https://docs.parallel.ai/task-api/examples/task-deep-research",
+            "excerpts": [
+              "Deep Research is designed for open-ended research questions where you don't have structured input data to enrich. Instead of bringing data to enhance, you bring"
+            ],
+            "title": "Task API Deep Research Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/findall-api/findall-quickstart",
+            "excerpts": [
+              "FindAll is a web-scale entity discovery system that turns natural language queries into structured, enriched databases of companies, people, and other real-"
+            ],
+            "title": "FindAll API Quickstart - Parallel Docs"
+          },
+          {
+            "url": "https://docs.parallel.ai/integrations/cli",
+            "excerpts": [
+              "The parallel-cli is a command-line tool for interacting with the Parallel API. It works interactively or fully via command-line arguments, making it the"
+            ],
+            "title": "Parallel CLI"
+          },
+          {
+            "url": "https://parallel.ai/products/monitor",
+            "excerpts": [
+              "The Monitor API tracks what's been surfaced in previous runs and filters duplicates automatically. You receive each relevant event once, even if the underlying"
+            ],
+            "title": "Monitor"
+          },
+          {
+            "url": "https://docs.parallel.ai/monitor-api/monitor-events",
+            "excerpts": [],
+            "title": "Events"
+          }
+        ],
+        "confidence": "high"
+      }
+    ],
+    "content": {
+      "executive_summary": "- **Terminal-Native Access**: The current Parallel CLI exposes search, extraction, deep research, enrichment, entity discovery, and monitoring from one terminal interface -> use it as a composable shell boundary for coding agents and automation. [executive_summary[0]] [2]\n- **Retrieval Before Synthesis**: Search returns ranked URLs and LLM-optimized excerpts, while Extract turns selected public URLs into focused Markdown -> separate discovery from evidence reading when provenance matters. [executive_summary[1]] [35] [executive_summary[2]] [36]\n- **Deep Research Trade-Off**: Research runs multi-source search, reading, cross-checking, and synthesis, with processors that trade speed, depth, and cost -> reserve it for open-ended investigations rather than routine lookups. [executive_summary[3]] [13] [executive_summary[4]] [16]\n- **FindAll as Dataset Construction**: FindAll converts a natural-language objective into a schema, discovers candidates, evaluates match conditions, and returns structured records with evidence -> use it to build a candidate universe rather than to read one known page. [executive_summary[5]] [14]\n- **Monitor as Change Detection**: Monitor schedules natural-language queries and emits deduplicated events or structured snapshots, with optional webhooks -> route only new, relevant changes into downstream agents. [executive_summary[6]] [21] [executive_summary[7]] [20]\n- **Enrichment as Batch Context**: The CLI can add web-sourced fields to CSV, JSON, or inline records, and the launch documentation describes enrichment pricing as per row rather than per output field -> validate entity identity and budget by records. [executive_summary[0]] [2] [executive_summary[8]] [1]\n- **Production Evidence Is Workflow-Specific**: Opendoor's case study reports a reduction from a 10-minute manual HOA workflow to a two-minute verification step, while Finch, Genpact, and Actively describe legal, insurance, sales, and account-intelligence workflows -> copy the workflow pattern, not the marketing metric without independent validation. [executive_summary[9]] [34] [executive_summary[10]] [33] [executive_summary[11]] [32] [executive_summary[12]] [39]\n- **Verification Remains the Agent Builder's Job**: The APIs expose warnings, errors, citations, basis, confidence, and match status, but web pages can have missing publication dates and results can remain in intermediate states -> retain evidence, apply status gates, and add human review for consequential decisions. [executive_summary[1]] [35] [executive_summary[5]] [14] [executive_summary[7]] [20]",
+      "what_the_parallel_cli_is_and_where_it_fits": "Parallel CLI is a terminal interface to Parallel's web-intelligence stack. The current documentation describes it as supporting web search, content extraction, data enrichment, deep research, entity discovery, and web monitoring. This is broader than the initial launch announcement, which highlighted search, extract, research, and enrich; for current command coverage, the documentation is the better source. [what_the_parallel_cli_is_and_where_it_fits[0]] [2] [what_the_parallel_cli_is_and_where_it_fits[1]] [1]\n\nA minimal installation is:\n\n```sh\ncurl -fsSL https://parallel.ai/install.sh | bash\nexport PARALLEL_API_KEY=\"your_api_key\"\n```\n\nThe documented package alternatives include `pipx install \"parallel-web-tools[cli]\"`, `uv tool install \"parallel-web-tools[cli]\"`, Homebrew, and npm. Interactive authentication uses `parallel-cli login`; SSH, containers, CI, and other headless environments can use `parallel-cli login --device`; `parallel-cli auth` checks the authentication state. [what_the_parallel_cli_is_and_where_it_fits[0]] [2]\n\nThe current command tree is useful because it exposes both short-lived and asynchronous operations:\n\n```text\nparallel-cli search\nparallel-cli extract\nparallel-cli research run|status|poll|processors\nparallel-cli enrich suggest|plan|run|status|poll\nparallel-cli findall run|entity-search|status|poll|result|cancel\nparallel-cli monitor create|list|get|update|cancel|events|trigger\n```\n\nAll documented commands support `--json`, which is the appropriate mode for an agent that must parse results rather than read terminal prose. Research, enrichment, and FindAll support `--no-wait`, followed by status or polling commands; Monitor has its own lifecycle commands for events and triggering a run. [what_the_parallel_cli_is_and_where_it_fits[0]] [2]\n\nThe design implication is that the CLI is not merely a human convenience. It is a stable process boundary: an agent can write JSON to a file, pass an identifier to a later polling step, and retain the raw result alongside its final answer. For applications that need high-throughput orchestration, webhooks, custom retries, or direct control over API fields, use the corresponding API while keeping the CLI as a debugging and local-agent interface. This division is a recommendation based on the documented command and lifecycle surfaces.",
+      "search_and_extract_a_two_stage_evidence_pipeline": "Search is the fast discovery layer. Its API accepts a natural-language objective and optional search queries, and returns relevant pages with LLM-optimized excerpts. The documented response can include a search ID, result URLs, titles, publication dates, excerpts, warnings, usage, and a session ID. The CLI exposes date filters, domain inclusion and exclusion, result limits, and search modes including `turbo`, `basic`, and `advanced`. [search_and_extract_a_two_stage_evidence_pipeline[0]] [35] [search_and_extract_a_two_stage_evidence_pipeline[1]] [38]\n\nUseful agent commands include:\n\n```sh\nparallel-cli search \"What is Anthropic's latest AI model?\" --json\nparallel-cli search -q \"bitcoin price\" --after-date 2026-01-01 --json\nparallel-cli search \"SEC filings for Apple\" --include-domains sec.gov --json\nparallel-cli search \"latest AI research\" --mode turbo --json\n```\n\nThe mechanism is query expansion and ranking rather than page-by-page browsing. A research agent can use Search to identify likely primary sources, select the URLs that satisfy its source policy, and then call Extract only on those URLs. Turbo is documented as the lower-latency mode, while the default advanced mode is oriented toward higher quality; choose based on whether the next step is a quick routing decision or an evidence-sensitive answer. [search_and_extract_a_two_stage_evidence_pipeline[0]] [35] [search_and_extract_a_two_stage_evidence_pipeline[2]] [46]\n\nExtract is the evidence-reading layer. It converts public URLs into clean, LLM-optimized Markdown, including JavaScript-heavy pages and PDFs, and can return objective-focused excerpts or full content. The CLI examples are:\n\n```sh\nparallel-cli extract https://example.com --json\nparallel-cli extract https://company.com \\\n  --objective \"Find pricing tiers, annual costs, and contract terms\" --json\nparallel-cli extract https://example.com --full-content --json\n```\n\nThe Extract response includes result URLs, titles, publication dates, excerpts, and optionally full content, as well as top-level errors, warnings, usage, and session information. A practical use case is a filing or investor document: Search finds the relevant filing, and Extract focuses the long page on revenue, risk factors, or a specified clause. Parallel specifically describes Extract as useful for long or dense sources such as a 200-page SEC filing or investor document. [search_and_extract_a_two_stage_evidence_pipeline[3]] [36] [search_and_extract_a_two_stage_evidence_pipeline[4]] [7]\n\nThere are two important controls. Extract is a public-URL workflow, so access-controlled material is not the same as a successful extraction. Also, Search publication dates may be null and excerpts may be incomplete or truncated. Preserve the source URL, returned warnings, and extracted evidence rather than treating a clean Markdown response as proof that the source was complete. [search_and_extract_a_two_stage_evidence_pipeline[0]] [35] [search_and_extract_a_two_stage_evidence_pipeline[3]] [36]",
+      "deep_research_when_a_task_run_beats_a_shell_loop": "The Task API and its CLI path, `parallel-cli research run`, are designed for open-ended questions where the agent does not begin with a structured set of rows to enrich. The workflow performs multi-source searching, reading, cross-referencing, and report generation. This is a different mechanism from Search, which returns retrieval results, and from Extract, which reads URLs supplied by the caller. [deep_research_when_a_task_run_beats_a_shell_loop[0]] [13] [deep_research_when_a_task_run_beats_a_shell_loop[1]] [1]\n\nA practical command is:\n\n```sh\nparallel-cli research run \\\n  \"Compare North American uranium supply chains, key companies, policy risks, and 2026 capacity constraints\" \\\n  --processor ultra --no-wait --json\n```\n\nThe command returns a run identifier rather than forcing an agent to block. The documented follow-up pattern is:\n\n```sh\nparallel-cli research status trun_xxx --json\nparallel-cli research poll trun_xxx --json\nparallel-cli research processors --json\n```\n\nThe CLI documentation describes processor choices ranging from faster lookups to deeper multi-source synthesis; it also notes that the Ultra range may take up to 25 minutes. Pricing is processor-dependent and is charged per 1,000 Task runs, so the right design is to route simple questions to Search or Extract and reserve high-compute processors for questions that genuinely require breadth, reconciliation, and a narrative report. [deep_research_when_a_task_run_beats_a_shell_loop[2]] [2] [deep_research_when_a_task_run_beats_a_shell_loop[3]] [16]\n\nThe output is useful to an agent because it carries more than a paragraph of prose. The documented Task and CLI materials describe citations, reasoning or basis information, and calibrated confidence signals. An agent can therefore apply a policy such as: accept a high-confidence answer only if it has multiple relevant citations; otherwise ask for another run, narrow the question, or escalate to a human. The policy is a recommended control, while the presence of citations and confidence information is documented. [deep_research_when_a_task_run_beats_a_shell_loop[0]] [13] [deep_research_when_a_task_run_beats_a_shell_loop[2]] [2]\n\nGood deep-research use cases include supply-chain mapping, competitive landscape reports, vendor due diligence, policy comparisons, and market or technology reviews. Poor use cases include a single known fact, a single known URL, or a repeated CRM field lookup. In those cases the shell loop is more observable and usually cheaper: Search identifies evidence, Extract reads it, and the agent writes a small structured result.",
+      "findall_and_enrich_turning_natural_language_into_structured_datasets": "FindAll is the discovery-to-dataset path. Its input is a natural-language objective such as finding AI companies that raised a particular funding round or residential roofing companies in a specified city. The system converts the objective into a schema with an entity type and match conditions, then creates a run, evaluates candidates, and returns a structured result. Supported entity categories include companies, people, products, and other real-world entities. [findall_and_enrich_turning_natural_language_into_structured_datasets[0]] [14]\n\nThe documented lifecycle is:\n\n1. Convert the natural-language objective into a schema.\n2. Review or modify the schema and create an asynchronous run.\n3. Poll the run until it reaches a terminal state.\n4. Retrieve the result snapshot.\n\nThe current CLI exposes the same pattern:\n\n```sh\nparallel-cli findall run \"AI startups in healthcare\" --json\nparallel-cli findall run \"Find roofing companies in Charlotte NC\" -g base -n 25 --json\nparallel-cli findall status findall_xxx --json\nparallel-cli findall poll findall_xxx --json\nparallel-cli findall result findall_xxx --json\n```\n\nIt also exposes a faster entity-search path for a bounded lookup:\n\n```sh\nparallel-cli findall entity-search \\\n  \"AI startups in San Francisco\" \\\n  --entity-type companies --match-limit 25 --json\n```\n\nFindAll first generates candidates and then evaluates each candidate against every match condition. Results can include a candidate ID, name, URL, description, match status, output fields, run metrics, and a basis containing reasoning, confidence, citations, and source excerpts. Because snapshots may include candidates with `generated`, `matched`, or `unmatched` states, downstream code should filter on `match_status` instead of assuming every returned row passed every condition. [findall_and_enrich_turning_natural_language_into_structured_datasets[0]] [14]\n\nEnrichment is deliberately separate from matching. A field that determines whether an entity belongs in the dataset is a match condition; an additional field such as employee count, technology stack, headquarters, revenue, or a recent event is enrichment and should not silently change the match decision. The FindAll documentation says enrichment data is extracted for matched candidates, using the Task API, and does not affect match conditions. [findall_and_enrich_turning_natural_language_into_structured_datasets[1]] [44] [findall_and_enrich_turning_natural_language_into_structured_datasets[2]] [25]\n\nThe standalone CLI `enrich` is the batch-context path. It accepts inline JSON or CSV/JSON sources, lets the caller describe source columns, takes a natural-language intent, and writes an enriched target:\n\n```sh\nparallel-cli enrich run \\\n  --source-type csv --source companies.csv --target enriched.csv \\\n  --source-columns '[{\"name\":\"company\",\"description\":\"Company name\"}]' \\\n  --intent \"Find the CEO, headquarters, and annual revenue\"\n```\n\nThe CLI launch material describes enrichment as priced per row rather than per output field, and describes a range from small lookups on lighter processors to 20 or more fields on the deepest processor. Treat those statements as product documentation, then confirm current pricing and processor availability before budgeting a production job. [findall_and_enrich_turning_natural_language_into_structured_datasets[3]] [1] [findall_and_enrich_turning_natural_language_into_structured_datasets[4]] [16]\n\nThe practical distinction is simple: FindAll creates the rows; Enrich adds web context to rows that already exist. Together they support lead generation, account intelligence, research databases, talent or company discovery, and recurring data refreshes. Entity resolution remains a design responsibility: pass stable identifiers or domains when available, inspect citations, and do not write ambiguous matches directly into a CRM.",
+      "monitor_converting_web_change_into_agent_events": "Monitor is the continuous layer. A monitor stores a natural-language query in its settings, runs it on a schedule, and surfaces new relevant information. The current CLI exposes creation, listing, retrieval, update, cancellation, event retrieval, and manual triggering. [monitor_converting_web_change_into_agent_events[0]] [21] [monitor_converting_web_change_into_agent_events[1]] [2]\n\nExamples:\n\n```sh\nparallel-cli monitor create \"New AI funding announcements\" \\\n  --frequency 1h --json\n\nparallel-cli monitor create \"SEC filings from Tesla\" \\\n  --webhook https://example.com/hook --json\n\nparallel-cli monitor list --json\nparallel-cli monitor events mon_xxx --json\nparallel-cli monitor trigger mon_xxx --json\nparallel-cli monitor update mon_xxx --frequency 1w --json\n```\n\nThere are two distinct monitoring mechanisms. An `event_stream` monitor reports newly detected changes, which is appropriate for news, funding, filings, product announcements, and competitor events. A snapshot monitor tracks an evolving structured result, such as the output of a Task run, and reports material changes to that result. The CLI documents snapshot creation with `--type snapshot --task-run-id trun_xxx`. [monitor_converting_web_change_into_agent_events[0]] [21] [monitor_converting_web_change_into_agent_events[2]] [22]\n\nThe documented frequency examples include `1h`, `1d`, and `1w`; the monitor runs once immediately when created and then follows its schedule. Webhooks can subscribe to monitor event types such as `monitor.event.detected`. Event retrieval includes an event ID, event group ID, event date, event type, and output. The output can carry typed content plus basis information such as citations, reasoning, and confidence. [monitor_converting_web_change_into_agent_events[0]] [21] [monitor_converting_web_change_into_agent_events[3]] [20]\n\nMonitor also filters duplicates based on what it has surfaced in previous runs. That is valuable for alert fatigue, but it changes the meaning of the feed: it is a stream of relevant new events, not an archive of every repeated page observation. Use event groups and stored evidence to make downstream processing idempotent; use snapshots when the business question is whether a structured state changed. [monitor_converting_web_change_into_agent_events[4]] [23] [monitor_converting_web_change_into_agent_events[3]] [20]\n\nA production pattern is: Monitor receives a new filing or funding event, a webhook invokes an agent, Extract reads the primary source, and the agent updates a CRM, risk register, or internal digest. The recommendation follows from the documented webhook, event, and Extract surfaces; teams should still impose source allowlists and human approval before taking an external action.",
+      "real_world_cases_opendoor_finch_genpact_and_actively": "### Opendoor: HOA verification\n\nOpendoor's case study describes an HOA research workflow in its AI-native real-estate operations. The reported change is concrete: a manual process that took 10 minutes became a two-minute verification step when Parallel served as the web-research layer. [real_world_cases_opendoor_finch_genpact_and_actively[0]] [34]\n\nThe lesson is not simply that web research can be faster. The workflow has a bounded input, a repeatable question about a property, and a verification output that can be inserted into an operating process. That makes Search and Extract, or a focused Task run, more appropriate than an unconstrained research report. The time comparison is a customer case-study claim, so it should be validated against a team's own sample before becoming an SLA.\n\n### Finch: case-relevant legal facts\n\nFinch's case study describes AI agents running structured research workflows for plaintiff law, pulling case-relevant facts from the public web, enriching records, and feeding the results into downstream work. [real_world_cases_opendoor_finch_genpact_and_actively[1]] [33]\n\nThis illustrates the FindAll and Enrich pattern even when the full product surface is not exposed in the case description: define the record, gather web evidence, add structured fields, and pass the result to a domain workflow. Legal use also exposes the risk boundary. Case relevance and citation quality matter more than a fluent summary, so the basis, source URLs, and human review should be retained for any consequential filing or claim decision.\n\n### Genpact: insurance and sales research\n\nGenpact's partnership announcement says integrating Parallel's API helps automate and improve research workflows in insurance and sales. The use case is valuable because it spans two different kinds of work: structured operational research in insurance and prospect or client research for commercial teams. [real_world_cases_opendoor_finch_genpact_and_actively[2]] [32]\n\nThe mechanism is reusable: an agent retrieves current public information, converts it into structured evidence, and places the result where an analyst or seller can act. The announcement establishes the workflow direction, but it does not by itself establish a universal accuracy or return-on-investment number. Treat the case as evidence that these workflows are being attempted in production, not as proof that every insurer or sales organization will see the same outcome.\n\n### Actively: account intelligence and buying signals\n\nActively's case study presents Per Account Agents that continuously reason across the web, surface buying signals, and move accounts through a revenue workflow. It reports that customers using Actively with Parallel's web-intelligence APIs see 23% higher win rates. [real_world_cases_opendoor_finch_genpact_and_actively[3]] [39]\n\nThis is the Monitor-plus-Task pattern: continuous signal collection supplies context, and a research agent interprets that context for an account. The metric is reported by the case study and should be treated as a customer or vendor-reported claim until independently reproduced. The strategic takeaway is stronger than the number: agents create value when web retrieval is connected to a decision process, not when it merely produces another standalone answer.",
+      "implementation_playbook_and_failure_controls": "A compact end-to-end shell workflow can look like this:\n\n```sh\nexport PARALLEL_API_KEY=\"your_api_key\"\n\n# 1. Discover candidate sources\nparallel-cli search \"Latest SEC filings and earnings risks for Company X\" \\\n  --include-domains sec.gov --mode advanced --json > search.json\n\n# 2. Read a selected source with a focused objective\nparallel-cli extract \"https://example.com/filing\" \\\n  --objective \"Extract revenue guidance, risk factors, and cited dates\" \\\n  --json > evidence.json\n\n# 3. Start an open-ended investigation when synthesis is required\nparallel-cli research run \"Assess Company X supply-chain exposure\" \\\n  --processor base --no-wait --json > task.json\nparallel-cli research poll trun_xxx --json > report.json\n\n# 4. Build or enrich structured records\nparallel-cli findall run \"AI infrastructure companies in Europe\" \\\n  -g base -n 100 --no-wait --json > entities.json\nparallel-cli enrich run --source-type csv --source companies.csv \\\n  --target enriched.csv \\\n  --source-columns '[{\"name\":\"company\",\"description\":\"Legal or brand name\"}]' \\\n  --intent \"Find headquarters, founders, and latest funding\" \\\n  --json\n\n# 5. Watch for changes\nparallel-cli monitor create \"New funding or acquisition news for Company X\" \\\n  --frequency 1d --json > monitor.json\n```\n\nThe exact identifiers and output files should be treated as state. Store the search ID, task or FindAll run ID, monitor ID, source URL, publication date when present, warnings, and basis or citation fields. For FindAll, reject or quarantine rows whose `match_status` is not `matched`; for Search and Extract, surface missing publication dates and extraction errors instead of silently substituting a current-looking page. These controls follow the documented output and status fields. [implementation_playbook_and_failure_controls[0]] [2] [implementation_playbook_and_failure_controls[1]] [14] [implementation_playbook_and_failure_controls[2]] [35] [implementation_playbook_and_failure_controls[3]] [36]\n\nUse separate acceptance tests for each operation. Search should be measured on relevant-source recall and citation quality. Extract should be measured on field completeness and whether the requested passages are present. FindAll should be measured on match precision, recall, duplicate rate, and entity-resolution accuracy. Task should be measured on factuality, citation coverage, latency, and cost. Monitor should be measured on time to detection, duplicate suppression, and missed material changes. These are implementation recommendations, not guarantees made by Parallel.\n\nFinally, treat benchmark and case-study claims as directional evidence. Parallel's own search benchmark announcement reports up to 50% lower cost than some LLM-native web-search implementations, but a vendor benchmark is not an independent guarantee for a particular workload. Re-run a representative test set, compare against the incumbent, and set a budget cap before enabling high-volume Task, FindAll, or Monitor jobs. [implementation_playbook_and_failure_controls[4]] [46] [implementation_playbook_and_failure_controls[5]] [16]",
+      "synthesis": "| Operation | Core mechanism | Best input | Typical output and lifecycle | Best fit | Main trade-off |\n|---|---|---|---|---|---|\n| Search | Ranked web retrieval with focused excerpts | Natural-language objective and optional queries | Results with URLs, titles, dates, excerpts, warnings, and usage | Fast current answers and source discovery | Excerpts can be incomplete; it does not by itself produce a validated dataset or report. [synthesis[0]] [35] |\n| Extract | Page or PDF conversion into focused Markdown | One or more public URLs plus an objective | Excerpts or full content, with errors and warnings | Reading a known source or selected search result | Depends on public URL accessibility and extraction completeness. [synthesis[1]] [36] |\n| Task / Research | Multi-source search, reading, cross-checking, and synthesis | Open-ended research question | Asynchronous report with citations, basis or confidence information | Due diligence, landscape research, and complex comparisons | Higher latency and processor-dependent cost. [synthesis[2]] [13] |\n| FindAll | Candidate generation followed by condition evaluation | Natural-language entity criteria | Asynchronous structured entity snapshot with match status and evidence | Building a company, people, product, or property universe | Candidate coverage and entity resolution require validation. [synthesis[3]] [14] |\n| Enrich | Web research applied to existing rows | CSV, JSON, or inline records plus field intent | Enriched target records, optionally asynchronous | CRM, account, lead, and research-record enrichment | Cost and quality scale with row count; ambiguous identities can contaminate data. [synthesis[4]] [2] |\n| Monitor | Scheduled query or snapshot change detection | Natural-language signal, schedule, and optional webhook | Deduplicated events or structured snapshots | News, filings, funding, prices, and changing Task outputs | Deduplication means the feed is not every repeated observation. [synthesis[5]] [23] [synthesis[6]] [20] |\n\nThe key contrast is scope. Search and Extract are synchronous evidence primitives; Task is a synthesis primitive; FindAll and Enrich are dataset primitives; Monitor is a temporal primitive. The second contrast is time horizon: Search and Extract answer now, Task answers after an asynchronous investigation, FindAll creates a point-in-time dataset, and Monitor maintains a signal over time. The third contrast is failure mode: retrieval can miss or truncate evidence, synthesis can overgeneralize, discovery can misresolve entities, and monitoring can suppress duplicates or miss a material change if the query is poorly specified.\n\nFor most agents, the recommended architecture is `Search -> Extract -> decision`. Add `Task` when the question is open-ended, `FindAll -> Enrich` when the output is a dataset, and `Monitor -> Extract -> Task` when new events need interpretation. Use the CLI for local development, terminal agents, and inspectable batch jobs; use the APIs directly when webhook delivery, scheduling, high concurrency, or custom lifecycle control is central. This architecture aligns the mechanism to the decision instead of treating every web question as a deep-research job."
+    },
+    "type": "json",
+    "beta_fields": null,
+    "mcp_tool_calls": null,
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "executive_summary": {
+          "type": "string",
+          "title": "Executive Summary"
+        },
+        "what_the_parallel_cli_is_and_where_it_fits": {
+          "type": "string",
+          "title": "What the Parallel CLI Is and Where It Fits"
+        },
+        "search_and_extract_a_two_stage_evidence_pipeline": {
+          "type": "string",
+          "title": "Search and Extract: A Two-Stage Evidence Pipeline"
+        },
+        "deep_research_when_a_task_run_beats_a_shell_loop": {
+          "type": "string",
+          "title": "Deep Research: When a Task Run Beats a Shell Loop"
+        },
+        "findall_and_enrich_turning_natural_language_into_structured_datasets": {
+          "type": "string",
+          "title": "FindAll and Enrich: Turning Natural Language into Structured Datasets"
+        },
+        "monitor_converting_web_change_into_agent_events": {
+          "type": "string",
+          "title": "Monitor: Converting Web Change into Agent Events"
+        },
+        "real_world_cases_opendoor_finch_genpact_and_actively": {
+          "type": "string",
+          "title": "Real-World Cases: Opendoor, Finch, Genpact, and Actively"
+        },
+        "implementation_playbook_and_failure_controls": {
+          "type": "string",
+          "title": "Implementation Playbook and Failure Controls"
+        },
+        "synthesis": {
+          "type": "string",
+          "title": "Synthesis"
+        }
+      },
+      "required": [
+        "executive_summary",
+        "what_the_parallel_cli_is_and_where_it_fits",
+        "search_and_extract_a_two_stage_evidence_pipeline",
+        "deep_research_when_a_task_run_beats_a_shell_loop",
+        "findall_and_enrich_turning_natural_language_into_structured_datasets",
+        "monitor_converting_web_change_into_agent_events",
+        "real_world_cases_opendoor_finch_genpact_and_actively",
+        "implementation_playbook_and_failure_controls",
+        "synthesis"
+      ]
+    }
+  }
+}

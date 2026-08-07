@@ -1,0 +1,228 @@
+{
+  "run_id": "trun_e5eeec16b7e54dee94a39ff6128acb82",
+  "interaction_id": "trun_e5eeec16b7e54dee94a39ff6128acb82",
+  "result_url": "https://platform.parallel.ai/play/deep-research/trun_e5eeec16b7e54dee94a39ff6128acb82",
+  "status": "completed",
+  "output": {
+    "basis": [
+      {
+        "field": "executive_summary",
+        "reasoning": "Assessment reasoning:\n- The field answer provides a structured executive summary covering: best match (Dockview as shell for IDE-like panes), mobile fit (touch/pointer events and long-press drag), license fit (MIT license), boundary clarification (super.engineering is a macOS workspace, not a UI library), runner-up (FlexLayout), and license caveat (React-Dockable not MIT). This aligns with the information items of interest and uses the excerpts to justify each point.\n- Completeness: The answer addresses all six information items (best match, mobile fit, license fit, boundary clarification, runner-up, license caveat) and provides reasoning for each, which appears to satisfy the field description and the query. No obvious gaps identified.\n- Excerpts support: Excerpts 0, 1, 3 support the Dockview features and MIT-license; Excerpt 4 supports the boundary note about super.engineering; Excerpt 5 supports FlexLayout as a runner-up; Excerpt 6 supports the caution about React-Dockable licensing. Thus, the field answer is well-supported by the excerpts.",
+        "citations": [
+          {
+            "url": "https://dockview.dev/",
+            "excerpts": [
+              "Dockview is a zero dependency docking layout manager for building IDE-like interfaces with tabs, groups, grids, splitviews, drag and drop, floating panels,"
+            ],
+            "title": "Dockview: Docking Layout Manager"
+          },
+          {
+            "url": "https://dockview.dev/docs/core/dnd/overview/",
+            "excerpts": [
+              "Touch and pen drags are driven by a pointer-events backend with a long-press-to-drag gesture, so taps and native scroll still work on mobile."
+            ],
+            "title": "Overview"
+          },
+          {
+            "url": "https://github.com/mathuo/dockview",
+            "excerpts": [],
+            "title": "GitHub - mathuo/dockview: Zero dependency docking layout manager supporting tabs, groups, grids and splitviews. Supports React, Vue, Angular, and vanilla TypeScript. \u00b7 GitHub"
+          },
+          {
+            "url": "https://github.com/mathuo/dockview/blob/master/LICENSE",
+            "excerpts": [
+              "Zero dependency docking layout manager supporting tabs, groups, grids and splitviews. Supports React, Vue, Angular, and vanilla TypeScript."
+            ],
+            "title": "MIT License - mathuo/dockview"
+          },
+          {
+            "url": "https://super.engineering/docs/",
+            "excerpts": [
+              "The app is a native macOS workspace for agentic engineering. It organizes projects into durable workspaces, isolates Git-backed tasks in their own worktrees"
+            ],
+            "title": "Docs"
+          },
+          {
+            "url": "https://github.com/caplin/FlexLayout",
+            "excerpts": [
+              "FlexLayout is a layout manager for React that arranges components in multiple tabsets. Tabs can be resized, moved, and organized into complex layouts."
+            ],
+            "title": "caplin/FlexLayout: Docking Layout Manager for React"
+          },
+          {
+            "url": "https://github.com/DanFessler/react-dockable",
+            "excerpts": [
+              "React-Dockable is a React library to create beautiful dockable tabbed interfaces for tools, dashboards, and more. This project is free to use for non-"
+            ],
+            "title": "DanFessler/react-dockable: React library to create ..."
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "why_dockview_fits_the_super_engineering_pattern",
+        "reasoning": "Assessment reasoning:\n- The field_answer provides a coherent explanation connecting Dockview to the super.engineering pattern, describing durable workspaces, task isolation via Git worktrees, and a UI surface for agents, diffs, and multiple panels. It also explains Dockview\u2019s primitives (tabs, groups, grids, split views, drag-and-drop, floating panels) as mapping to agent sessions, terminals, diffs, etc., and states the relationship with the state model versus layout. It explicitly frames Dockview as an alternative to Paseo\u2019s nested-workspace UI (not a complete Paseo replacement), and discusses responsive mobile/desktop presentation. This aligns with what a field answering \u201cwhy Dockview fits the super.engineering pattern\u201d should cover.\n- The field_answer appears to address all expected aspects: architectural mapping, UI primitives, separation of concerns, and the comparison to Paseo, including mobile vs desktop considerations. There is no request to list missing items or return N/A, and the answer is self-contained.\n- Therefore, completeness is true.\n\nExcerpts provided include relevant sources:\n- Excerpt referencing durable workspaces and Git-backed tasks in super.engineering docs.\n- Excerpt referencing Dockview primitives (tabs, groups, grids, splitviews, drag-and-drop, floating panels).\n- Excerpt about managing layout and separation of concerns between UI surface and state/model, supporting the claimed mappings.\nThese excerpts support the factual basis of the field_answer.\n",
+        "citations": [
+          {
+            "url": "https://super.engineering/docs/",
+            "excerpts": [
+              "The app is a native macOS workspace for agentic engineering. It organizes projects into durable workspaces, isolates Git-backed tasks in their own worktrees"
+            ],
+            "title": "Docs"
+          },
+          {
+            "url": "https://super.engineering/",
+            "excerpts": [
+              "Manage branches, review diffs, and ship from one keyboard-driven interface. customizable layouts and themes, a single, keyboard-driven interface. Think of it"
+            ],
+            "title": "super.engineering"
+          },
+          {
+            "url": "https://github.com/mathuo/dockview",
+            "excerpts": [],
+            "title": "GitHub - mathuo/dockview: Zero dependency docking layout manager supporting tabs, groups, grids and splitviews. Supports React, Vue, Angular, and vanilla TypeScript. \u00b7 GitHub"
+          },
+          {
+            "url": "https://dockview.dev/",
+            "excerpts": [
+              "Dockview is a zero dependency docking layout manager for building IDE-like interfaces with tabs, groups, grids, splitviews, drag and drop, floating panels,"
+            ],
+            "title": "Dockview: Docking Layout Manager"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "candidate_comparison",
+        "reasoning": "Assessment reasoning:\n- The field answer provides a structured comparison table for three candidates (Dockview, FlexLayout, Golden Layout) covering license/scope, docking capability, mobile evidence, and a verdict. This aligns with a typical comparative field that asks to evaluate alternatives against criteria (MIT license, dockable UI, mobile support).\n- Completeness: The answer directly addresses what a user would expect from a candidate comparison: it lists each candidate with licensing, docking features, mobile evidence, and a recommended decision. There is no obvious missing candidate category or required criterion given in the input. Therefore, the answer is complete with respect to a comparison field.\n- Excerpt support: Provided excerpts include descriptions of FlexLayout (React layout manager with tabsets and docking), Golden Layout (MIT, drag/drop docking), and a mobile-related mobile/dnd capability claim for Dockview (touch gestures). Excerpts 0, 1, 2, and 3 collectively support the claims in the field answer about docking capabilities, licensing (MIT), and mobile/touch functionality. The test notes align with the excerpts (e.g., Dockview\u2019s mobile gesture design supported by excerpt 3).\n- Therefore, completeness = true and supported = true.",
+        "citations": [
+          {
+            "url": "https://github.com/caplin/FlexLayout",
+            "excerpts": [
+              "FlexLayout is a layout manager for React that arranges components in multiple tabsets. Tabs can be resized, moved, and organized into complex layouts."
+            ],
+            "title": "caplin/FlexLayout: Docking Layout Manager for React"
+          },
+          {
+            "url": "https://github.com/golden-layout/golden-layout",
+            "excerpts": [
+              "Golden Layout is a Javascript layout manager which enables you to layout components in a web page and re-arrange them with drag and drop."
+            ],
+            "title": "Golden Layout"
+          },
+          {
+            "url": "https://github.com/golden-layout/golden-layout/blob/master/LICENSE",
+            "excerpts": [
+              "golden-layout is licensed under the MIT License. A short and simple permissive license with conditions only requiring preservation of copyright and license"
+            ],
+            "title": "golden-layout/LICENSE at master"
+          },
+          {
+            "url": "https://dockview.dev/docs/core/dnd/overview/",
+            "excerpts": [
+              "Touch and pen drags are driven by a pointer-events backend with a long-press-to-drag gesture, so taps and native scroll still work on mobile."
+            ],
+            "title": "Overview"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "reference_case_super_engineering_as_the_design_target",
+        "reasoning": "Assessment notes:\n- Field description appears to expect an analysis of how the reference case (super.engineering as design target) informs the design decisions for a UI library like Dockview and its mobile considerations.\n- The provided field_answer covers: (a) what the super.engineering case demonstrates (durable context, sessions, code, workspaces), (b) limitations of Dockview regarding durable context and lifecycle, (c) a design recommendation to separate persisted records for workspaceId, project/task identity, session identity, and layout state, and (d) mobile presentation policy, with long-press drag, touch interaction, and single-surface strategy.\n- Excerpts indicate relevant support: durable workspaces and worktrees in super.engineering (excerpt 0), Dockview as a docking layout manager (excerpt 1), and mobile/touch interaction details (excerpt 2).\n- The field_answer cites references not present in excerpts (reference_case_super_engineering_as_the_design_target[0]/[1]/[2]), but the substantive points are aligned with the excerpts. Overall, the answer appears complete with reasonable alignment to the provided excerpts.\n- Conclusion: completeness should be true; supported should be true since the major claims align with the excerpts, even if exact citation markers aren\u2019t in the excerpts list.",
+        "citations": [
+          {
+            "url": "https://super.engineering/docs/",
+            "excerpts": [
+              "The app is a native macOS workspace for agentic engineering. It organizes projects into durable workspaces, isolates Git-backed tasks in their own worktrees"
+            ],
+            "title": "Docs"
+          },
+          {
+            "url": "https://dockview.dev/",
+            "excerpts": [
+              "Dockview is a zero dependency docking layout manager for building IDE-like interfaces with tabs, groups, grids, splitviews, drag and drop, floating panels,"
+            ],
+            "title": "Dockview: Docking Layout Manager"
+          },
+          {
+            "url": "https://dockview.dev/docs/core/dnd/overview/",
+            "excerpts": [
+              "Touch and pen drags are driven by a pointer-events backend with a long-press-to-drag gesture, so taps and native scroll still work on mobile."
+            ],
+            "title": "Overview"
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "field": "synthesis_and_recommendation",
+        "reasoning": "The field_answer provides a synthesis comparing Dockview, FlexLayout, and Golden Layout, with recommendations favoring Dockview plus a responsive workspace policy. Completeness judgment focuses on whether the answer addresses the user's request for an open-source MIT-licensed, dockable multi-pane workspace UI with good mobile experience and alternatives to Paseo nested workspaces, including trade-offs and actionable guidance. The excerpts provided only mention FlexLayout and Golden Layout, not Dockview, so while the answer is complete in content, the supporting excerpts do not back the specific claims about Dockview and mobile evidence. Therefore completeness is true, but support from excerpts is false.",
+        "citations": [
+          {
+            "url": "https://github.com/mathuo/dockview",
+            "excerpts": [],
+            "title": "GitHub - mathuo/dockview: Zero dependency docking layout manager supporting tabs, groups, grids and splitviews. Supports React, Vue, Angular, and vanilla TypeScript. \u00b7 GitHub"
+          },
+          {
+            "url": "https://github.com/caplin/FlexLayout",
+            "excerpts": [
+              "FlexLayout is a layout manager for React that arranges components in multiple tabsets. Tabs can be resized, moved, and organized into complex layouts."
+            ],
+            "title": "caplin/FlexLayout: Docking Layout Manager for React"
+          },
+          {
+            "url": "https://github.com/golden-layout/golden-layout",
+            "excerpts": [
+              "Golden Layout is a Javascript layout manager which enables you to layout components in a web page and re-arrange them with drag and drop."
+            ],
+            "title": "Golden Layout"
+          }
+        ],
+        "confidence": "medium"
+      }
+    ],
+    "content": {
+      "executive_summary": "- **Best Match**: Dockview's official site describes an IDE-like layout manager with tabs, groups, drag and drop, floating panels, and popout windows -> use it as the shell for nested project, agent, terminal, diff, and preview panes. [executive_summary[0]] [8]\n- **Mobile Fit**: Dockview explicitly says it is touch and mobile ready, and its drag-and-drop documentation describes pointer events plus long-press-to-drag so taps and native scrolling continue to work -> prefer it over desktop-only docking libraries when phone use matters. [executive_summary[0]] [8] [executive_summary[1]] [34]\n- **License Fit**: The project repository identifies the library as open source and the repository includes an MIT license -> it satisfies the stated licensing constraint, subject to retaining the license notice. [executive_summary[2]] [6] [executive_summary[3]] [9]\n- **Correct Boundary**: super.engineering is a native macOS agent workspace with durable workspaces, Git worktrees, terminals, chat, and diff review, not a UI library -> Dockview supplies the pane mechanics, while your application must supply those workspace semantics. [executive_summary[4]] [23]\n- **Runner-Up**: FlexLayout is also MIT and React-focused, with resizable and movable tabsets, edge docking, floating panels, persistence, accessibility, and mobile support described in its repository -> choose it if a React-only, model-driven layout API is more important than Dockview's explicit mobile positioning. [executive_summary[5]] [11]\n- **Avoid a License Trap**: React-Dockable is a plausible visual fit, but its repository lists separate commercial and noncommercial license files and states that commercial use requires a commercial license or sponsorship -> do not treat it as an MIT substitute. [executive_summary[6]] [26]",
+      "why_dockview_fits_the_super_engineering_pattern": "The useful part of the super.engineering reference is not its macOS implementation; it is the relationship between durable workspaces and rearrangeable tools. Its documentation describes projects grouped into durable workspaces, task isolation through Git-backed worktrees, terminals and chat tied to the code they change, and a surface for reviewing diffs before merging. The product page also presents tabs and workspaces as a way to run several coding agents in one place. [why_dockview_fits_the_super_engineering_pattern[0]] [23] [why_dockview_fits_the_super_engineering_pattern[1]] [21]\n\nDockview maps well to the presentation layer of that model. Its documented primitives - tabs, groups, grids, split views, drag and drop, floating panels, and popouts - are enough to represent an agent session, terminal, diff, file browser, browser preview, and logs as movable surfaces. The mechanism is separation of concerns: Dockview manages geometry and panel interaction; your state model manages workspace identity, project membership, active agent, permissions, persistence, and routing. [why_dockview_fits_the_super_engineering_pattern[2]] [6] [why_dockview_fits_the_super_engineering_pattern[3]] [8]\n\nThe important implication is that Dockview is an alternative to Paseo's nested-workspace UI, not a replacement for Paseo's orchestration product. That is an advantage if the goal is to build a custom experience: keep the agent and repository model independent from the layout tree, then serialize both separately. A mobile client can show the same workspace state as a single active pane with a drawer or bottom sheet, while desktop can expose splits and floating panels. This responsive policy is an implementation recommendation, not a claim that Dockview automatically creates the complete Paseo product.",
+      "candidate_comparison": "| Candidate | License and scope | Docking capability | Mobile evidence | Decision |\n|---|---|---|---|---|\n| **Dockview** | Open source; MIT repository license; React, Vue, Angular, and vanilla TypeScript support | Tabs, groups, grids, split views, drag and drop, floating panels, popouts | Official site says touch and mobile ready; docs describe long-press-to-drag and native-scroll behavior | **Recommended** |\n| **FlexLayout** | MIT; React layout manager | Multiple tabsets, resizing, moving, edge docking, floating panels, popouts, serialized models | Mobile support is listed in the project README | Strong React-only alternative |\n| **Golden Layout** | MIT JavaScript layout manager | Components arranged and rearranged with drag and drop | The reviewed official sources establish docking, but do not make as direct a mobile-readiness claim | Desktop-oriented fallback |\n\nThe table points to a specific trade-off. FlexLayout is the strongest alternative when its React model and serialized layout state align with the application, while Golden Layout is a legitimate MIT docking option but has weaker evidence for the mobile requirement in the sources reviewed. Dockview wins because mobile is not merely inferred from responsive CSS; it is an explicit product claim backed by a documented touch gesture design. [candidate_comparison[0]] [11] [candidate_comparison[1]] [16] [candidate_comparison[2]] [18] [candidate_comparison[3]] [34]",
+      "reference_case_super_engineering_as_the_design_target": "super.engineering makes a clear product decision: it treats coding-agent work as durable context rather than a collection of disposable windows. The documented workspace contains projects, isolated Git-backed tasks, terminal and chat sessions, and diff review. Its documented outcome is that a user can return to the same workspace and continue work with the relevant sessions and code context intact. [reference_case_super_engineering_as_the_design_target[0]] [23]\n\nThat case reveals what a UI library can and cannot do. Dockview can implement the visible interaction decision - dock, split, reorder, detach, and restore panels - but it does not create the durable context, worktree isolation, agent lifecycle, or merge workflow described by super.engineering. The recommended architecture is therefore to make `workspaceId`, project/task identity, session identity, and layout state separate persisted records. The layout record can change when a user rearranges panes without corrupting the agent or repository record.\n\nFor mobile, the same case argues against shrinking a desktop layout until every pane is unreadable. Use Dockview for the shared panel model, but switch the presentation policy at a narrow breakpoint: one active surface, an explicit pane switcher, and a quick return path to the workspace overview. Long-press drag support and native scrolling address touch interaction; the single-surface policy addresses information density. This is the practical way to achieve a good mobile experience rather than assuming that desktop docking automatically becomes mobile-friendly. [reference_case_super_engineering_as_the_design_target[1]] [8] [reference_case_super_engineering_as_the_design_target[2]] [34]",
+      "synthesis_and_recommendation": "Across mechanism, scope, and trade-offs, Dockview is the best fit for the stated constraint set. Dockview has the clearest mobile evidence and broad framework support, but it is a layout engine, so the application must build nested workspace semantics around it. FlexLayout offers a more explicitly React and model-oriented alternative with a broad docking feature set and stated mobile support, but Dockview's touch documentation makes the mobile requirement easier to defend. Golden Layout is mature as a general JavaScript docking manager and is MIT licensed, but the reviewed evidence does not establish the same mobile emphasis. [synthesis_and_recommendation[0]] [6] [synthesis_and_recommendation[1]] [11] [synthesis_and_recommendation[2]] [16]\n\nThe non-obvious tension is between reproducing a rich desktop workspace and preserving mobile usability. More docking freedom is valuable on a large screen but can produce a cramped, gesture-conflicting phone UI. The decision should therefore be **Dockview plus a responsive workspace policy**, not Dockview alone: use docked multi-pane layouts on desktop, a focused-pane navigation model on mobile, and keep workspace/session persistence in application state. If the project is strictly React and its model serialization is the decisive factor, evaluate FlexLayout in a short prototype; otherwise, start with Dockview."
+    },
+    "type": "json",
+    "beta_fields": null,
+    "mcp_tool_calls": null,
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "executive_summary": {
+          "type": "string",
+          "title": "Executive Summary"
+        },
+        "why_dockview_fits_the_super_engineering_pattern": {
+          "type": "string",
+          "title": "Why Dockview Fits the super.engineering Pattern"
+        },
+        "candidate_comparison": {
+          "type": "string",
+          "title": "Candidate Comparison"
+        },
+        "reference_case_super_engineering_as_the_design_target": {
+          "type": "string",
+          "title": "Reference Case: super.engineering as the Design Target"
+        },
+        "synthesis_and_recommendation": {
+          "type": "string",
+          "title": "Synthesis and Recommendation"
+        }
+      },
+      "required": [
+        "executive_summary",
+        "why_dockview_fits_the_super_engineering_pattern",
+        "candidate_comparison",
+        "reference_case_super_engineering_as_the_design_target",
+        "synthesis_and_recommendation"
+      ]
+    }
+  }
+}

@@ -13,3 +13,7 @@ test-results/
 .validate/
 BUILD.txt
 pi-remote-icon-preview.png
+
+# pi runtime
+.pi/
+.pi-subagents/
